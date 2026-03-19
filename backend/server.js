@@ -13,6 +13,10 @@ app.use(express.urlencoded({ extended: true }));
 // API routes
 app.use('/api/games', require('./routes/games'));
 
+const { inventoryRouter, ordersRouter } = require('./routes/inventory');
+app.use('/api/inventory', inventoryRouter);
+app.use('/api/orders',    ordersRouter);
+
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 

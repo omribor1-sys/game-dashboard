@@ -18,6 +18,8 @@ export default function GameDetail() {
   const [activeTab, setActiveTab] = useState('overview');
   const [editCosts, setEditCosts] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
 
   useEffect(() => {
     fetch(`/api/games/${id}`)
@@ -26,10 +28,27 @@ export default function GameDetail() {
         if (d.error) throw new Error(d.error);
         setGame(d);
         setEditCosts(d.extra_costs.map(c => ({ ...c })));
+        setNotes(d.notes || '');
         setLoading(false);
       })
       .catch(e => { setError(e.message); setLoading(false); });
   }, [id]);
+
+  const saveNotes = async () => {
+    setSavingNotes(true);
+    try {
+      const res = await fetch(`/api/games/${id}/notes`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes }),
+      });
+      if (!res.ok) throw new Error('Failed to save');
+    } catch (e) {
+      alert('Error: ' + e.message);
+    } finally {
+      setSavingNotes(false);
+    }
+  };
 
   const saveCosts = async () => {
     setSaving(true);
@@ -100,58 +119,42 @@ export default function GameDetail() {
             <MetricCard label="Avg Sell Price" value={fmt(game.avg_sell_price)} sub="per ticket" />
           </div>
 
-          {/* P&L Breakdown */}
+          {/* P&L Breakdown — with inline editing */}
           <div style={{ marginBottom: 24 }}>
             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Profit & Loss</div>
-            <PLTable game={game} />
+            <PLTable
+              game={game}
+              editCosts={editCosts}
+              setEditCosts={setEditCosts}
+              onSave={saveCosts}
+              saving={saving}
+            />
           </div>
 
-          {/* Extra Costs Editor */}
+          {/* Notes / Memo */}
           <div className="card card-body" style={{ marginBottom: 24 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ fontWeight: 700, fontSize: 14 }}>Extra Costs</div>
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => setEditCosts(prev => [...prev, { label: '', amount: 0 }])}
-              >
-                + Add
-              </button>
-            </div>
-            {editCosts.length === 0 && (
-              <div style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 12 }}>No extra costs.</div>
-            )}
-            {editCosts.map((cost, i) => (
-              <div className="cost-row" key={i}>
-                <input
-                  type="text"
-                  placeholder="Label"
-                  value={cost.label}
-                  onChange={e => setEditCosts(prev => prev.map((c, idx) => idx === i ? { ...c, label: e.target.value } : c))}
-                />
-                <input
-                  type="number"
-                  className="amount"
-                  placeholder="€ Amount"
-                  value={cost.amount}
-                  min="0"
-                  step="0.01"
-                  onChange={e => setEditCosts(prev => prev.map((c, idx) => idx === i ? { ...c, amount: parseFloat(e.target.value) || 0 } : c))}
-                />
-                <button
-                  className="btn btn-sm btn-danger"
-                  onClick={() => setEditCosts(prev => prev.filter((_, idx) => idx !== i))}
-                >×</button>
-              </div>
-            ))}
-            <button className="btn btn-primary btn-sm" onClick={saveCosts} disabled={saving}>
-              {saving ? 'Saving…' : '✓ Save & Recalculate'}
+            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>📝 Notes</div>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="הוסף הערות למשחק זה..."
+              rows={4}
+              style={{
+                width: '100%', boxSizing: 'border-box', padding: '10px 12px',
+                border: '1px solid var(--border)', borderRadius: 8, fontSize: 14,
+                fontFamily: 'inherit', resize: 'vertical', background: 'var(--bg)',
+                color: 'var(--text)', marginBottom: 10
+              }}
+            />
+            <button className="btn btn-primary btn-sm" onClick={saveNotes} disabled={savingNotes}>
+              {savingNotes ? 'Saving…' : '✓ Save Notes'}
             </button>
           </div>
 
-          {/* Issues / Notes */}
+          {/* Issues from file */}
           {issueEntries.length > 0 && (
             <div style={{ marginBottom: 24 }}>
-              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Notes / Issues</div>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Issues from File</div>
               <div className="table-wrap">
                 <table>
                   <thead>

@@ -90,8 +90,9 @@ function parseGameFile(filePath, tabName) {
       continue;
     }
 
-    // "ELI COST" or "ELI" row
-    if (text.includes('ELI COST') || text.includes('ELI')) {
+    // "ELI COST" or "ELI" row — only match when NAME column is exactly ELI/ELI COST
+    const nameForEli = String(normRow['NAME'] || '').trim().toUpperCase();
+    if (nameForEli === 'ELI COST' || nameForEli === 'ELI') {
       eliCost = toEur(normRow['SOLD']) || toEur(normRow['PRICE EUR']) || findNumeric(normRow);
       continue;
     }

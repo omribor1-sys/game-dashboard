@@ -1,12 +1,21 @@
 const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, 'games.db');
+// In production (Fly.io), use persistent volume at /data
+const DB_PATH = process.env.NODE_ENV === 'production'
+  ? '/data/games.db'
+  : path.join(__dirname, 'games.db');
 const db = new DatabaseSync(DB_PATH);
 
 // Enable WAL mode and foreign keys via SQL
 db.exec("PRAGMA journal_mode = WAL");
 db.exec("PRAGMA foreign_keys = ON");
+
+// Migrations
+try { db.exec("ALTER TABLE games ADD COLUMN notes TEXT DEFAULT ''"); } catch (_) {}
+try { db.exec("ALTER TABLE inventory ADD COLUMN member_number TEXT"); } catch (_) {}
+try { db.exec("ALTER TABLE orders ADD COLUMN order_number TEXT"); } catch (_) {}
+try { db.exec("ALTER TABLE orders ADD COLUMN sales_channel TEXT"); } catch (_) {}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS games (
@@ -33,6 +42,39 @@ db.exec(`
     game_id INTEGER REFERENCES games(id) ON DELETE CASCADE,
     label TEXT,
     amount REAL
+  );
+
+  CREATE TABLE IF NOT EXISTS inventory (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    game_id INTEGER REFERENCES games(id) ON DELETE SET NULL,
+    game_name TEXT NOT NULL,
+    game_date TEXT,
+    seat TEXT,
+    section TEXT,
+    category TEXT,
+    buy_price REAL DEFAULT 0,
+    sell_price REAL DEFAULT 0,
+    status TEXT DEFAULT 'Available',
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    buyer_name TEXT,
+    buyer_email TEXT,
+    buyer_phone TEXT,
+    total_amount REAL DEFAULT 0,
+    status TEXT DEFAULT 'Pending',
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS order_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
+    inventory_id INTEGER REFERENCES inventory(id) ON DELETE CASCADE,
+    sell_price REAL DEFAULT 0
   );
 `);
 

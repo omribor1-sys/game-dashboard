@@ -116,8 +116,8 @@ router.get('/:id', (req, res) => {
       'SELECT * FROM extra_costs WHERE game_id = ? ORDER BY id'
     ).all(req.params.id);
 
-    game.status_breakdown = JSON.parse(game.status_breakdown || '{}');
-    game.issues = JSON.parse(game.issues || '{}');
+    game.status_breakdown = safeParse(game.status_breakdown, {});
+    game.issues = safeParse(game.issues, {});
     game.extra_costs = extraCosts;
 
     res.json(game);
@@ -162,13 +162,26 @@ router.put('/:id/costs', (req, res) => {
     `).run(totalAllCosts, netProfit, marginPercent, req.params.id);
 
     const updated = db.prepare('SELECT * FROM games WHERE id = ?').get(req.params.id);
-    updated.status_breakdown = JSON.parse(updated.status_breakdown || '{}');
-    updated.issues = JSON.parse(updated.issues || '{}');
+    updated.status_breakdown = safeParse(updated.status_breakdown, {});
+    updated.issues = safeParse(updated.issues, {});
     updated.extra_costs = db.prepare(
       'SELECT * FROM extra_costs WHERE game_id = ? ORDER BY id'
     ).all(req.params.id);
 
     res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/games/:id/notes
+router.put('/:id/notes', (req, res) => {
+  try {
+    const { notes } = req.body;
+    const result = db.prepare('UPDATE games SET notes = ? WHERE id = ?').run(notes || '', req.params.id);
+    if (result.changes === 0) return res.status(404).json({ error: 'Game not found' });
+    res.json({ success: true, notes: notes || '' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -189,6 +202,16 @@ router.delete('/:id', (req, res) => {
 
 function round2(n) {
   return Math.round(n * 100) / 100;
+}
+
+function safeParse(val, fallback = {}) {
+  if (!val || val === 'null' || val === 'undefined') return fallback;
+  try {
+    const parsed = JSON.parse(val);
+    return parsed ?? fallback;
+  } catch (_) {
+    return fallback;
+  }
 }
 
 module.exports = router;

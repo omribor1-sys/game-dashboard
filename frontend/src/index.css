@@ -98,6 +98,15 @@ a { text-decoration: none; color: inherit; }
 
 .nav-item svg { flex-shrink: 0; }
 
+.sidebar-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.25);
+  padding: 10px 12px 4px;
+}
+
 .main {
   margin-left: 240px;
   flex: 1;
@@ -268,6 +277,7 @@ tbody tr:hover td { background: #fafbfe; }
 .badge-red { background: var(--red-light); color: var(--red); }
 .badge-amber { background: var(--amber-light); color: var(--amber); }
 .badge-gray { background: #f1f5f9; color: var(--text-muted); }
+.badge-blue { background: #dbeafe; color: #1d4ed8; }
 
 /* Chart container */
 .chart-wrap {

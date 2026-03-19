@@ -1,0 +1,8 @@
+backend/node_modules
+backend/uploads/*
+backend/games.db
+frontend/node_modules
+frontend/src
+frontend/public
+*.log
+.git

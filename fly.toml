@@ -1,0 +1,22 @@
+app = "game-dashboard-omri"
+primary_region = "ams"
+
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3001"
+
+[mounts]
+  source = "game_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1
