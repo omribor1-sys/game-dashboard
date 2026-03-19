@@ -121,9 +121,18 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {games.map(g => (
-                <tr key={g.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/game/${g.id}`)}>
-                  <td style={{ fontWeight: 600 }}>{g.name}</td>
+              {games.map((g, idx) => (
+                <tr
+                  key={g.id != null ? g.id : `inv-${idx}`}
+                  style={{ cursor: g.source === 'inventory' ? 'default' : 'pointer' }}
+                  onClick={() => g.source !== 'inventory' && navigate(`/game/${g.id}`)}
+                >
+                  <td style={{ fontWeight: 600 }}>
+                    {g.name}
+                    {g.source === 'inventory' && (
+                      <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>(inventory)</span>
+                    )}
+                  </td>
                   <td style={{ color: 'var(--text-muted)' }}>{g.date || '—'}</td>
                   <td style={{ textAlign: 'right' }}>{g.tickets_sold ?? '—'}</td>
                   <td style={{ textAlign: 'right' }}>{fmt(g.total_revenue)}</td>
@@ -137,12 +146,14 @@ export default function Dashboard() {
                     </span>
                   </td>
                   <td onClick={e => e.stopPropagation()}>
-                    <button
-                      className="btn btn-sm btn-danger"
-                      onClick={() => handleDelete(g.id, g.name)}
-                    >
-                      Delete
-                    </button>
+                    {g.source !== 'inventory' && (
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={() => handleDelete(g.id, g.name)}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

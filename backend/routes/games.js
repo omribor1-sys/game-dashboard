@@ -82,11 +82,61 @@ router.post('/upload', upload.single('file'), (req, res) => {
 // GET /api/games
 router.get('/', (req, res) => {
   try {
-    const games = db.prepare(`
+    const gamesFromTable = db.prepare(`
       SELECT id, name, date, uploaded_at, total_revenue, total_ticket_cost,
         eli_cost, total_all_costs, net_profit, margin_percent, tickets_sold
       FROM games ORDER BY date DESC, uploaded_at DESC
     `).all();
+
+    // Add source flag to games-table entries
+    const gamesWithSource = gamesFromTable.map(g => ({ ...g, source: 'games' }));
+
+    // Get names of games already in the games table (for deduplication)
+    const gamesTableNames = new Set(gamesFromTable.map(g => g.name));
+
+    // Aggregate inventory-only games: games that exist in inventory but NOT in games table
+    const inventoryGames = db.prepare(`
+      SELECT
+        game_name AS name,
+        game_date AS date,
+        COUNT(*) AS tickets_sold,
+        SUM(CASE WHEN status IN ('Sold','Delivered') THEN sell_price ELSE 0 END) AS total_revenue,
+        SUM(buy_price) AS total_all_costs
+      FROM inventory
+      GROUP BY game_name
+      ORDER BY game_date DESC, game_name
+    `).all();
+
+    const inventoryOnlyGames = inventoryGames
+      .filter(g => !gamesTableNames.has(g.name))
+      .map(g => {
+        const revenue = g.total_revenue || 0;
+        const costs = g.total_all_costs || 0;
+        const netProfit = round2(revenue - costs);
+        const marginPercent = revenue > 0 ? round2((netProfit / revenue) * 100) : 0;
+        return {
+          id: null,
+          name: g.name,
+          date: g.date,
+          uploaded_at: null,
+          total_revenue: round2(revenue),
+          total_ticket_cost: round2(costs),
+          eli_cost: 0,
+          total_all_costs: round2(costs),
+          net_profit: netProfit,
+          margin_percent: marginPercent,
+          tickets_sold: g.tickets_sold || 0,
+          source: 'inventory',
+        };
+      });
+
+    const games = [...gamesWithSource, ...inventoryOnlyGames].sort((a, b) => {
+      const da = a.date || '';
+      const db2 = b.date || '';
+      if (da > db2) return -1;
+      if (da < db2) return 1;
+      return 0;
+    });
 
     const summary = {
       totalRevenue: games.reduce((s, g) => s + (g.total_revenue || 0), 0),
