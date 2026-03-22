@@ -59,6 +59,17 @@ export default function GameDetail() {
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
 
+  // Order-inventory linking state
+  const [expandedOrder, setExpandedOrder] = useState(null);
+  const [orderItems, setOrderItems] = useState({});
+  const [availableInv, setAvailableInv] = useState([]);
+  const [showLinkPicker, setShowLinkPicker] = useState(null);
+  const [linkSellPrice, setLinkSellPrice] = useState('');
+
+  // Inventory tab: assign-to-order state
+  const [assigningInventory, setAssigningInventory] = useState(null); // inventory item id
+  const [assignOrderId, setAssignOrderId] = useState('');
+
   // Load game info
   useEffect(() => {
     if (isInventoryOnly) {
@@ -74,7 +85,6 @@ export default function GameDetail() {
       .then(d => {
         if (d.error) throw new Error(d.error);
         setGame(d);
-        // Pre-fill summary from game data if available
         setSummary({
           total_revenue: d.total_revenue ?? 0,
           total_ticket_cost: d.total_ticket_cost ?? 0,
@@ -85,7 +95,6 @@ export default function GameDetail() {
       })
       .catch(e => {
         if (e.message === '404' && gameName) {
-          // Fall back to inventory-only mode
           setGame({ name: gameName, date: null, id: null });
           setLoading(false);
         } else {
@@ -152,6 +161,126 @@ export default function GameDetail() {
       .catch(() => {});
   }
 
+  // Fetch items for a specific order
+  async function fetchOrderItems(orderId) {
+    try {
+      const res = await fetch(`${API}/orders/${orderId}/items`);
+      const data = await res.json();
+      setOrderItems(prev => ({ ...prev, [orderId]: Array.isArray(data) ? data : (data.items || []) }));
+    } catch {
+      setOrderItems(prev => ({ ...prev, [orderId]: [] }));
+    }
+  }
+
+  // Fetch available inventory for linking
+  async function fetchAvailableInv() {
+    if (!game) return;
+    try {
+      const res = await fetch(`${API}/inventory/available?game_name=${encodeURIComponent(game.name)}`);
+      const data = await res.json();
+      setAvailableInv(Array.isArray(data) ? data : (data.inventory || []));
+    } catch {
+      setAvailableInv([]);
+    }
+  }
+
+  // Toggle order row expansion
+  function toggleOrder(orderId) {
+    if (expandedOrder === orderId) {
+      setExpandedOrder(null);
+      setShowLinkPicker(null);
+    } else {
+      setExpandedOrder(orderId);
+      setShowLinkPicker(null);
+      fetchOrderItems(orderId);
+    }
+  }
+
+  // Open link picker for an order
+  function openLinkPicker(orderId) {
+    setShowLinkPicker(orderId);
+    setLinkSellPrice('');
+    fetchAvailableInv();
+  }
+
+  // Link an inventory item to an order
+  async function linkInventoryItem(orderId, inventoryId, sellPrice) {
+    try {
+      const body = { sell_price: Number(sellPrice) || 0 };
+      if (inventoryId != null) body.inventory_id = inventoryId;
+      await fetch(`${API}/orders/${orderId}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      await fetchOrderItems(orderId);
+      await fetchAvailableInv();
+      loadInventory();
+    } catch (e) {
+      alert('Error linking item: ' + e.message);
+    }
+  }
+
+  // Remove an order item
+  async function removeOrderItem(orderId, itemId) {
+    try {
+      await fetch(`${API}/orders/${orderId}/items/${itemId}`, { method: 'DELETE' });
+      await fetchOrderItems(orderId);
+      loadInventory();
+    } catch (e) {
+      alert('Error removing item: ' + e.message);
+    }
+  }
+
+  // Update sell_price on an order item
+  async function updateItemSellPrice(orderId, itemId, newPrice) {
+    try {
+      await fetch(`${API}/orders/${orderId}/items/${itemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sell_price: Number(newPrice) || 0 }),
+      });
+      await fetchOrderItems(orderId);
+    } catch (e) {
+      alert('Error updating price: ' + e.message);
+    }
+  }
+
+  // Assign inventory item to order (from inventory tab)
+  async function assignInventoryToOrder(inventoryItem, orderId) {
+    if (!orderId) return;
+    try {
+      await fetch(`${API}/orders/${orderId}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inventory_id: inventoryItem.id, sell_price: 0 }),
+      });
+      loadInventory();
+      setAssigningInventory(null);
+      setAssignOrderId('');
+    } catch (e) {
+      alert('Error assigning item: ' + e.message);
+    }
+  }
+
+  // Inventory stats
+  const totalTickets = inventory.length;
+  const availableCount = inventory.filter(t => (t.status || '').toLowerCase() === 'available').length;
+  const soldCount = inventory.filter(t => {
+    const s = (t.status || '').toLowerCase();
+    return s === 'sold' || s === 'delivered';
+  }).length;
+  const totalCost = inventory.reduce((sum, t) => sum + (Number(t.buy_price) || 0), 0);
+
+  // Summary calcs
+  const revenue = Number(summary.total_revenue) || 0;
+  const ticketCost = Number(summary.total_ticket_cost) || 0;
+  const eliCost = Number(summary.eli_cost) || 0;
+  const netProfit = revenue - ticketCost - eliCost;
+  const marginPct = revenue > 0 ? ((netProfit / revenue) * 100).toFixed(1) : '—';
+
+  const hasTickets = totalTickets > 0 || inventory.length > 0;
+
   async function saveSummary() {
     setSaving(true);
     try {
@@ -196,24 +325,6 @@ export default function GameDetail() {
     }
   }
 
-  // Inventory stats
-  const totalTickets = inventory.length;
-  const availableCount = inventory.filter(t => (t.status || '').toLowerCase() === 'available').length;
-  const soldCount = inventory.filter(t => {
-    const s = (t.status || '').toLowerCase();
-    return s === 'sold' || s === 'delivered';
-  }).length;
-  const totalCost = inventory.reduce((sum, t) => sum + (Number(t.buy_price) || 0), 0);
-
-  // Summary calcs
-  const revenue = Number(summary.total_revenue) || 0;
-  const ticketCost = Number(summary.total_ticket_cost) || 0;
-  const eliCost = Number(summary.eli_cost) || 0;
-  const netProfit = revenue - ticketCost - eliCost;
-  const marginPct = revenue > 0 ? ((netProfit / revenue) * 100).toFixed(1) : '—';
-
-  const hasTickets = totalTickets > 0 || inventory.length > 0;
-
   if (loading) return <div style={{ padding: 40, color: '#6B7280' }}>Loading…</div>;
   if (error) return <div style={{ padding: 40, color: '#DC2626' }}>Error: {error}</div>;
   if (!game) return null;
@@ -224,9 +335,9 @@ export default function GameDetail() {
     : null;
 
   const tabs = [
-    { key: 'inventory', label: '🎫 מלאי' },
-    { key: 'orders', label: '📋 הזמנות' },
-    { key: 'summary', label: '📊 סיכום' },
+    { key: 'inventory', label: '🎫 Inventory' },
+    { key: 'orders', label: '📋 Orders' },
+    { key: 'summary', label: '📊 Summary' },
   ];
 
   return (
@@ -285,10 +396,10 @@ export default function GameDetail() {
         <div>
           {/* Stats row */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
-            <StatCard label="סה״כ כרטיסים" value={totalTickets} />
-            <StatCard label="זמינים" value={availableCount} />
-            <StatCard label="נמכרו / הועברו" value={soldCount} />
-            <StatCard label="עלות מלאי" value={fmt(totalCost)} />
+            <StatCard label="Total Tickets" value={totalTickets} />
+            <StatCard label="Available" value={availableCount} />
+            <StatCard label="Sold / Delivered" value={soldCount} />
+            <StatCard label="Inventory Cost" value={fmt(totalCost)} />
           </div>
 
           {inventory.length === 0 ? (
@@ -297,15 +408,15 @@ export default function GameDetail() {
               padding: '48px 24px', textAlign: 'center', color: '#9CA3AF'
             }}>
               <div style={{ fontSize: 32, marginBottom: 12 }}>🎫</div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#6B7280' }}>אין כרטיסים במלאי</div>
-              <div style={{ fontSize: 13, marginTop: 6 }}>העלה קובץ Excel להוספת כרטיסים</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#6B7280' }}>No tickets in inventory</div>
+              <div style={{ fontSize: 13, marginTop: 6 }}>Upload an Excel file to add tickets</div>
             </div>
           ) : (
             <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 12, overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
                   <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
-                    {['מושב', 'קטגוריה', 'סטטוס', 'מחיר רכישה', 'הזמנה'].map(h => (
+                    {['Seat', 'Category', 'Status', 'Buy Price', 'Order'].map(h => (
                       <th key={h} style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 600, color: '#374151', fontSize: 13 }}>{h}</th>
                     ))}
                   </tr>
@@ -322,8 +433,70 @@ export default function GameDetail() {
                       <td style={{ padding: '10px 14px', color: '#6B7280' }}>{ticket.category || '—'}</td>
                       <td style={{ padding: '10px 14px' }}><StatusBadge status={ticket.status} /></td>
                       <td style={{ padding: '10px 14px', color: '#111827' }}>{fmt(ticket.buy_price)}</td>
-                      <td style={{ padding: '10px 14px', color: ticket.order_id ? '#1D9E75' : '#9CA3AF' }}>
-                        {ticket.order_id ? `#${ticket.order_id}` : '—'}
+                      <td style={{ padding: '10px 14px' }}>
+                        {ticket.order_id ? (
+                          <span style={{
+                            display: 'inline-block', padding: '2px 10px', borderRadius: 12,
+                            fontSize: 12, fontWeight: 600, background: '#ECFDF5', color: '#065F46'
+                          }}>
+                            📋 Order #{ticket.order_id}
+                          </span>
+                        ) : assigningInventory === ticket.id ? (
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <select
+                              value={assignOrderId}
+                              onChange={e => setAssignOrderId(e.target.value)}
+                              style={{
+                                padding: '4px 8px', borderRadius: 6, border: '1px solid #D1D5DB',
+                                fontSize: 13, color: '#111827', outline: 'none'
+                              }}
+                            >
+                              <option value="">-- Select Order --</option>
+                              {orders.map(o => (
+                                <option key={o.id} value={o.id}>
+                                  #{o.order_number || o.id} — {o.buyer_name || ''}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => assignInventoryToOrder(ticket, assignOrderId)}
+                              disabled={!assignOrderId}
+                              style={{
+                                background: '#1D9E75', color: '#fff', border: 'none', borderRadius: 6,
+                                padding: '4px 10px', fontSize: 12, fontWeight: 600,
+                                cursor: assignOrderId ? 'pointer' : 'not-allowed',
+                                opacity: assignOrderId ? 1 : 0.5
+                              }}
+                            >
+                              ✓
+                            </button>
+                            <button
+                              onClick={() => { setAssigningInventory(null); setAssignOrderId(''); }}
+                              style={{
+                                background: 'none', border: '1px solid #E5E7EB', borderRadius: 6,
+                                padding: '4px 8px', fontSize: 12, color: '#6B7280', cursor: 'pointer'
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ color: '#9CA3AF', fontSize: 13 }}>— Unassigned</span>
+                            {orders.length > 0 && (
+                              <button
+                                onClick={() => { setAssigningInventory(ticket.id); setAssignOrderId(''); }}
+                                style={{
+                                  background: 'none', border: '1px solid #1D9E75', borderRadius: 6,
+                                  padding: '2px 8px', fontSize: 11, color: '#1D9E75',
+                                  cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap'
+                                }}
+                              >
+                                + Assign to Order
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -345,7 +518,7 @@ export default function GameDetail() {
                 padding: '9px 20px', fontWeight: 600, fontSize: 14, cursor: 'pointer'
               }}
             >
-              + הוסף הזמנה
+              + Add Order
             </button>
           </div>
 
@@ -355,7 +528,7 @@ export default function GameDetail() {
               padding: '48px 24px', textAlign: 'center', color: '#9CA3AF'
             }}>
               <div style={{ fontSize: 32, marginBottom: 12 }}>📋</div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#6B7280', marginBottom: 16 }}>אין הזמנות למשחק זה</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#6B7280', marginBottom: 16 }}>No orders for this game</div>
               <button
                 onClick={() => navigate(`/orders?game=${encodeURIComponent(displayName)}`)}
                 style={{
@@ -363,7 +536,7 @@ export default function GameDetail() {
                   padding: '10px 24px', fontWeight: 600, fontSize: 14, cursor: 'pointer'
                 }}
               >
-                + הוסף הזמנה ראשונה
+                + Add First Order
               </button>
             </div>
           ) : (
@@ -371,53 +544,241 @@ export default function GameDetail() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
                   <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+                    <th style={{ padding: '10px 8px', width: 28 }} />
                     {['הזמנה #', 'קונה', 'ערוץ', 'סטטוס', 'פריטים', 'סה״כ', 'פעולות'].map(h => (
                       <th key={h} style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 600, color: '#374151', fontSize: 13 }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {orders.map((order, i) => (
-                    <tr
-                      key={order.id || i}
-                      style={{ borderBottom: '1px solid #F3F4F6' }}
-                      onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
-                      onMouseLeave={e => e.currentTarget.style.background = ''}
-                    >
-                      <td style={{ padding: '10px 14px', fontWeight: 600, color: '#1D9E75' }}>
-                        {order.order_number ? `#${order.order_number}` : `#${order.id}`}
-                      </td>
-                      <td style={{ padding: '10px 14px', color: '#111827' }}>{order.buyer_name || '—'}</td>
-                      <td style={{ padding: '10px 14px' }}>
-                        {order.sales_channel ? (
-                          <span style={{
-                            background: '#F3F4F6', color: '#374151', borderRadius: 8,
-                            padding: '2px 10px', fontSize: 12, fontWeight: 500
-                          }}>
-                            {order.sales_channel}
-                          </span>
-                        ) : '—'}
-                      </td>
-                      <td style={{ padding: '10px 14px' }}>
-                        <StatusBadge status={order.status || 'Active'} />
-                      </td>
-                      <td style={{ padding: '10px 14px', color: '#6B7280' }}>
-                        {order.item_count ?? order.items_count ?? '—'}
-                      </td>
-                      <td style={{ padding: '10px 14px', fontWeight: 600 }}>{fmt(order.total)}</td>
-                      <td style={{ padding: '10px 14px' }}>
-                        <button
-                          onClick={() => navigate(`/orders?view=${order.id}`)}
+                  {orders.map((order, i) => {
+                    const isExpanded = expandedOrder === order.id;
+                    const items = orderItems[order.id] || [];
+                    const isPickerOpen = showLinkPicker === order.id;
+
+                    return (
+                      <>
+                        {/* Main order row */}
+                        <tr
+                          key={order.id || i}
                           style={{
-                            background: 'none', border: '1px solid #E5E7EB', borderRadius: 6,
-                            padding: '4px 12px', fontSize: 12, color: '#374151', cursor: 'pointer'
+                            borderBottom: isExpanded ? 'none' : '1px solid #F3F4F6',
+                            cursor: 'pointer',
+                            background: isExpanded ? '#F0FDF9' : undefined,
                           }}
+                          onClick={() => toggleOrder(order.id)}
+                          onMouseEnter={e => { if (!isExpanded) e.currentTarget.style.background = '#F9FAFB'; }}
+                          onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.background = ''; }}
                         >
-                          צפה
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                          {/* Expand arrow */}
+                          <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                            <span style={{
+                              display: 'inline-block',
+                              transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                              transition: 'transform 0.15s',
+                              fontSize: 11,
+                              color: '#9CA3AF',
+                            }}>
+                              ▶
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 14px', fontWeight: 600, color: '#1D9E75' }}>
+                            {order.order_number ? `#${order.order_number}` : `#${order.id}`}
+                          </td>
+                          <td style={{ padding: '10px 14px', color: '#111827' }}>{order.buyer_name || '—'}</td>
+                          <td style={{ padding: '10px 14px' }}>
+                            {order.sales_channel ? (
+                              <span style={{
+                                background: '#F3F4F6', color: '#374151', borderRadius: 8,
+                                padding: '2px 10px', fontSize: 12, fontWeight: 500
+                              }}>
+                                {order.sales_channel}
+                              </span>
+                            ) : '—'}
+                          </td>
+                          <td style={{ padding: '10px 14px' }}>
+                            <StatusBadge status={order.status || 'Active'} />
+                          </td>
+                          <td style={{ padding: '10px 14px', color: '#6B7280' }}>
+                            {order.item_count ?? order.items_count ?? '—'}
+                          </td>
+                          <td style={{ padding: '10px 14px', fontWeight: 600 }}>{fmt(order.total)}</td>
+                          <td style={{ padding: '10px 14px' }} onClick={e => e.stopPropagation()}>
+                            <button
+                              onClick={() => navigate(`/orders?view=${order.id}`)}
+                              style={{
+                                background: 'none', border: '1px solid #E5E7EB', borderRadius: 6,
+                                padding: '4px 12px', fontSize: 12, color: '#374151', cursor: 'pointer'
+                              }}
+                            >
+                              צפה
+                            </button>
+                          </td>
+                        </tr>
+
+                        {/* Expanded sub-rows */}
+                        {isExpanded && (
+                          <tr key={`${order.id}-expanded`} style={{ borderBottom: '1px solid #E5E7EB' }}>
+                            <td colSpan={8} style={{ padding: 0 }}>
+                              <div style={{
+                                background: '#F8FFFE',
+                                borderLeft: '3px solid #1D9E75',
+                                margin: '0 0 0 8px',
+                                padding: '12px 16px 16px',
+                              }}>
+                                {/* Linked tickets sub-table */}
+                                {items.length > 0 ? (
+                                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 12 }}>
+                                    <thead>
+                                      <tr style={{ borderBottom: '1px solid #D1FAE5' }}>
+                                        {['מושב', 'קטגוריה', 'סטטוס', 'מחיר מכירה', ''].map(h => (
+                                          <th key={h} style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600, color: '#065F46', fontSize: 12 }}>{h}</th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {items.map((item, idx) => (
+                                        <OrderItemRow
+                                          key={item.id || idx}
+                                          item={item}
+                                          orderId={order.id}
+                                          onRemove={removeOrderItem}
+                                          onSellPriceChange={updateItemSellPrice}
+                                        />
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                ) : (
+                                  <div style={{ color: '#9CA3AF', fontSize: 13, marginBottom: 12 }}>
+                                    אין כרטיסים מקושרים להזמנה זו עדיין.
+                                  </div>
+                                )}
+
+                                {/* Link Ticket button */}
+                                {!isPickerOpen ? (
+                                  <button
+                                    onClick={e => { e.stopPropagation(); openLinkPicker(order.id); }}
+                                    style={{
+                                      background: '#ECFDF5', color: '#1D9E75', border: '1px solid #1D9E75',
+                                      borderRadius: 7, padding: '6px 14px', fontSize: 13,
+                                      fontWeight: 600, cursor: 'pointer'
+                                    }}
+                                  >
+                                    🔗 Link Ticket from Inventory
+                                  </button>
+                                ) : (
+                                  /* Inline link picker */
+                                  <div
+                                    onClick={e => e.stopPropagation()}
+                                    style={{
+                                      background: '#fff', border: '1px solid #D1FAE5', borderRadius: 10,
+                                      padding: '14px 16px', marginTop: 4
+                                    }}
+                                  >
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                      <span style={{ fontWeight: 700, fontSize: 13, color: '#065F46' }}>
+                                        🔗 Link Inventory Ticket
+                                      </span>
+                                      <button
+                                        onClick={() => setShowLinkPicker(null)}
+                                        style={{
+                                          background: 'none', border: 'none', fontSize: 16,
+                                          color: '#9CA3AF', cursor: 'pointer', lineHeight: 1
+                                        }}
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+
+                                    {availableInv.length === 0 ? (
+                                      <div style={{ color: '#9CA3AF', fontSize: 13, marginBottom: 10 }}>
+                                        No available inventory for this game.
+                                      </div>
+                                    ) : (
+                                      <div style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 10 }}>
+                                        {availableInv.map((inv, idx) => (
+                                          <div
+                                            key={inv.id || idx}
+                                            style={{
+                                              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                              padding: '7px 10px', borderRadius: 7, marginBottom: 4,
+                                              background: '#F0FDF9', border: '1px solid #D1FAE5', gap: 8
+                                            }}
+                                          >
+                                            <span style={{ fontSize: 13, color: '#111827', flex: 1 }}>
+                                              Seat: <strong>{inv.seat || '—'}</strong>
+                                              {' | '}Cat: <strong>{inv.category || '—'}</strong>
+                                              {' | '}{fmt(inv.buy_price)}
+                                            </span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                              <span style={{ fontSize: 12, color: '#6B7280' }}>Sell €</span>
+                                              <input
+                                                type="number"
+                                                placeholder="0"
+                                                value={linkSellPrice}
+                                                onChange={e => setLinkSellPrice(e.target.value)}
+                                                onClick={e => e.stopPropagation()}
+                                                style={{
+                                                  width: 70, padding: '3px 7px', borderRadius: 5,
+                                                  border: '1px solid #D1D5DB', fontSize: 13, color: '#111827', outline: 'none'
+                                                }}
+                                              />
+                                              <button
+                                                onClick={() => linkInventoryItem(order.id, inv.id, linkSellPrice)}
+                                                style={{
+                                                  background: '#1D9E75', color: '#fff', border: 'none',
+                                                  borderRadius: 6, padding: '4px 12px', fontSize: 12,
+                                                  fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap'
+                                                }}
+                                              >
+                                                Assign
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+
+                                    {/* Add placeholder (no seat) */}
+                                    <div style={{
+                                      display: 'flex', alignItems: 'center', gap: 8,
+                                      paddingTop: 8, borderTop: '1px solid #E5E7EB'
+                                    }}>
+                                      <span style={{ fontSize: 13, color: '#6B7280', flex: 1 }}>
+                                        + Add placeholder (no seat yet)
+                                      </span>
+                                      <span style={{ fontSize: 12, color: '#6B7280' }}>Sell €</span>
+                                      <input
+                                        type="number"
+                                        placeholder="0"
+                                        value={linkSellPrice}
+                                        onChange={e => setLinkSellPrice(e.target.value)}
+                                        onClick={e => e.stopPropagation()}
+                                        style={{
+                                          width: 70, padding: '3px 7px', borderRadius: 5,
+                                          border: '1px solid #D1D5DB', fontSize: 13, color: '#111827', outline: 'none'
+                                        }}
+                                      />
+                                      <button
+                                        onClick={() => linkInventoryItem(order.id, null, linkSellPrice)}
+                                        style={{
+                                          background: '#6B7280', color: '#fff', border: 'none',
+                                          borderRadius: 6, padding: '4px 12px', fontSize: 12,
+                                          fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap'
+                                        }}
+                                      >
+                                        Add
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -609,5 +970,52 @@ export default function GameDetail() {
         </div>
       )}
     </div>
+  );
+}
+
+// Sub-component for editable order item row
+function OrderItemRow({ item, orderId, onRemove, onSellPriceChange }) {
+  const [localPrice, setLocalPrice] = useState(item.sell_price ?? '');
+
+  function handleBlur() {
+    const parsed = Number(localPrice);
+    if (parsed !== Number(item.sell_price ?? 0)) {
+      onSellPriceChange(orderId, item.id, localPrice);
+    }
+  }
+
+  return (
+    <tr style={{ borderBottom: '1px solid #D1FAE5' }}>
+      <td style={{ padding: '6px 10px', color: '#111827', fontWeight: 500 }}>{item.seat || '—'}</td>
+      <td style={{ padding: '6px 10px', color: '#6B7280' }}>{item.category || '—'}</td>
+      <td style={{ padding: '6px 10px' }}><StatusBadge status={item.status} /></td>
+      <td style={{ padding: '6px 10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ fontSize: 12, color: '#6B7280' }}>€</span>
+          <input
+            type="number"
+            value={localPrice}
+            onChange={e => setLocalPrice(e.target.value)}
+            onBlur={handleBlur}
+            style={{
+              width: 75, padding: '3px 7px', borderRadius: 5,
+              border: '1px solid #D1D5DB', fontSize: 13, color: '#111827', outline: 'none'
+            }}
+          />
+        </div>
+      </td>
+      <td style={{ padding: '6px 10px' }}>
+        <button
+          onClick={() => onRemove(orderId, item.id)}
+          title="Remove"
+          style={{
+            background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA',
+            borderRadius: 6, padding: '3px 9px', fontSize: 12, cursor: 'pointer', fontWeight: 600
+          }}
+        >
+          ✕
+        </button>
+      </td>
+    </tr>
   );
 }

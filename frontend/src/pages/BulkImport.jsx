@@ -57,8 +57,8 @@ export default function BulkImport() {
       const data = await parsePreview(f);
       setPreview(data);
 
-      // Collect sheet list — server should return available_sheets array
-      const sheetList = data.available_sheets || (data.sheet_used ? [data.sheet_used] : []);
+      // Collect sheet list
+      const sheetList = data.all_sheets || (data.sheet_used ? [data.sheet_used] : []);
       setSheets(sheetList);
       setActiveSheet(data.sheet_used || sheetList[0] || null);
 

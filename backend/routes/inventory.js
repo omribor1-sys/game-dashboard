@@ -34,6 +34,16 @@ function getOrderWithItems(orderId) {
   return order;
 }
 
+function getOrderItemRow(itemId) {
+  return db.prepare(`
+    SELECT oi.id AS item_id, oi.sell_price, oi.inventory_id,
+           i.seat, i.category, i.member_number, i.status, i.buy_price, i.notes
+    FROM order_items oi
+    LEFT JOIN inventory i ON i.id = oi.inventory_id
+    WHERE oi.id = ?
+  `).get(itemId);
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 //  INVENTORY ROUTER  — mounted at /api/inventory
 // ════════════════════════════════════════════════════════════════════════════
@@ -71,6 +81,28 @@ inventoryRouter.get('/summary', (req, res) => {
       soldProfit:    round2(soldRevenue - soldCost),
       orderCount,
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/inventory/available — items not linked to any order, optional ?game_name filter
+inventoryRouter.get('/available', (req, res) => {
+  try {
+    const { game_name } = req.query;
+    let sql = `
+      SELECT i.* FROM inventory i
+      WHERE i.status = 'Available'
+        AND NOT EXISTS (SELECT 1 FROM order_items oi WHERE oi.inventory_id = i.id)
+    `;
+    const params = [];
+    if (game_name) {
+      sql += ' AND i.game_name = ?';
+      params.push(game_name);
+    }
+    sql += ' ORDER BY i.game_name, i.category, i.seat';
+    res.json(db.prepare(sql).all(...params));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -706,6 +738,27 @@ ordersRouter.put('/:id', (req, res) => {
   }
 });
 
+// GET /api/orders/:id/items
+ordersRouter.get('/:id/items', (req, res) => {
+  try {
+    const order = db.prepare('SELECT id FROM orders WHERE id = ?').get(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    const items = db.prepare(`
+      SELECT oi.id AS item_id, oi.sell_price, oi.inventory_id,
+             i.seat, i.category, i.member_number, i.status, i.buy_price, i.notes
+      FROM order_items oi
+      LEFT JOIN inventory i ON i.id = oi.inventory_id
+      WHERE oi.order_id = ?
+      ORDER BY i.category, i.seat
+    `).all(req.params.id);
+    res.json(items);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/orders/:id/items
 ordersRouter.post('/:id/items', (req, res) => {
   try {
@@ -713,76 +766,101 @@ ordersRouter.post('/:id/items', (req, res) => {
     if (!order) return res.status(404).json({ error: 'Order not found' });
 
     const { inventory_id, sell_price } = req.body;
-    if (!inventory_id) return res.status(400).json({ error: 'inventory_id is required' });
 
-    const invItem = db.prepare('SELECT * FROM inventory WHERE id = ?').get(inventory_id);
-    if (!invItem) return res.status(404).json({ error: 'Inventory item not found' });
+    if (inventory_id) {
+      const invItem = db.prepare('SELECT * FROM inventory WHERE id = ?').get(inventory_id);
+      if (!invItem) return res.status(404).json({ error: 'Inventory item not found' });
 
-    // Prevent duplicates within this order
-    const duplicate = db.prepare(
-      'SELECT id FROM order_items WHERE order_id = ? AND inventory_id = ?'
-    ).get(req.params.id, inventory_id);
-    if (duplicate) return res.status(409).json({ error: 'Ticket already in this order' });
+      const linked = db.prepare(
+        'SELECT COUNT(*) AS n FROM order_items WHERE inventory_id = ? AND order_id != ?'
+      ).get(inventory_id, req.params.id).n;
+      if (linked > 0) {
+        return res.status(409).json({ error: 'Inventory item is already linked to another order' });
+      }
 
-    // Prevent assigning to another active order
-    const elsewhere = db.prepare(`
-      SELECT oi.order_id FROM order_items oi
-      JOIN orders o ON o.id = oi.order_id
-      WHERE oi.inventory_id = ? AND o.status != 'Cancelled'
-    `).get(inventory_id);
-    if (elsewhere) {
-      return res.status(409).json({
-        error: `Ticket is already assigned to order #${elsewhere.order_id}`,
-      });
-    }
+      const result = db.prepare(
+        'INSERT INTO order_items (order_id, inventory_id, sell_price) VALUES (?, ?, ?)'
+      ).run(req.params.id, inventory_id, parseFloat(sell_price) || 0);
 
-    const itemSellPrice = sell_price !== undefined
-      ? (parseFloat(sell_price) || 0)
-      : invItem.sell_price;
-
-    db.prepare(
-      'INSERT INTO order_items (order_id, inventory_id, sell_price) VALUES (?, ?, ?)'
-    ).run(req.params.id, inventory_id, itemSellPrice);
-
-    // Auto-reserve if was Available
-    if (invItem.status === 'Available') {
       db.prepare("UPDATE inventory SET status = 'Reserved' WHERE id = ?").run(inventory_id);
+
+      res.status(201).json(getOrderItemRow(result.lastInsertRowid));
+    } else {
+      // Placeholder item (no inventory linked)
+      const result = db.prepare(
+        'INSERT INTO order_items (order_id, inventory_id, sell_price) VALUES (?, NULL, ?)'
+      ).run(req.params.id, parseFloat(sell_price) || 0);
+
+      res.status(201).json(getOrderItemRow(result.lastInsertRowid));
     }
-
-    // Recalculate order total
-    const allItems = db.prepare('SELECT sell_price FROM order_items WHERE order_id = ?').all(req.params.id);
-    const total = round2(allItems.reduce((s, i) => s + (i.sell_price || 0), 0));
-    db.prepare('UPDATE orders SET total_amount = ? WHERE id = ?').run(total, req.params.id);
-
-    res.status(201).json(getOrderWithItems(req.params.id));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// DELETE /api/orders/:id/items/:itemId
-ordersRouter.delete('/:id/items/:itemId', (req, res) => {
+// PUT /api/orders/:id/items/:item_id
+ordersRouter.put('/:id/items/:item_id', (req, res) => {
   try {
     const orderItem = db.prepare(
       'SELECT * FROM order_items WHERE id = ? AND order_id = ?'
-    ).get(req.params.itemId, req.params.id);
+    ).get(req.params.item_id, req.params.id);
     if (!orderItem) return res.status(404).json({ error: 'Order item not found' });
 
-    db.prepare('DELETE FROM order_items WHERE id = ?').run(req.params.itemId);
+    const { sell_price, inventory_id } = req.body;
+    const newInventoryId = inventory_id !== undefined ? (inventory_id || null) : orderItem.inventory_id;
+    const newSellPrice   = sell_price   !== undefined ? (parseFloat(sell_price) || 0) : orderItem.sell_price;
 
-    // Revert to Available if was Reserved
-    const invItem = db.prepare('SELECT status FROM inventory WHERE id = ?').get(orderItem.inventory_id);
-    if (invItem && invItem.status === 'Reserved') {
-      db.prepare("UPDATE inventory SET status = 'Available' WHERE id = ?").run(orderItem.inventory_id);
+    const oldInventoryId = orderItem.inventory_id;
+    const inventoryChanging = newInventoryId !== oldInventoryId;
+
+    if (inventoryChanging) {
+      // Revert old inventory item to Available
+      if (oldInventoryId) {
+        db.prepare("UPDATE inventory SET status = 'Available' WHERE id = ? AND status = 'Reserved'").run(oldInventoryId);
+      }
+      // Reserve new inventory item
+      if (newInventoryId) {
+        const invItem = db.prepare('SELECT id FROM inventory WHERE id = ?').get(newInventoryId);
+        if (!invItem) return res.status(404).json({ error: 'Inventory item not found' });
+
+        const linked = db.prepare(
+          'SELECT COUNT(*) AS n FROM order_items WHERE inventory_id = ? AND order_id != ?'
+        ).get(newInventoryId, req.params.id).n;
+        if (linked > 0) {
+          return res.status(409).json({ error: 'Inventory item is already linked to another order' });
+        }
+
+        db.prepare("UPDATE inventory SET status = 'Reserved' WHERE id = ?").run(newInventoryId);
+      }
     }
 
-    // Recalculate order total
-    const allItems = db.prepare('SELECT sell_price FROM order_items WHERE order_id = ?').all(req.params.id);
-    const total = round2(allItems.reduce((s, i) => s + (i.sell_price || 0), 0));
-    db.prepare('UPDATE orders SET total_amount = ? WHERE id = ?').run(total, req.params.id);
+    db.prepare(
+      'UPDATE order_items SET inventory_id = ?, sell_price = ? WHERE id = ?'
+    ).run(newInventoryId, newSellPrice, req.params.item_id);
 
-    res.json(getOrderWithItems(req.params.id));
+    res.json(getOrderItemRow(req.params.item_id));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/orders/:id/items/:item_id
+ordersRouter.delete('/:id/items/:item_id', (req, res) => {
+  try {
+    const orderItem = db.prepare(
+      'SELECT * FROM order_items WHERE id = ? AND order_id = ?'
+    ).get(req.params.item_id, req.params.id);
+    if (!orderItem) return res.status(404).json({ error: 'Order item not found' });
+
+    db.prepare('DELETE FROM order_items WHERE id = ?').run(req.params.item_id);
+
+    if (orderItem.inventory_id) {
+      db.prepare("UPDATE inventory SET status = 'Available' WHERE id = ? AND status = 'Reserved'").run(orderItem.inventory_id);
+    }
+
+    res.json({ success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
