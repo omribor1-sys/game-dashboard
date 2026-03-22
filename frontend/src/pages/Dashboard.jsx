@@ -16,6 +16,10 @@ export default function Dashboard() {
   const [editName, setEditName] = useState('');
   const [editDate, setEditDate] = useState('');
   const [saving, setSaving]     = useState(false);
+  const [dismissedDups, setDismissedDups] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('dismissedDups') || '[]'); } catch { return []; }
+  });
+  const [dupPopup, setDupPopup] = useState(null); // { gameId, gameName }
   const navigate = useNavigate();
 
   const load = () => {
@@ -27,6 +31,12 @@ export default function Dashboard() {
   };
 
   useEffect(load, []);
+
+  useEffect(() => {
+    const close = () => setDupPopup(null);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, []);
 
   const handleDelete = async (g) => {
     const tickets = g.tickets_sold ?? (g.bq ?? 0);
@@ -116,7 +126,7 @@ export default function Dashboard() {
   const invGames = games.filter(g => g.source === 'inventory').map(g => g.name.toLowerCase());
   const dupWarnings = new Set(
     games
-      .filter(g => g.source !== 'inventory')
+      .filter(g => g.source !== 'inventory' && !dismissedDups.includes(g.id))
       .filter(g => invGames.some(inv => inv.includes(g.name.toLowerCase().substring(0, 15)) || g.name.toLowerCase().includes(inv.substring(0, 15))))
       .map(g => g.id)
   );
@@ -191,8 +201,58 @@ export default function Dashboard() {
                           <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>(inventory)</span>
                         )}
                         {dupWarnings.has(g.id) && (
-                          <span style={{ fontSize: 11, background: '#fef3c7', color: '#92400e', padding: '1px 6px', borderRadius: 10, fontWeight: 500 }} title="A similar game name exists in inventory">
-                            ⚠️ duplicate?
+                          <span style={{ position: 'relative' }}>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setDupPopup(dupPopup?.gameId === g.id ? null : { gameId: g.id, gameName: g.name }); }}
+                              style={{ fontSize: 11, background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: 10, fontWeight: 500, border: '1px solid #fde68a', cursor: 'pointer' }}
+                            >
+                              ⚠️ duplicate?
+                            </button>
+                            {dupPopup?.gameId === g.id && (
+                              <div style={{
+                                position: 'absolute', top: '100%', left: 0, zIndex: 100, marginTop: 4,
+                                background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10,
+                                boxShadow: '0 4px 16px rgba(0,0,0,.12)', padding: '12px 14px', minWidth: 220,
+                              }} onClick={e => e.stopPropagation()}>
+                                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 10, color: '#111827' }}>
+                                  Is this a duplicate game?
+                                </div>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                  <button
+                                    onClick={async () => {
+                                      // YES → find inventory-only game with similar name and delete it
+                                      const invGame = games.find(ig => ig.source === 'inventory' &&
+                                        (ig.name.toLowerCase().includes(g.name.toLowerCase().substring(0, 15)) ||
+                                         g.name.toLowerCase().includes(ig.name.toLowerCase().substring(0, 15))));
+                                      if (invGame) {
+                                        await fetch('/api/inventory/by-game', {
+                                          method: 'DELETE',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ game_name: invGame.name }),
+                                        });
+                                      }
+                                      setDupPopup(null);
+                                      load();
+                                    }}
+                                    style={{ flex: 1, padding: '7px 10px', borderRadius: 7, border: 'none', background: '#ef4444', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
+                                  >
+                                    ✅ Yes, delete duplicate
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      // NO → dismiss this warning
+                                      const next = [...dismissedDups, g.id];
+                                      setDismissedDups(next);
+                                      localStorage.setItem('dismissedDups', JSON.stringify(next));
+                                      setDupPopup(null);
+                                    }}
+                                    style={{ flex: 1, padding: '7px 10px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontWeight: 500, cursor: 'pointer', fontSize: 13 }}
+                                  >
+                                    ❌ No, not a duplicate
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </span>
                         )}
                       </span>
