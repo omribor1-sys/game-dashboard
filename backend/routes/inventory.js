@@ -337,6 +337,16 @@ inventoryRouter.post('/parse-preview', upload.single('file'), (req, res) => {
       detectedName = filename.replace(dateMatch[0], '').replace(/\s*-\s*$/, '').replace(/\s+/g, ' ').trim();
     }
 
+    // Auto-match against existing games table — use exact game name if found
+    const allExistingGames = db.prepare('SELECT name FROM games').all();
+    const normStr = s => s.toLowerCase().replace(/[\s\-_]+/g, ' ').replace(/\s+\d{2}\s+\d{2}\s+\d{4}.*$/, '').trim();
+    const normDetected = normStr(detectedName);
+    const matchedGame = allExistingGames.find(g => {
+      const gn = normStr(g.name);
+      return gn === normDetected || g.name.toLowerCase().includes(normDetected) || normDetected.includes(gn);
+    });
+    if (matchedGame) detectedName = matchedGame.name;
+
     // Price summary
     const prices = dataRows
       .map(r => mapping.buy_price ? parseFloat(r[mapping.buy_price.index]) || 0 : 0)
@@ -381,6 +391,19 @@ inventoryRouter.post('/bulk-import', upload.single('file'), (req, res) => {
     }
     if (req.body.game_name) gameName = req.body.game_name;
     if (req.body.game_date) gameDate = req.body.game_date;
+
+    // Auto-match: if an existing game in games table has a similar name, use that exact name
+    // This prevents mismatches when detected name strips the date but games table keeps it
+    const existingGames = db.prepare('SELECT name FROM games').all();
+    const normalise = s => s.toLowerCase().replace(/[\s\-_]+/g, ' ').replace(/\s+\d{2}\s+\d{2}\s+\d{4}.*$/, '').trim();
+    const importNorm = normalise(gameName);
+    const matched = existingGames.find(g => {
+      const gNorm = normalise(g.name);
+      return gNorm === importNorm || g.name.toLowerCase().includes(importNorm) || importNorm.includes(gNorm);
+    });
+    if (matched) {
+      gameName = matched.name;
+    }
 
     const wb = XLSX.readFile(req.file.path);
     const requestedSheetImport = req.body && req.body.sheet_name;
