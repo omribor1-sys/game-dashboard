@@ -8,38 +8,95 @@ function fmt(n) {
   return `€${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function fmtShort(n) {
-  if (n == null) return '—';
-  const abs = Math.abs(n);
-  if (abs >= 1000) return `€${(n / 1000).toFixed(1)}k`;
-  return `€${n.toFixed(0)}`;
-}
-
 export default function Dashboard() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [data, setData]         = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState(null);
+  const [editGame, setEditGame] = useState(null);   // { id, name, date, source, inv_name }
+  const [editName, setEditName] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [saving, setSaving]     = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
     fetch('/api/games')
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false); })
       .catch(e => { setError(e.message); setLoading(false); });
-  }, []);
+  };
 
-  const handleDelete = async (id, name) => {
-    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
-    await fetch(`/api/games/${id}`, { method: 'DELETE' });
-    setData(prev => ({
-      ...prev,
-      games: prev.games.filter(g => g.id !== id),
-      summary: recalcSummary(prev.games.filter(g => g.id !== id)),
-    }));
+  useEffect(load, []);
+
+  const handleDelete = async (g) => {
+    const tickets = g.tickets_sold ?? (g.bq ?? 0);
+    const msg = `Delete "${g.name}"${tickets > 0 ? ` and all ${tickets} tickets` : ''}?\n\nThis cannot be undone.`;
+    if (!confirm(msg)) return;
+
+    try {
+      if (g.source === 'inventory') {
+        // Delete all inventory with this game_name
+        await fetch('/api/inventory/by-game', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ game_name: g.name }),
+        });
+      } else {
+        // Delete from games table (backend also deletes inventory)
+        await fetch(`/api/games/${g.id}`, { method: 'DELETE' });
+        // Also delete any inventory-only entries with same name
+        await fetch('/api/inventory/by-game', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ game_name: g.name }),
+        });
+      }
+      load();
+    } catch (err) {
+      alert('Delete failed: ' + err.message);
+    }
+  };
+
+  const openEdit = (g) => {
+    setEditGame(g);
+    setEditName(g.name);
+    setEditDate(g.date || '');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editName.trim()) return;
+    setSaving(true);
+    try {
+      const newName = editName.trim();
+      const oldName = editGame.name;
+
+      // Always rename in inventory table
+      await fetch('/api/inventory/rename-game', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ old_name: oldName, new_name: newName, new_date: editDate || null }),
+      });
+
+      // If it's in games table, update there too
+      if (editGame.source !== 'inventory' && editGame.id) {
+        await fetch(`/api/games/${editGame.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newName, date: editDate || null }),
+        });
+      }
+
+      setEditGame(null);
+      load();
+    } catch (err) {
+      alert('Save failed: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) return <div className="loading">Loading dashboard…</div>;
-  if (error) return <div className="page"><div className="error-box">Error: {error}</div></div>;
+  if (error)   return <div className="page"><div className="error-box">Error: {error}</div></div>;
 
   const { games = [], summary = {} } = data;
 
@@ -49,11 +106,20 @@ export default function Dashboard() {
     datasets: [{
       label: 'Net Profit',
       data: games.map(g => g.net_profit),
-      backgroundColor: games.map(g => g.net_profit >= 0 ? 'rgba(29,158,117,0.8)' : 'rgba(216,90,48,0.8)'),
+      backgroundColor: games.map(g => (g.net_profit >= 0 ? 'rgba(29,158,117,0.8)' : 'rgba(216,90,48,0.8)')),
       borderRadius: 6,
       borderSkipped: false,
     }],
   };
+
+  // Detect possible duplicates (similar game names in games table vs inventory)
+  const invGames = games.filter(g => g.source === 'inventory').map(g => g.name.toLowerCase());
+  const dupWarnings = new Set(
+    games
+      .filter(g => g.source !== 'inventory')
+      .filter(g => invGames.some(inv => inv.includes(g.name.toLowerCase().substring(0, 15)) || g.name.toLowerCase().includes(inv.substring(0, 15))))
+      .map(g => g.id)
+  );
 
   return (
     <div className="page">
@@ -71,39 +137,23 @@ export default function Dashboard() {
       </div>
 
       <div className="metrics-grid">
-        <MetricCard label="Total Revenue" value={fmt(summary.totalRevenue)} />
-        <MetricCard label="Total Costs" value={fmt(summary.totalCosts)} />
-        <MetricCard
-          label="Net Profit"
-          value={fmt(summary.netProfit)}
-          color={summary.netProfit >= 0 ? 'green' : 'red'}
-        />
-        <MetricCard
-          label="Avg Margin"
-          value={`${(summary.avgMargin || 0).toFixed(1)}%`}
-          color={summary.avgMargin >= 0 ? 'green' : 'red'}
-        />
-        <MetricCard label="Tickets Sold" value={(summary.totalTickets || 0).toLocaleString()} />
-        <MetricCard label="Games" value={summary.gameCount || 0} />
+        <MetricCard label="Total Revenue"  value={fmt(summary.totalRevenue)} />
+        <MetricCard label="Total Costs"    value={fmt(summary.totalCosts)} />
+        <MetricCard label="Net Profit"     value={fmt(summary.netProfit)}   color={summary.netProfit >= 0 ? 'green' : 'red'} />
+        <MetricCard label="Avg Margin"     value={`${(summary.avgMargin || 0).toFixed(1)}%`} color={summary.avgMargin >= 0 ? 'green' : 'red'} />
+        <MetricCard label="Tickets Sold"   value={(summary.totalTickets || 0).toLocaleString()} />
+        <MetricCard label="Games"          value={summary.gameCount || 0} />
       </div>
 
       {games.length > 0 && (
-        <BarChart
-          title="Net Profit per Game"
-          labels={chartData.labels}
-          datasets={chartData.datasets}
-          height={260}
-        />
+        <BarChart title="Net Profit per Game" labels={chartData.labels} datasets={chartData.datasets} height={260} />
       )}
 
       {games.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '64px 0', color: 'var(--text-muted)' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📊</div>
           <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>No games yet</div>
-          <div style={{ marginBottom: 20 }}>Upload your first game file to get started</div>
-          <button className="btn btn-primary" onClick={() => navigate('/upload')}>
-            + Add First Game
-          </button>
+          <button className="btn btn-primary" onClick={() => navigate('/upload')}>+ Add First Game</button>
         </div>
       ) : (
         <div className="table-wrap">
@@ -117,48 +167,124 @@ export default function Dashboard() {
                 <th style={{ textAlign: 'right' }}>Costs</th>
                 <th style={{ textAlign: 'right' }}>Net Profit</th>
                 <th style={{ textAlign: 'right' }}>Margin</th>
-                <th></th>
+                <th style={{ textAlign: 'center', width: 130 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {games.map((g, idx) => (
-                <tr
-                  key={g.id != null ? g.id : `inv-${idx}`}
-                  style={{ cursor: g.source === 'inventory' ? 'default' : 'pointer' }}
-                  onClick={() => g.source !== 'inventory' && navigate(`/game/${g.id}`)}
-                >
-                  <td style={{ fontWeight: 600 }}>
-                    {g.name}
-                    {g.source === 'inventory' && (
-                      <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>(inventory)</span>
-                    )}
-                  </td>
-                  <td style={{ color: 'var(--text-muted)' }}>{g.date || '—'}</td>
-                  <td style={{ textAlign: 'right' }}>{g.tickets_sold ?? '—'}</td>
-                  <td style={{ textAlign: 'right' }}>{fmt(g.total_revenue)}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--red)' }}>{fmt(g.total_all_costs)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: g.net_profit >= 0 ? 'var(--green)' : 'var(--red)' }}>
-                    {fmt(g.net_profit)}
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <span className={`badge ${g.margin_percent >= 0 ? 'badge-green' : 'badge-red'}`}>
-                      {g.margin_percent != null ? `${g.margin_percent.toFixed(1)}%` : '—'}
-                    </span>
-                  </td>
-                  <td onClick={e => e.stopPropagation()}>
-                    {g.source !== 'inventory' && (
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={() => handleDelete(g.id, g.name)}
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {games.map((g, idx) => {
+                const hasTickets = (g.tickets_sold ?? 0) > 0 || (g.bq ?? 0) > 0;
+                return (
+                  <tr
+                    key={g.id != null ? g.id : `inv-${idx}`}
+                    style={{ cursor: g.source === 'inventory' ? 'default' : 'pointer' }}
+                    onClick={() => g.source !== 'inventory' && navigate(`/game/${g.id}`)}
+                  >
+                    <td style={{ fontWeight: 600 }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                        <span style={{
+                          width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                          background: hasTickets ? '#1D9E75' : '#d1d5db',
+                          display: 'inline-block',
+                        }} title={hasTickets ? 'Has tickets' : 'No tickets yet'} />
+                        {g.name}
+                        {g.source === 'inventory' && (
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>(inventory)</span>
+                        )}
+                        {dupWarnings.has(g.id) && (
+                          <span style={{ fontSize: 11, background: '#fef3c7', color: '#92400e', padding: '1px 6px', borderRadius: 10, fontWeight: 500 }} title="A similar game name exists in inventory">
+                            ⚠️ duplicate?
+                          </span>
+                        )}
+                      </span>
+                    </td>
+                    <td style={{ color: 'var(--text-muted)' }}>{g.date || '—'}</td>
+                    <td style={{ textAlign: 'right' }}>{g.tickets_sold ?? (g.bq ?? '—')}</td>
+                    <td style={{ textAlign: 'right' }}>{fmt(g.total_revenue)}</td>
+                    <td style={{ textAlign: 'right', color: 'var(--red)' }}>{fmt(g.total_all_costs)}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600, color: g.net_profit >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                      {fmt(g.net_profit)}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <span className={`badge ${g.margin_percent >= 0 ? 'badge-green' : 'badge-red'}`}>
+                        {g.margin_percent != null ? `${g.margin_percent.toFixed(1)}%` : '—'}
+                      </span>
+                    </td>
+                    <td onClick={e => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                        <button
+                          className="btn btn-sm"
+                          style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb' }}
+                          onClick={() => openEdit(g)}
+                          title="Edit game name / date"
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          className="btn btn-sm btn-danger"
+                          onClick={() => handleDelete(g)}
+                          title="Delete game and all tickets"
+                        >
+                          🗑️ Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editGame && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        }}
+          onClick={() => setEditGame(null)}
+        >
+          <div style={{ background: '#fff', borderRadius: 14, padding: 28, width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 style={{ margin: '0 0 20px', fontSize: 18 }}>✏️ Edit Game</h3>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14, color: '#374151' }}>Game Name</label>
+              <input
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14, color: '#374151' }}>Date</label>
+              <input
+                type="date"
+                value={editDate}
+                onChange={e => setEditDate(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            {editGame.source === 'inventory' && (
+              <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#1e40af' }}>
+                ℹ️ This will rename the game across all {editGame.bq ?? ''} inventory tickets
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setEditGame(null)}
+                style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontWeight: 500 }}>
+                Cancel
+              </button>
+              <button onClick={handleSaveEdit} disabled={saving || !editName.trim()}
+                style={{ flex: 2, padding: '10px', borderRadius: 8, border: 'none', background: saving ? '#9ca3af' : '#1D9E75', color: '#fff', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}>
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -167,12 +293,10 @@ export default function Dashboard() {
 
 function recalcSummary(games) {
   const totalRevenue = games.reduce((s, g) => s + (g.total_revenue || 0), 0);
-  const totalCosts = games.reduce((s, g) => s + (g.total_all_costs || 0), 0);
-  const netProfit = games.reduce((s, g) => s + (g.net_profit || 0), 0);
+  const totalCosts   = games.reduce((s, g) => s + (g.total_all_costs || 0), 0);
+  const netProfit    = games.reduce((s, g) => s + (g.net_profit || 0), 0);
   return {
-    totalRevenue,
-    totalCosts,
-    netProfit,
+    totalRevenue, totalCosts, netProfit,
     totalTickets: games.reduce((s, g) => s + (g.tickets_sold || 0), 0),
     gameCount: games.length,
     avgMargin: totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 10000) / 100 : 0,

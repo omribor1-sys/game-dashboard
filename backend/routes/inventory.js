@@ -426,6 +426,33 @@ inventoryRouter.post('/', (req, res) => {
   }
 });
 
+// DELETE /api/inventory/by-game — delete ALL inventory tickets for a game name
+inventoryRouter.delete('/by-game', (req, res) => {
+  try {
+    const { game_name } = req.body;
+    if (!game_name) return res.status(400).json({ error: 'game_name required' });
+    const result = db.prepare('DELETE FROM inventory WHERE game_name = ?').run(game_name);
+    res.json({ deleted: result.changes, game_name });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/inventory/rename-game — rename a game across inventory + games table
+inventoryRouter.put('/rename-game', (req, res) => {
+  try {
+    const { old_name, new_name, new_date } = req.body;
+    if (!old_name || !new_name) return res.status(400).json({ error: 'old_name and new_name required' });
+    db.prepare('UPDATE inventory SET game_name = ? WHERE game_name = ?').run(new_name, old_name);
+    if (new_date !== undefined) {
+      db.prepare('UPDATE inventory SET game_date = ? WHERE game_name = ?').run(new_date || null, new_name);
+    }
+    res.json({ success: true, old_name, new_name });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // PUT /api/inventory/:id
 inventoryRouter.put('/:id', (req, res) => {
   try {

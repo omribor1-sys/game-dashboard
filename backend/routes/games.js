@@ -238,11 +238,36 @@ router.put('/:id/notes', (req, res) => {
   }
 });
 
+// PUT /api/games/:id
+router.put('/:id', (req, res) => {
+  try {
+    const game = db.prepare('SELECT * FROM games WHERE id = ?').get(req.params.id);
+    if (!game) return res.status(404).json({ error: 'Game not found' });
+
+    const { name, date } = req.body;
+    const newName = (name !== undefined ? name : game.name) || game.name;
+    const newDate = date !== undefined ? (date || null) : game.date;
+
+    db.prepare('UPDATE games SET name = ?, date = ? WHERE id = ?').run(newName, newDate, req.params.id);
+
+    const updated = db.prepare('SELECT * FROM games WHERE id = ?').get(req.params.id);
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /api/games/:id
 router.delete('/:id', (req, res) => {
   try {
-    const result = db.prepare('DELETE FROM games WHERE id = ?').run(req.params.id);
-    if (result.changes === 0) return res.status(404).json({ error: 'Game not found' });
+    const game = db.prepare('SELECT * FROM games WHERE id = ?').get(req.params.id);
+    if (!game) return res.status(404).json({ error: 'Game not found' });
+
+    // Delete related inventory tickets first
+    db.prepare('DELETE FROM inventory WHERE game_name = ?').run(game.name);
+
+    db.prepare('DELETE FROM games WHERE id = ?').run(req.params.id);
     res.json({ success: true });
   } catch (err) {
     console.error(err);
