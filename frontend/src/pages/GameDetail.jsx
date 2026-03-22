@@ -545,7 +545,7 @@ export default function GameDetail() {
                 <thead>
                   <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
                     <th style={{ padding: '10px 8px', width: 28 }} />
-                    {['הזמנה #', 'קונה', 'ערוץ', 'סטטוס', 'פריטים', 'סה״כ', 'פעולות'].map(h => (
+                    {['Order #', 'Buyer', 'Channel', 'Status', 'Items', 'Total', 'Actions'].map(h => (
                       <th key={h} style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 600, color: '#374151', fontSize: 13 }}>{h}</th>
                     ))}
                   </tr>
@@ -611,7 +611,7 @@ export default function GameDetail() {
                                 padding: '4px 12px', fontSize: 12, color: '#374151', cursor: 'pointer'
                               }}
                             >
-                              צפה
+                              View
                             </button>
                           </td>
                         </tr>
@@ -631,7 +631,7 @@ export default function GameDetail() {
                                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 12 }}>
                                     <thead>
                                       <tr style={{ borderBottom: '1px solid #D1FAE5' }}>
-                                        {['מושב', 'קטגוריה', 'סטטוס', 'מחיר מכירה', ''].map(h => (
+                                        {['Seat', 'Category', 'Status', 'Sell Price', ''].map(h => (
                                           <th key={h} style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600, color: '#065F46', fontSize: 12 }}>{h}</th>
                                         ))}
                                       </tr>
@@ -650,7 +650,7 @@ export default function GameDetail() {
                                   </table>
                                 ) : (
                                   <div style={{ color: '#9CA3AF', fontSize: 13, marginBottom: 12 }}>
-                                    אין כרטיסים מקושרים להזמנה זו עדיין.
+                                    No tickets linked to this order yet.
                                   </div>
                                 )}
 
@@ -799,7 +799,7 @@ export default function GameDetail() {
                 Upload CUSTOMER SERVICE Excel to create game summary
               </div>
               <div style={{ fontSize: 13, color: '#9CA3AF', marginBottom: 24 }}>
-                קובץ זה ייצור רשומת משחק מלאה עם סיכום כספי
+                This file will create a full game record with a financial summary
               </div>
               <input
                 ref={fileInputRef}
@@ -825,12 +825,12 @@ export default function GameDetail() {
 
               {/* Editable fields */}
               <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 12, padding: 24 }}>
-                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 20, color: '#111827' }}>עריכת נתונים כספיים</div>
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 20, color: '#111827' }}>Edit Financial Data</div>
 
                 {[
-                  { key: 'total_revenue', label: 'הכנסה כוללת (€)' },
-                  { key: 'total_ticket_cost', label: 'עלות כרטיסים (€)' },
-                  { key: 'eli_cost', label: 'עלות Eli (€)' },
+                  { key: 'total_revenue', label: 'Total Revenue (€)' },
+                  { key: 'total_ticket_cost', label: 'Ticket Cost (€)' },
+                  { key: 'eli_cost', label: 'Eli Cost (€)' },
                 ].map(({ key, label }) => (
                   <div key={key} style={{ marginBottom: 16 }}>
                     <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
@@ -851,7 +851,7 @@ export default function GameDetail() {
 
                 <div style={{ marginBottom: 20 }}>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
-                    הערות
+                    Notes
                   </label>
                   <textarea
                     value={summary.notes}
@@ -862,7 +862,7 @@ export default function GameDetail() {
                       border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 14,
                       resize: 'vertical', fontFamily: 'inherit', color: '#111827'
                     }}
-                    placeholder="הוסף הערות…"
+                    placeholder="Add notes…"
                   />
                 </div>
 
@@ -904,12 +904,12 @@ export default function GameDetail() {
 
               {/* Calculated display */}
               <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 12, padding: 24 }}>
-                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 20, color: '#111827' }}>סיכום מחושב</div>
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 20, color: '#111827' }}>Calculated Summary</div>
 
                 {[
-                  { label: 'הכנסה', value: fmt(revenue) },
-                  { label: 'עלות כרטיסים', value: fmt(ticketCost) },
-                  { label: 'עלות Eli', value: fmt(eliCost) },
+                  { label: 'Revenue', value: fmt(revenue) },
+                  { label: 'Ticket Cost', value: fmt(ticketCost) },
+                  { label: 'Eli Cost', value: fmt(eliCost) },
                 ].map(({ label, value }) => (
                   <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #F3F4F6' }}>
                     <span style={{ fontSize: 14, color: '#6B7280' }}>{label}</span>
@@ -921,7 +921,7 @@ export default function GameDetail() {
                   display: 'flex', justifyContent: 'space-between', padding: '14px 0 6px',
                   borderTop: '2px solid #E5E7EB', marginTop: 4
                 }}>
-                  <span style={{ fontSize: 15, fontWeight: 700, color: '#374151' }}>רווח נקי</span>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: '#374151' }}>Net Profit</span>
                   <span style={{
                     fontSize: 18, fontWeight: 800,
                     color: netProfit >= 0 ? '#1D9E75' : '#DC2626'
@@ -931,7 +931,7 @@ export default function GameDetail() {
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
-                  <span style={{ fontSize: 13, color: '#9CA3AF' }}>מרווח %</span>
+                  <span style={{ fontSize: 13, color: '#9CA3AF' }}>Margin %</span>
                   <span style={{
                     fontSize: 14, fontWeight: 700,
                     color: netProfit >= 0 ? '#1D9E75' : '#DC2626'
@@ -943,11 +943,11 @@ export default function GameDetail() {
                 {/* Visual bar */}
                 {revenue > 0 && (
                   <div style={{ marginTop: 24 }}>
-                    <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 8 }}>פירוט הכנסה</div>
+                    <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 8 }}>Revenue Breakdown</div>
                     {[
-                      { label: 'עלות כרטיסים', value: ticketCost, color: '#D85A30' },
-                      { label: 'עלות Eli', value: eliCost, color: '#B45309' },
-                      { label: 'רווח נקי', value: Math.max(netProfit, 0), color: '#1D9E75' },
+                      { label: 'Ticket Cost', value: ticketCost, color: '#D85A30' },
+                      { label: 'Eli Cost', value: eliCost, color: '#B45309' },
+                      { label: 'Net Profit', value: Math.max(netProfit, 0), color: '#1D9E75' },
                     ].map(item => {
                       const pct = Math.min(Math.max((item.value / revenue) * 100, 0), 100);
                       return (

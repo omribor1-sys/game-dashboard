@@ -55,6 +55,10 @@ export default function BulkImport() {
 
     try {
       const data = await parsePreview(f);
+
+      // Check if backend returned an error in the body
+      if (data.error) throw new Error(data.error);
+
       setPreview(data);
 
       // Collect sheet list
@@ -66,7 +70,7 @@ export default function BulkImport() {
       if (data.detected_game_date) setGameDate(data.detected_game_date);
       setStep(STEP.PREVIEW);
     } catch (err) {
-      setError(err.message);
+      setError(`Upload failed: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -297,14 +301,14 @@ export default function BulkImport() {
   );
 
   const renderSummaryPreview = () => {
-    const s = preview.summary || {};
+    // Backend returns fields at top level (not nested under .summary)
     const fmt = (v) => (v !== undefined && v !== null) ? `€${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
     const summaryCards = [
-      { label: 'Total Revenue',  value: fmt(s.total_revenue),  bg: '#f0fdf4', color: '#16a34a' },
-      { label: 'Ticket Cost',    value: fmt(s.ticket_cost),    bg: '#fef2f2', color: '#dc2626' },
-      { label: 'Eli Cost',       value: fmt(s.eli_cost),       bg: '#fef3c7', color: '#d97706' },
-      { label: 'Tickets Sold',   value: s.tickets_sold !== undefined ? String(s.tickets_sold) : '—', bg: '#eff6ff', color: '#2563eb' },
-      { label: 'Net Profit',     value: fmt(s.net_profit),     bg: '#f0fdf4', color: '#15803d' },
+      { label: 'Total Revenue',  value: fmt(preview.total_revenue),      bg: '#f0fdf4', color: '#16a34a' },
+      { label: 'Ticket Cost',    value: fmt(preview.total_ticket_cost),  bg: '#fef2f2', color: '#dc2626' },
+      { label: 'Eli Cost',       value: fmt(preview.eli_cost),           bg: '#fef3c7', color: '#d97706' },
+      { label: 'Tickets Sold',   value: preview.tickets_sold !== undefined ? String(preview.tickets_sold) : '—', bg: '#eff6ff', color: '#2563eb' },
+      { label: 'Net Profit',     value: fmt((preview.total_revenue || 0) - (preview.total_ticket_cost || 0) - (preview.eli_cost || 0)), bg: '#f0fdf4', color: '#15803d' },
     ];
     return (
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
