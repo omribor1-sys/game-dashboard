@@ -104,21 +104,19 @@ export default function GameDetail() {
       });
   }, [id, gameName, isInventoryOnly]);
 
-  // Load inventory when tab is active or on mount
+  // Load inventory always on mount (needed for summary stats too)
   useEffect(() => {
     if (!game) return;
-    if (activeTab !== 'inventory') return;
     loadInventory();
-  }, [game, activeTab]);
+  }, [game]);
 
-  // Load orders when tab is active
+  // Load orders always on mount (needed for summary stats too)
   useEffect(() => {
     if (!game) return;
-    if (activeTab !== 'orders') return;
     loadOrders();
-  }, [game, activeTab]);
+  }, [game]);
 
-  // Load summary when tab is active
+  // Load summary when tab is active (games-table games only)
   useEffect(() => {
     if (!game) return;
     if (activeTab !== 'summary') return;
@@ -790,35 +788,63 @@ export default function GameDetail() {
       {activeTab === 'summary' && (
         <div>
           {isInventoryOnly ? (
-            <div style={{
-              background: '#fff', border: '2px dashed #D1D5DB', borderRadius: 14,
-              padding: '48px 32px', textAlign: 'center'
-            }}>
-              <div style={{ fontSize: 36, marginBottom: 14 }}>📊</div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: '#374151', marginBottom: 8 }}>
-                Upload CUSTOMER SERVICE Excel to create game summary
+            <div>
+              {/* Computed stats from inventory + orders */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
+                <StatCard label="Total Tickets" value={totalTickets} />
+                <StatCard label="Inventory Cost" value={fmt(totalCost)} />
+                <StatCard label="Orders" value={orders.length} />
+                <StatCard
+                  label="Net Profit"
+                  value={(() => {
+                    const rev = orders.reduce((s, o) => s + (Number(o.items_total) || 0), 0);
+                    const profit = rev - totalCost;
+                    return fmt(profit);
+                  })()}
+                />
               </div>
-              <div style={{ fontSize: 13, color: '#9CA3AF', marginBottom: 24 }}>
-                This file will create a full game record with a financial summary
+
+              {/* Revenue from orders */}
+              {orders.length > 0 && (() => {
+                const rev = orders.reduce((s, o) => s + (Number(o.items_total) || 0), 0);
+                const profit = rev - totalCost;
+                const margin = rev > 0 ? ((profit / rev) * 100).toFixed(1) : null;
+                return (
+                  <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 12, padding: 24, marginBottom: 20 }}>
+                    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>Financial Summary</div>
+                    {[
+                      { label: 'Total Revenue (from orders)', value: fmt(rev), color: '#16a34a' },
+                      { label: 'Inventory Cost', value: fmt(totalCost), color: '#dc2626' },
+                      { label: 'Net Profit', value: fmt(profit), color: profit >= 0 ? '#1D9E75' : '#dc2626', bold: true },
+                      ...(margin ? [{ label: 'Margin', value: `${margin}%`, color: profit >= 0 ? '#1D9E75' : '#dc2626' }] : []),
+                    ].map(({ label, value, color, bold }) => (
+                      <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #F3F4F6' }}>
+                        <span style={{ fontSize: 14, color: '#6B7280' }}>{label}</span>
+                        <span style={{ fontSize: 14, fontWeight: bold ? 700 : 600, color }}>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Upload CTA */}
+              <div style={{ background: '#F8FAFC', border: '2px dashed #D1D5DB', borderRadius: 12, padding: '28px 24px', textAlign: 'center' }}>
+                <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 14 }}>
+                  Upload a CUSTOMER SERVICE Excel tab to create a full game record with detailed financial data
+                </div>
+                <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleUpload} style={{ display: 'none' }} />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  style={{
+                    background: '#1D9E75', color: '#fff', border: 'none', borderRadius: 8,
+                    padding: '10px 24px', fontWeight: 600, fontSize: 14, cursor: uploading ? 'not-allowed' : 'pointer',
+                    opacity: uploading ? 0.7 : 1
+                  }}
+                >
+                  {uploading ? 'Uploading…' : '⬆ Upload CUSTOMER SERVICE Excel'}
+                </button>
               </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={handleUpload}
-                style={{ display: 'none' }}
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                style={{
-                  background: '#1D9E75', color: '#fff', border: 'none', borderRadius: 8,
-                  padding: '11px 28px', fontWeight: 700, fontSize: 15, cursor: uploading ? 'not-allowed' : 'pointer',
-                  opacity: uploading ? 0.7 : 1
-                }}
-              >
-                {uploading ? 'Uploading…' : '⬆ Upload CUSTOMER SERVICE Excel'}
-              </button>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
