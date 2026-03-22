@@ -175,77 +175,211 @@ inventoryRouter.get('/', (req, res) => {
   }
 });
 
+// POST /api/inventory/parse-preview — analyze file without importing
+inventoryRouter.post('/parse-preview', upload.single('file'), (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const wb = XLSX.readFile(req.file.path);
+    const allSheets = wb.SheetNames;
+    const sheetName = wb.SheetNames.find(s => s.toLowerCase().includes('ticket')) || wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+    if (rows.length < 2) {
+      return res.json({ error: 'Sheet is empty', sheet_used: sheetName, all_sheets: allSheets, total_rows: 0 });
+    }
+
+    const rawHeaders = rows[0];
+    const headers = rawHeaders.map(h => (h || '').toString().replace(/\s+/g, ' ').trim());
+    const headersLower = headers.map(h => h.toLowerCase());
+
+    const findCol = (names) => {
+      for (const name of names) {
+        const idx = headersLower.findIndex(h => h.includes(name.toLowerCase()));
+        if (idx !== -1) return { index: idx, col_name: headers[idx] };
+      }
+      return null;
+    };
+
+    const mapping = {
+      member_number: findCol(['member number', 'membernumber']),
+      category:      findCol(['cat']),
+      seat:          findCol(['seat']),
+      buy_price:     findCol(['price in eur', 'price eur']),
+      notes:         findCol(['note']),
+    };
+
+    const dataRows = rows.slice(1).filter(r => r && !r.every(c => c === null || c === ''));
+    const warnings = [];
+
+    // Check nulls in found columns
+    for (const [field, col] of Object.entries(mapping)) {
+      if (!col) { warnings.push({ field, type: 'missing', message: `Column not found for "${field}"` }); continue; }
+      const nullCount = dataRows.filter(r => r[col.index] === null || r[col.index] === '').length;
+      if (nullCount === dataRows.length) {
+        warnings.push({ field, type: 'all_null', message: `"${col.col_name}" column is empty in all rows` });
+      } else if (nullCount > 0) {
+        warnings.push({ field, type: 'partial_null', message: `"${col.col_name}": ${nullCount} rows have empty values` });
+      }
+    }
+
+    // Category analysis from Notes
+    let categoryFromNotes = false;
+    if (mapping.notes && (!mapping.category || warnings.find(w => w.field === 'category' && w.type === 'all_null'))) {
+      const noteCategories = {};
+      dataRows.forEach(r => {
+        const note = r[mapping.notes.index];
+        if (note) {
+          // Extract text before number at end, like "Young Adult(17-21) 30" → "Young Adult(17-21)"
+          const catMatch = String(note).match(/^(.+?)\s+\d+(\s|$)/);
+          const cat = catMatch ? catMatch[1].trim() : String(note).trim();
+          noteCategories[cat] = (noteCategories[cat] || 0) + 1;
+        }
+      });
+      if (Object.keys(noteCategories).length > 0) {
+        categoryFromNotes = true;
+        warnings.push({ field: 'category', type: 'from_notes', message: 'Category will be extracted from Notes column', categories: noteCategories });
+      }
+    }
+
+    // Sample rows (first 5)
+    const sample = dataRows.slice(0, 5).map(r => ({
+      member_number: mapping.member_number ? r[mapping.member_number.index] : null,
+      category:      mapping.category      ? r[mapping.category.index]      : null,
+      seat:          mapping.seat          ? r[mapping.seat.index]           : null,
+      buy_price:     mapping.buy_price     ? parseFloat(r[mapping.buy_price.index]) || 0 : 0,
+      notes:         mapping.notes         ? r[mapping.notes.index]          : null,
+    }));
+
+    // Filename detection
+    const filename = req.file.originalname.replace(/\.xlsx?$/i, '');
+    const dateMatch = filename.match(/(\d{2})[_\-\. ](\d{2})[_\-\. ](\d{4})/);
+    let detectedDate = null, detectedName = filename;
+    if (dateMatch) {
+      detectedDate = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`;
+      detectedName = filename.replace(dateMatch[0], '').replace(/\s*-\s*$/, '').replace(/\s+/g, ' ').trim();
+    }
+
+    // Price summary
+    const prices = dataRows
+      .map(r => mapping.buy_price ? parseFloat(r[mapping.buy_price.index]) || 0 : 0)
+      .filter(p => p > 0);
+    const totalCost = prices.reduce((s, p) => s + p, 0);
+    const avgPrice = prices.length > 0 ? totalCost / prices.length : 0;
+
+    res.json({
+      filename: req.file.originalname,
+      all_sheets: allSheets,
+      sheet_used: sheetName,
+      total_rows: dataRows.length,
+      all_headers: headers,
+      column_mapping: mapping,
+      category_from_notes: categoryFromNotes,
+      warnings,
+      sample,
+      detected_game_name: detectedName,
+      detected_game_date: detectedDate,
+      price_summary: { total_cost: round2(totalCost), avg_price: round2(avgPrice), tickets_with_price: prices.length },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/inventory/bulk-import  — upload Excel, parse Tickets sheet, insert all rows
 inventoryRouter.post('/bulk-import', upload.single('file'), (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
-    // Parse game name & date from filename
-    // Format: "Team A VS Team B DD_MM_YYYY - Competition.xlsx"  or "... DD_MM_YYYY.xlsx"
     const filename = req.file.originalname.replace(/\.xlsx?$/i, '');
-    const dateMatch = filename.match(/(\d{2})[_\-\.](\d{2})[_\-\.](\d{4})/);
-    let gameDate = null;
-    let gameName = filename;
+    const dateMatch = filename.match(/(\d{2})[_\-\. ](\d{2})[_\-\. ](\d{4})/);
+    let gameDate = null, gameName = filename;
     if (dateMatch) {
-      gameDate = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`; // YYYY-MM-DD
-      // Remove date from name, clean up separators
+      gameDate = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`;
       gameName = filename.replace(dateMatch[0], '').replace(/\s*-\s*$/, '').replace(/\s+/g, ' ').trim();
-      // If there's a competition after " - ", reattach it
-      const compMatch = filename.match(/\d{2}[_\-\.]\d{2}[_\-\.]\d{4}\s*-\s*(.+)/);
+      const compMatch = filename.match(/\d{2}[_\-\. ]\d{2}[_\-\. ]\d{4}\s*-\s*(.+)/);
       if (compMatch) gameName = gameName + ' - ' + compMatch[1].trim();
     }
-
-    // Allow overrides from form body
     if (req.body.game_name) gameName = req.body.game_name;
     if (req.body.game_date) gameDate = req.body.game_date;
 
-    // Parse Excel
     const wb = XLSX.readFile(req.file.path);
     const sheetName = wb.SheetNames.find(s => s.toLowerCase().includes('ticket')) || wb.SheetNames[0];
     const ws = wb.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
 
-    if (rows.length < 2) return res.status(400).json({ error: 'No data rows found in Tickets sheet' });
+    if (rows.length < 2) return res.status(400).json({ error: 'No data rows found in sheet: ' + sheetName });
 
-    // Normalize headers (strip newlines, lowercase, trim)
     const headers = rows[0].map(h => (h || '').toString().replace(/\s+/g, ' ').trim().toLowerCase());
 
-    const col = name => {
-      const variants = Array.isArray(name) ? name : [name];
-      for (const v of variants) {
+    const col = (names) => {
+      for (const v of (Array.isArray(names) ? names : [names])) {
         const idx = headers.findIndex(h => h.includes(v.toLowerCase()));
         if (idx !== -1) return idx;
       }
       return -1;
     };
 
-    const iMember   = col(['member number', 'membernumber']);
-    const iCat      = col(['cat']);
-    const iSeat     = col(['seat']);
-    const iPrice    = col(['price in eur', 'price eur']);
-    const iNote     = col(['note']);
+    const iMember = col(['member number', 'membernumber']);
+    const iCat    = col(['cat']);
+    const iSeat   = col(['seat']);
+    const iPrice  = col(['price in eur', 'price eur']);
+    const iNote   = col(['note']);
+
+    const dataRows = rows.slice(1).filter(r => r && !r.every(c => c === null || c === ''));
+
+    // Check if CAT is all null — if so, extract from Notes
+    const catAllNull = iCat >= 0 && dataRows.every(r => r[iCat] === null || r[iCat] === '');
+
+    const extractCatFromNote = (note) => {
+      if (!note) return null;
+      const s = String(note).trim();
+      // "Young Adult(17-21) 30" → "Young Adult(17-21)"
+      const m = s.match(/^(.+?)\s+\d+(\s|$)/);
+      return m ? m[1].trim() : s;
+    };
+
+    const warnings = [];
+    if (catAllNull && iNote >= 0) warnings.push('Category extracted from Notes column (CAT column was empty)');
+    if (iSeat < 0) warnings.push('SEAT column not found');
+    if (iPrice < 0) warnings.push('PRICE IN EUR column not found');
 
     const inserted = [];
+    const categoryStats = {};
     const stmt = db.prepare(`
       INSERT INTO inventory (game_name, game_date, member_number, seat, category, buy_price, notes, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, 'Available')
     `);
 
-    for (let i = 1; i < rows.length; i++) {
-      const r = rows[i];
-      if (!r || r.every(c => c === null || c === '')) continue; // skip empty rows
-
+    for (const r of dataRows) {
       const memberNum = iMember >= 0 ? (r[iMember] || null) : null;
-      const cat       = iCat    >= 0 ? (r[iCat]    || null) : null;
       const seat      = iSeat   >= 0 ? (r[iSeat]   || null) : null;
+      const noteRaw   = iNote   >= 0 ? (r[iNote]   || null) : null;
       const price     = iPrice  >= 0 ? parseFloat(r[iPrice]) || 0 : 0;
-      const note      = iNote   >= 0 ? (r[iNote]   || null) : null;
 
-      const result = stmt.run(gameName, gameDate, memberNum ? String(memberNum) : null, seat, cat, price, note);
-      inserted.push(result.lastInsertRowid);
+      // Category: use CAT column if not null, else extract from Notes
+      let cat = iCat >= 0 ? (r[iCat] || null) : null;
+      if (!cat && catAllNull && noteRaw) cat = extractCatFromNote(noteRaw);
+
+      categoryStats[cat || 'Unknown'] = (categoryStats[cat || 'Unknown'] || 0) + 1;
+
+      const res2 = stmt.run(gameName, gameDate, memberNum ? String(memberNum) : null, seat, cat, price, noteRaw);
+      inserted.push(res2.lastInsertRowid);
     }
 
-    res.json({ inserted: inserted.length, game_name: gameName, game_date: gameDate });
+    const totalCost = dataRows.reduce((s, r) => s + (iPrice >= 0 ? parseFloat(r[iPrice]) || 0 : 0), 0);
+
+    res.json({
+      inserted: inserted.length,
+      game_name: gameName,
+      game_date: gameDate,
+      sheet_used: sheetName,
+      total_cost: round2(totalCost),
+      category_stats: categoryStats,
+      warnings,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
