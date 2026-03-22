@@ -241,47 +241,67 @@ export default function Dashboard() {
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000,
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
-        }}
-          onClick={() => setEditGame(null)}
-        >
-          <div style={{ background: '#fff', borderRadius: 14, padding: 28, width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}
-            onClick={e => e.stopPropagation()}
-          >
-            <h3 style={{ margin: '0 0 20px', fontSize: 18 }}>✏️ Edit Game</h3>
+        }} onClick={() => setEditGame(null)}>
+          <div style={{ background: '#fff', borderRadius: 14, padding: 28, width: '100%', maxWidth: 520, boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}
+            onClick={e => e.stopPropagation()}>
 
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14, color: '#374151' }}>Game Name</label>
-              <input
-                value={editName}
-                onChange={e => setEditName(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }}
-              />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <h3 style={{ margin: 0, fontSize: 18 }}>✏️ Edit Game</h3>
+              <button onClick={() => setEditGame(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af' }}>✕</button>
             </div>
 
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14, color: '#374151' }}>Date</label>
-              <input
-                type="date"
-                value={editDate}
-                onChange={e => setEditDate(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }}
-              />
-            </div>
-
-            {editGame.source === 'inventory' && (
-              <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#1e40af' }}>
-                ℹ️ This will rename the game across all {editGame.bq ?? ''} inventory tickets
+            {/* Stats summary */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+              <div style={{ flex: 1, background: '#f9fafb', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#1D9E75' }}>{editGame.tickets_sold ?? editGame.bq ?? 0}</div>
+                <div style={{ fontSize: 11, color: '#6b7280' }}>Tickets</div>
               </div>
-            )}
+              <div style={{ flex: 1, background: '#f9fafb', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#ef4444' }}>€{(editGame.total_all_costs || 0).toFixed(2)}</div>
+                <div style={{ fontSize: 11, color: '#6b7280' }}>Costs</div>
+              </div>
+              <div style={{ flex: 1, background: '#f9fafb', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: editGame.net_profit >= 0 ? '#1D9E75' : '#ef4444' }}>
+                  €{(editGame.net_profit || 0).toFixed(2)}
+                </div>
+                <div style={{ fontSize: 11, color: '#6b7280' }}>Profit</div>
+              </div>
+            </div>
 
-            <div style={{ display: 'flex', gap: 10 }}>
+            {/* Name */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14, color: '#374151' }}>Game Name</label>
+              <input value={editName} onChange={e => setEditName(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }} />
+            </div>
+
+            {/* Date */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14, color: '#374151' }}>Date</label>
+              <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }} />
+            </div>
+
+            {/* Info about source */}
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: 13, color: '#166534' }}>
+              {editGame.source === 'inventory'
+                ? `📦 Inventory-only game — name change will update all ${editGame.bq ?? 0} tickets`
+                : `📊 Game with financial tracking — changes update both game record and inventory`}
+            </div>
+
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button onClick={() => setEditGame(null)}
-                style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontWeight: 500 }}>
+                style={{ flex: '0 0 auto', padding: '9px 16px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontWeight: 500, fontSize: 14 }}>
                 Cancel
               </button>
+              <button onClick={() => { setEditGame(null); navigate(`/inventory/bulk-import?game=${encodeURIComponent(editGame.name)}`); }}
+                style={{ flex: '0 0 auto', padding: '9px 16px', borderRadius: 8, border: '1px solid #1D9E75', background: '#f0fdf4', color: '#1D9E75', cursor: 'pointer', fontWeight: 500, fontSize: 14 }}>
+                📤 Re-import Tickets
+              </button>
               <button onClick={handleSaveEdit} disabled={saving || !editName.trim()}
-                style={{ flex: 2, padding: '10px', borderRadius: 8, border: 'none', background: saving ? '#9ca3af' : '#1D9E75', color: '#fff', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}>
-                {saving ? 'Saving...' : 'Save Changes'}
+                style={{ flex: 1, padding: '9px 16px', borderRadius: 8, border: 'none', background: saving ? '#9ca3af' : '#1D9E75', color: '#fff', fontWeight: 600, fontSize: 14, cursor: saving ? 'not-allowed' : 'pointer' }}>
+                {saving ? 'Saving...' : '✅ Save Changes'}
               </button>
             </div>
           </div>

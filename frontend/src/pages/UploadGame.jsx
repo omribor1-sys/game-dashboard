@@ -72,6 +72,15 @@ export default function UploadGame() {
         <button className="btn btn-ghost" onClick={() => navigate('/')}>← Back</button>
       </div>
 
+      <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 14 }}>
+        <strong>ℹ️ This page adds a game with financial summary data from Excel.</strong>
+        <br/>
+        <span style={{ color: '#6b7280' }}>To import individual tickets from Excel, go to </span>
+        <button onClick={() => navigate('/inventory/bulk-import')} style={{ background: 'none', border: 'none', color: '#1D9E75', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline', padding: 0 }}>
+          All Inventory → Bulk Import
+        </button>
+      </div>
+
       {error && <div className="error-box">{error}</div>}
 
       <form onSubmit={handleSubmit}>
