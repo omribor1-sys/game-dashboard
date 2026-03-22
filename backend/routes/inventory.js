@@ -3,6 +3,7 @@ const multer  = require('multer');
 const XLSX    = require('xlsx');
 const path    = require('path');
 const db      = require('../database');
+const { parseGameFile } = require('../utils/parser');
 
 const upload = multer({ dest: path.join(__dirname, '../uploads/') });
 
@@ -182,7 +183,50 @@ inventoryRouter.post('/parse-preview', upload.single('file'), (req, res) => {
 
     const wb = XLSX.readFile(req.file.path);
     const allSheets = wb.SheetNames;
-    const sheetName = wb.SheetNames.find(s => s.toLowerCase().includes('ticket')) || wb.SheetNames[0];
+
+    // Sheet selection: use provided sheet_name if valid, else auto-detect
+    const requestedSheet = req.body && req.body.sheet_name;
+    let sheetName;
+    if (requestedSheet && allSheets.includes(requestedSheet)) {
+      sheetName = requestedSheet;
+    } else {
+      sheetName = wb.SheetNames.find(s => s.toLowerCase().includes('ticket')) || wb.SheetNames[0];
+    }
+
+    // Detect if this is a summary-type sheet
+    const sheetNameLower = sheetName.toLowerCase();
+    const isSummarySheet = ['customer', 'service', 'summary'].some(kw => sheetNameLower.includes(kw));
+
+    if (isSummarySheet) {
+      // Parse with parseGameFile and return summary-shaped response
+      const parsed = parseGameFile(req.file.path, sheetName);
+
+      const filename = req.file.originalname.replace(/\.xlsx?$/i, '');
+      const dateMatch = filename.match(/(\d{2})[_\-\. ](\d{2})[_\-\. ](\d{4})/);
+      let detectedDate = null, detectedName = filename;
+      if (dateMatch) {
+        detectedDate = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`;
+        detectedName = filename.replace(dateMatch[0], '').replace(/\s*-\s*$/, '').replace(/\s+/g, ' ').trim();
+      }
+
+      return res.json({
+        filename: req.file.originalname,
+        all_sheets: allSheets,
+        sheet_used: sheetName,
+        sheet_type: 'summary',
+        total_revenue: parsed.totalRevenue,
+        total_ticket_cost: parsed.totalTicketCost,
+        eli_cost: parsed.eliCost,
+        tickets_sold: parsed.ticketsSold,
+        avg_buy_price: parsed.avgBuyPrice,
+        avg_sell_price: parsed.avgSellPrice,
+        status_breakdown: parsed.statusBreakdown,
+        issues: parsed.issues,
+        detected_game_name: detectedName,
+        detected_game_date: detectedDate,
+      });
+    }
+
     const ws = wb.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
 
@@ -272,6 +316,7 @@ inventoryRouter.post('/parse-preview', upload.single('file'), (req, res) => {
       filename: req.file.originalname,
       all_sheets: allSheets,
       sheet_used: sheetName,
+      sheet_type: 'tickets',
       total_rows: dataRows.length,
       all_headers: headers,
       column_mapping: mapping,
@@ -306,7 +351,13 @@ inventoryRouter.post('/bulk-import', upload.single('file'), (req, res) => {
     if (req.body.game_date) gameDate = req.body.game_date;
 
     const wb = XLSX.readFile(req.file.path);
-    const sheetName = wb.SheetNames.find(s => s.toLowerCase().includes('ticket')) || wb.SheetNames[0];
+    const requestedSheetImport = req.body && req.body.sheet_name;
+    let sheetName;
+    if (requestedSheetImport && wb.SheetNames.includes(requestedSheetImport)) {
+      sheetName = requestedSheetImport;
+    } else {
+      sheetName = wb.SheetNames.find(s => s.toLowerCase().includes('ticket')) || wb.SheetNames[0];
+    }
     const ws = wb.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
 

@@ -186,8 +186,11 @@ export default function Dashboard() {
                 return (
                   <tr
                     key={g.id != null ? g.id : `inv-${idx}`}
-                    style={{ cursor: g.source === 'inventory' ? 'default' : 'pointer' }}
-                    onClick={() => g.source !== 'inventory' && navigate(`/game/${g.id}`)}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => g.source === 'inventory'
+                      ? navigate(`/game/0?name=${encodeURIComponent(g.name)}`)
+                      : navigate(`/game/${g.id}`)
+                    }
                   >
                     <td style={{ fontWeight: 600 }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>

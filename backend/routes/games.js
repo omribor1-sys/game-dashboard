@@ -156,6 +156,19 @@ router.get('/', (req, res) => {
   }
 });
 
+// GET /api/games/by-name/:name
+router.get('/by-name/:name', (req, res) => {
+  try {
+    const name = decodeURIComponent(req.params.name);
+    const game = db.prepare('SELECT * FROM games WHERE name = ?').get(name);
+    if (!game) return res.json({ id: null, name, source: 'inventory' });
+    res.json(game);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/games/:id
 router.get('/:id', (req, res) => {
   try {
@@ -271,6 +284,132 @@ router.delete('/:id', (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/games/:id/inventory
+router.get('/:id/inventory', (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT i.*, oi.order_id
+      FROM inventory i
+      LEFT JOIN order_items oi ON oi.inventory_id = i.id
+      WHERE i.game_name = (SELECT name FROM games WHERE id = ?)
+      ORDER BY i.category, i.seat
+    `).all(req.params.id);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/games/:id/orders
+router.get('/:id/orders', (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT o.*, COUNT(oi.id) AS item_count, COALESCE(SUM(oi.sell_price),0) AS items_total
+      FROM orders o
+      LEFT JOIN order_items oi ON oi.order_id = o.id
+      WHERE o.game_name = (SELECT name FROM games WHERE id = ?) OR o.game_id = ?
+      GROUP BY o.id
+      ORDER BY o.created_at DESC
+    `).all(req.params.id, req.params.id);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/games/:id/summary
+router.put('/:id/summary', (req, res) => {
+  try {
+    const game = db.prepare('SELECT * FROM games WHERE id = ?').get(req.params.id);
+    if (!game) return res.status(404).json({ error: 'Game not found' });
+
+    const totalRevenue = parseFloat(req.body.total_revenue) || 0;
+    const totalTicketCost = parseFloat(req.body.total_ticket_cost) || 0;
+    const eliCost = parseFloat(req.body.eli_cost) || 0;
+    const notes = req.body.notes !== undefined ? req.body.notes : game.notes;
+
+    const extraSum = db.prepare(
+      'SELECT COALESCE(SUM(amount),0) AS s FROM extra_costs WHERE game_id = ?'
+    ).get(req.params.id).s;
+
+    const totalAllCosts = round2(totalTicketCost + eliCost + extraSum);
+    const netProfit = round2(totalRevenue - totalAllCosts);
+    const marginPercent = totalRevenue > 0 ? round2((netProfit / totalRevenue) * 100) : 0;
+
+    db.prepare(`
+      UPDATE games
+      SET total_revenue = ?, total_ticket_cost = ?, eli_cost = ?, notes = ?,
+          total_all_costs = ?, net_profit = ?, margin_percent = ?
+      WHERE id = ?
+    `).run(totalRevenue, totalTicketCost, eliCost, notes,
+           totalAllCosts, netProfit, marginPercent, req.params.id);
+
+    const updated = db.prepare('SELECT * FROM games WHERE id = ?').get(req.params.id);
+    updated.status_breakdown = safeParse(updated.status_breakdown, {});
+    updated.issues = safeParse(updated.issues, {});
+    updated.extra_costs = db.prepare(
+      'SELECT * FROM extra_costs WHERE game_id = ? ORDER BY id'
+    ).all(req.params.id);
+
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/games/:id/summary/upload
+router.post('/:id/summary/upload', upload.single('file'), (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const game = db.prepare('SELECT * FROM games WHERE id = ?').get(req.params.id);
+    if (!game) {
+      fs.unlinkSync(req.file.path);
+      return res.status(404).json({ error: 'Game not found' });
+    }
+
+    const tabName = req.body.tab_name || undefined;
+    const parsed = parseGameFile(req.file.path, tabName);
+    fs.unlinkSync(req.file.path);
+
+    const extraSum = db.prepare(
+      'SELECT COALESCE(SUM(amount),0) AS s FROM extra_costs WHERE game_id = ?'
+    ).get(req.params.id).s;
+
+    const totalAllCosts = round2(parsed.totalTicketCost + parsed.eliCost + extraSum);
+    const netProfit = round2(parsed.totalRevenue - totalAllCosts);
+    const marginPercent = parsed.totalRevenue > 0
+      ? round2((netProfit / parsed.totalRevenue) * 100)
+      : 0;
+
+    db.prepare(`
+      UPDATE games
+      SET total_revenue = ?, total_ticket_cost = ?, eli_cost = ?, tab_name = ?,
+          total_all_costs = ?, net_profit = ?, margin_percent = ?
+      WHERE id = ?
+    `).run(parsed.totalRevenue, parsed.totalTicketCost, parsed.eliCost, parsed.sheetUsed,
+           totalAllCosts, netProfit, marginPercent, req.params.id);
+
+    const updated = db.prepare('SELECT * FROM games WHERE id = ?').get(req.params.id);
+    updated.status_breakdown = safeParse(updated.status_breakdown, {});
+    updated.issues = safeParse(updated.issues, {});
+    updated.extra_costs = db.prepare(
+      'SELECT * FROM extra_costs WHERE game_id = ? ORDER BY id'
+    ).all(req.params.id);
+
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    if (req.file?.path) {
+      try { fs.unlinkSync(req.file.path); } catch (_) {}
+    }
     res.status(500).json({ error: err.message });
   }
 });
