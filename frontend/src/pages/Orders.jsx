@@ -122,7 +122,7 @@ function useGames() {
 
 // ── New Order Modal ──────────────────────────────────────────────────────────
 function NewOrderModal({ onSave, onClose }) {
-  const [form, setForm] = useState({ buyer_name: '', buyer_email: '', buyer_phone: '', notes: '', game_name: '', order_number: '', sales_channel: '' });
+  const [form, setForm] = useState({ buyer_name: '', buyer_email: '', buyer_phone: '', notes: '', game_name: '', order_number: '', sales_channel: '', total_amount: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -162,6 +162,10 @@ function NewOrderModal({ onSave, onClose }) {
         <input type="tel" placeholder="+972 50 000 0000" value={form.buyer_phone} onChange={e => upd('buyer_phone', e.target.value)} />
       </div>
       <div className="form-group">
+        <label>Total Amount (€)</label>
+        <input type="number" step="0.01" placeholder="0.00" value={form.total_amount} onChange={e => upd('total_amount', e.target.value)} />
+      </div>
+      <div className="form-group">
         <label>Notes</label>
         <input type="text" placeholder="Optional" value={form.notes} onChange={e => upd('notes', e.target.value)} />
       </div>
@@ -181,6 +185,7 @@ function EditOrderModal({ order, onSave, onClose }) {
     game_name:     order.game_name     || '',
     order_number:  order.order_number  || '',
     sales_channel: order.sales_channel || '',
+    total_amount:  order.total_amount  != null ? order.total_amount : '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
@@ -226,6 +231,10 @@ function EditOrderModal({ order, onSave, onClose }) {
         <div className="form-group" style={{ gridColumn: '1/-1', marginBottom: 0 }}>
           <label>Email</label>
           <input type="email" value={form.buyer_email} onChange={e => upd('buyer_email', e.target.value)} />
+        </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label>Total Amount (€)</label>
+          <input type="number" step="0.01" value={form.total_amount} onChange={e => upd('total_amount', e.target.value)} placeholder="0.00" />
         </div>
         <div className="form-group" style={{ gridColumn: '1/-1', marginBottom: 0 }}>
           <label>Notes</label>

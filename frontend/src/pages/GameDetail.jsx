@@ -66,6 +66,10 @@ export default function GameDetail() {
   const [showLinkPicker, setShowLinkPicker] = useState(null);
   const [linkSellPrice, setLinkSellPrice] = useState('');
 
+  // Inline total_amount edit state
+  const [editingTotal, setEditingTotal] = useState(null); // orderId
+  const [editTotalValue, setEditTotalValue] = useState('');
+
   // Inventory tab: assign-to-order state
   const [assigningInventory, setAssigningInventory] = useState(null); // inventory item id
   const [assignOrderId, setAssignOrderId] = useState('');
@@ -227,6 +231,24 @@ export default function GameDetail() {
       loadInventory();
     } catch (e) {
       alert('Error removing item: ' + e.message);
+    }
+  }
+
+  // Save inline total_amount for an order
+  async function saveOrderTotal(orderId, value) {
+    try {
+      const res = await fetch(`${API}/orders/${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ total_amount: Number(value) || 0 }),
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      const updated = await res.json();
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, total_amount: updated.total_amount } : o));
+    } catch (e) {
+      alert('Error saving amount: ' + e.message);
+    } finally {
+      setEditingTotal(null);
     }
   }
 
@@ -600,7 +622,59 @@ export default function GameDetail() {
                           <td style={{ padding: '10px 14px', color: '#6B7280' }}>
                             {order.item_count ?? order.items_count ?? '—'}
                           </td>
-                          <td style={{ padding: '10px 14px', fontWeight: 600 }}>{fmt(order.total)}</td>
+                          <td style={{ padding: '10px 14px' }} onClick={e => e.stopPropagation()}>
+                            {editingTotal === order.id ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                <span style={{ fontSize: 13, color: '#6B7280' }}>€</span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={editTotalValue}
+                                  onChange={e => setEditTotalValue(e.target.value)}
+                                  autoFocus
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter') saveOrderTotal(order.id, editTotalValue);
+                                    if (e.key === 'Escape') setEditingTotal(null);
+                                  }}
+                                  style={{
+                                    width: 80, padding: '3px 7px', borderRadius: 5,
+                                    border: '1px solid #1D9E75', fontSize: 13,
+                                    color: '#111827', outline: 'none'
+                                  }}
+                                />
+                                <button
+                                  onClick={() => saveOrderTotal(order.id, editTotalValue)}
+                                  style={{
+                                    background: '#1D9E75', color: '#fff', border: 'none',
+                                    borderRadius: 5, padding: '3px 8px', fontSize: 12,
+                                    fontWeight: 700, cursor: 'pointer'
+                                  }}
+                                >✓</button>
+                                <button
+                                  onClick={() => setEditingTotal(null)}
+                                  style={{
+                                    background: 'none', border: '1px solid #E5E7EB',
+                                    borderRadius: 5, padding: '3px 7px', fontSize: 12,
+                                    color: '#6B7280', cursor: 'pointer'
+                                  }}
+                                >✕</button>
+                              </div>
+                            ) : (
+                              <div
+                                style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
+                                onClick={() => {
+                                  setEditingTotal(order.id);
+                                  setEditTotalValue(order.total_amount || '');
+                                }}
+                                title="Click to edit amount"
+                              >
+                                <span style={{ fontWeight: 600 }}>
+                                  {order.total_amount ? fmt(order.total_amount) : <span style={{ color: '#D1D5DB' }}>— set amount</span>}
+                                </span>
+                                <span style={{ fontSize: 11, color: '#9CA3AF' }}>✏</span>
+                              </div>
+                            )}
+                          </td>
                           <td style={{ padding: '10px 14px' }} onClick={e => e.stopPropagation()}>
                             <button
                               onClick={() => navigate(`/orders?view=${order.id}`)}

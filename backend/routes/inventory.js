@@ -682,15 +682,15 @@ ordersRouter.get('/', (req, res) => {
 // POST /api/orders
 ordersRouter.post('/', (req, res) => {
   try {
-    const { buyer_name, buyer_email, buyer_phone, status, notes, game_id, game_name, order_number, sales_channel } = req.body;
+    const { buyer_name, buyer_email, buyer_phone, status, notes, game_id, game_name, order_number, sales_channel, total_amount } = req.body;
 
     if (status && !VALID_ORDER_STATUSES.includes(status)) {
       return res.status(400).json({ error: 'Invalid order status' });
     }
 
     const result = db.prepare(`
-      INSERT INTO orders (buyer_name, buyer_email, buyer_phone, status, notes, game_id, game_name, order_number, sales_channel)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (buyer_name, buyer_email, buyer_phone, status, notes, game_id, game_name, order_number, sales_channel, total_amount)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       buyer_name     || null,
       buyer_email    || null,
@@ -701,6 +701,7 @@ ordersRouter.post('/', (req, res) => {
       game_name      || null,
       order_number   || null,
       sales_channel  || null,
+      parseFloat(total_amount) || 0,
     );
 
     const order = getOrderWithItems(result.lastInsertRowid);
@@ -717,15 +718,16 @@ ordersRouter.put('/:id', (req, res) => {
     const existing = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Order not found' });
 
-    const { buyer_name, buyer_email, buyer_phone, status, notes, game_id, game_name, order_number, sales_channel } = req.body;
+    const { buyer_name, buyer_email, buyer_phone, status, notes, game_id, game_name, order_number, sales_channel, total_amount } = req.body;
 
     if (status && !VALID_ORDER_STATUSES.includes(status)) {
       return res.status(400).json({ error: 'Invalid order status' });
     }
 
-    // Recalculate total_amount from current order_items
-    const items = db.prepare('SELECT sell_price FROM order_items WHERE order_id = ?').all(req.params.id);
-    const total = round2(items.reduce((s, i) => s + (i.sell_price || 0), 0));
+    // Use provided total_amount if given; otherwise keep existing
+    const total = total_amount !== undefined
+      ? (parseFloat(total_amount) || 0)
+      : (existing.total_amount || 0);
 
     db.prepare(`
       UPDATE orders SET
