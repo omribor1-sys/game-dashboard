@@ -427,8 +427,10 @@ function ModalFooter({ onCancel, onSave, saving, label, disabled }) {
 }
 
 // ── Order card ────────────────────────────────────────────────────────────────
-function OrderCard({ order, onEdit, onDelete, onAddTicket, onRemoveTicket, onStatusChange }) {
+function OrderCard({ order, onEdit, onDelete, onAddTicket, onRemoveTicket, onStatusChange, onTotalChange }) {
   const [expanded, setExpanded] = useState(false);
+  const [editingTotal, setEditingTotal] = useState(false);
+  const [totalValue, setTotalValue] = useState('');
 
   return (
     <div className="card" style={{ marginBottom: 16 }}>
@@ -466,9 +468,47 @@ function OrderCard({ order, onEdit, onDelete, onAddTicket, onRemoveTicket, onSta
             <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tickets</div>
             <div style={{ fontWeight: 700 }}>{order.items?.length ?? 0}</div>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Total</div>
-            <div style={{ fontWeight: 700, color: 'var(--green)' }}>{fmt(order.total_amount)}</div>
+          <div style={{ textAlign: 'right' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Total</div>
+            {editingTotal ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ fontSize: 13, color: '#6B7280' }}>€</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={totalValue}
+                  autoFocus
+                  onChange={e => setTotalValue(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { onTotalChange(order.id, parseFloat(totalValue) || 0); setEditingTotal(false); }
+                    if (e.key === 'Escape') setEditingTotal(false);
+                  }}
+                  style={{
+                    width: 80, padding: '3px 6px', borderRadius: 5,
+                    border: '1px solid #1D9E75', fontSize: 13, outline: 'none'
+                  }}
+                />
+                <button
+                  onClick={() => { onTotalChange(order.id, parseFloat(totalValue) || 0); setEditingTotal(false); }}
+                  style={{ background: '#1D9E75', color: '#fff', border: 'none', borderRadius: 5, padding: '3px 7px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                >✓</button>
+                <button
+                  onClick={() => setEditingTotal(false)}
+                  style={{ background: 'none', border: '1px solid #E5E7EB', borderRadius: 5, padding: '3px 6px', fontSize: 12, color: '#6B7280', cursor: 'pointer' }}
+                >✕</button>
+              </div>
+            ) : (
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', justifyContent: 'flex-end' }}
+                onClick={() => { setTotalValue(order.total_amount || ''); setEditingTotal(true); }}
+                title="Click to edit"
+              >
+                <span style={{ fontWeight: 700, color: order.total_amount ? 'var(--green)' : '#D1D5DB' }}>
+                  {order.total_amount ? fmt(order.total_amount) : '— set'}
+                </span>
+                <span style={{ fontSize: 11, color: '#9CA3AF' }}>✏</span>
+              </div>
+            )}
           </div>
 
           {/* Inline status change */}
@@ -572,6 +612,21 @@ export default function Orders() {
       if (exists) return prev.map(o => o.id === updated.id ? updated : o);
       return [updated, ...prev];
     });
+  }
+
+  async function handleTotalChange(orderId, total_amount) {
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ total_amount }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      mergeOrder(data);
+    } catch (e) {
+      setError(e.message);
+    }
   }
 
   async function handleStatusChange(orderId, status) {
@@ -699,6 +754,7 @@ export default function Orders() {
               onAddTicket={o => setModal({ type: 'addTicket', order: o })}
               onRemoveTicket={handleRemoveTicket}
               onStatusChange={handleStatusChange}
+              onTotalChange={handleTotalChange}
             />
           ))}
         </div>
