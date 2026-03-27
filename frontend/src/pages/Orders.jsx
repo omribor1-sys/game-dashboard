@@ -122,7 +122,7 @@ function useGames() {
 
 // ── New Order Modal ──────────────────────────────────────────────────────────
 function NewOrderModal({ onSave, onClose }) {
-  const [form, setForm] = useState({ buyer_name: '', buyer_email: '', buyer_phone: '', notes: '', game_name: '', order_number: '', sales_channel: '', total_amount: '' });
+  const [form, setForm] = useState({ buyer_name: '', buyer_email: '', buyer_phone: '', notes: '', game_name: '', order_number: '', sales_channel: '', total_amount: '', ticket_quantity: '1', category: '', row_seat: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -161,11 +161,25 @@ function NewOrderModal({ onSave, onClose }) {
         <label>Phone</label>
         <input type="tel" placeholder="+972 50 000 0000" value={form.buyer_phone} onChange={e => upd('buyer_phone', e.target.value)} />
       </div>
-      <div className="form-group">
-        <label>Total Amount (€)</label>
-        <input type="number" step="0.01" placeholder="0.00" value={form.total_amount} onChange={e => upd('total_amount', e.target.value)} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label>Total Amount (€)</label>
+          <input type="number" step="0.01" placeholder="0.00" value={form.total_amount} onChange={e => upd('total_amount', e.target.value)} />
+        </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label>Tickets</label>
+          <input type="number" min="1" placeholder="1" value={form.ticket_quantity} onChange={e => upd('ticket_quantity', e.target.value)} />
+        </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label>Category</label>
+          <input type="text" placeholder="e.g. Longside Lower" value={form.category} onChange={e => upd('category', e.target.value)} />
+        </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label>Row / Seat</label>
+          <input type="text" placeholder="e.g. Row A, Block 9" value={form.row_seat} onChange={e => upd('row_seat', e.target.value)} />
+        </div>
       </div>
-      <div className="form-group">
+      <div className="form-group" style={{ marginTop: 14 }}>
         <label>Notes</label>
         <input type="text" placeholder="Optional" value={form.notes} onChange={e => upd('notes', e.target.value)} />
       </div>
@@ -181,11 +195,14 @@ function EditOrderModal({ order, onSave, onClose }) {
     buyer_email:   order.buyer_email   || '',
     buyer_phone:   order.buyer_phone   || '',
     status:        order.status        || 'Pending',
-    notes:         order.notes         || '',
-    game_name:     order.game_name     || '',
-    order_number:  order.order_number  || '',
-    sales_channel: order.sales_channel || '',
-    total_amount:  order.total_amount  != null ? order.total_amount : '',
+    notes:           order.notes           || '',
+    game_name:       order.game_name       || '',
+    order_number:    order.order_number    || '',
+    sales_channel:   order.sales_channel   || '',
+    total_amount:    order.total_amount    != null ? order.total_amount : '',
+    ticket_quantity: order.ticket_quantity != null ? order.ticket_quantity : '1',
+    category:        order.category        || '',
+    row_seat:        order.row_seat        || '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
@@ -235,6 +252,18 @@ function EditOrderModal({ order, onSave, onClose }) {
         <div className="form-group" style={{ marginBottom: 0 }}>
           <label>Total Amount (€)</label>
           <input type="number" step="0.01" value={form.total_amount} onChange={e => upd('total_amount', e.target.value)} placeholder="0.00" />
+        </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label>Tickets</label>
+          <input type="number" min="1" value={form.ticket_quantity} onChange={e => upd('ticket_quantity', e.target.value)} />
+        </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label>Category</label>
+          <input type="text" value={form.category} onChange={e => upd('category', e.target.value)} placeholder="e.g. Longside Lower" />
+        </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label>Row / Seat</label>
+          <input type="text" value={form.row_seat} onChange={e => upd('row_seat', e.target.value)} placeholder="e.g. Row A, Block 9" />
         </div>
         <div className="form-group" style={{ gridColumn: '1/-1', marginBottom: 0 }}>
           <label>Notes</label>
@@ -427,13 +456,106 @@ function ModalFooter({ onCancel, onSave, saving, label, disabled }) {
 }
 
 // ── Order card ────────────────────────────────────────────────────────────────
-function OrderCard({ order, onEdit, onDelete, onAddTicket, onRemoveTicket, onStatusChange, onTotalChange }) {
+// ── Game Accordion — groups OrderCards by game_name ──────────────────────────
+function GameAccordion({ orders, onEdit, onDelete, onAddTicket, onRemoveTicket, onStatusChange, onTotalChange }) {
+  const [openGames, setOpenGames] = useState({});
+
+  // Group orders by game_name (null/empty → "No Game")
+  const groups = {};
+  for (const o of orders) {
+    const key = o.game_name || 'No Game';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(o);
+  }
+  // Sort: games with orders first, alphabetically
+  const sortedKeys = Object.keys(groups).sort((a, b) => {
+    if (a === 'No Game') return 1;
+    if (b === 'No Game') return -1;
+    return a.localeCompare(b);
+  });
+
+  // Open all by default on first render
+  useState(() => {
+    const init = {};
+    sortedKeys.forEach(k => { init[k] = true; });
+    setOpenGames(init);
+  });
+
+  function toggle(key) {
+    setOpenGames(prev => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  return (
+    <div>
+      {sortedKeys.map(game => {
+        const gameOrders = groups[game];
+        const isOpen     = openGames[game] !== false;
+        const gameTotal  = gameOrders.reduce((s, o) => s + (o.total_amount || 0), 0);
+        const gameTickets = gameOrders.reduce((s, o) => s + (o.ticket_quantity || 1), 0);
+
+        return (
+          <div key={game} style={{ marginBottom: 16 }}>
+            {/* Game header */}
+            <div
+              onClick={() => toggle(game)}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 16px', background: '#F0FDF9',
+                border: '1px solid #D1FAE5', borderRadius: isOpen ? '10px 10px 0 0' : 10,
+                cursor: 'pointer', userSelect: 'none',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#1D9E75" strokeWidth="2.5"
+                  style={{ transform: isOpen ? 'rotate(90deg)' : '', transition: 'transform 0.2s', flexShrink: 0 }}>
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+                <span style={{ fontWeight: 700, fontSize: 14, color: '#065F46' }}>{game}</span>
+                <span style={{
+                  background: '#D1FAE5', color: '#065F46', borderRadius: 20,
+                  fontSize: 12, fontWeight: 600, padding: '1px 8px'
+                }}>
+                  {gameOrders.length} order{gameOrders.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
+                <span style={{ fontSize: 13, color: '#6B7280' }}>🎫 {gameTickets} tickets</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#1D9E75' }}>{fmt(gameTotal)}</span>
+              </div>
+            </div>
+
+            {/* Orders list */}
+            {isOpen && (
+              <div style={{ border: '1px solid #D1FAE5', borderTop: 'none', borderRadius: '0 0 10px 10px', overflow: 'hidden' }}>
+                {gameOrders.map(order => (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onAddTicket={onAddTicket}
+                    onRemoveTicket={onRemoveTicket}
+                    onStatusChange={onStatusChange}
+                    onTotalChange={onTotalChange}
+                    nested
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function OrderCard({ order, onEdit, onDelete, onAddTicket, onRemoveTicket, onStatusChange, onTotalChange, nested }) {
   const [expanded, setExpanded] = useState(false);
   const [editingTotal, setEditingTotal] = useState(false);
   const [totalValue, setTotalValue] = useState('');
 
   return (
-    <div className="card" style={{ marginBottom: 16 }}>
+    <div className="card" style={{ marginBottom: 0, borderRadius: 0, borderLeft: 'none', borderRight: 'none', borderTop: 'none', ...(nested ? {} : { marginBottom: 16, borderRadius: 10, border: '1px solid var(--border)' }) }}>
       {/* Header row */}
       <div
         style={{ padding: '16px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}
@@ -451,12 +573,11 @@ function OrderCard({ order, onEdit, onDelete, onAddTicket, onRemoveTicket, onSta
             )}
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-            {order.game_name && (
-              <span style={{ fontWeight: 600, color: '#3b82f6' }}>{order.game_name}</span>
-            )}
             {order.sales_channel && (
               <span style={{ background: '#f3f4f6', borderRadius: 4, padding: '1px 7px', color: '#374151', fontWeight: 500 }}>{order.sales_channel}</span>
             )}
+            {order.category && <span style={{ color: '#6b7280' }}>{order.ticket_quantity > 1 ? `${order.ticket_quantity}×` : ''} {order.category}</span>}
+            {order.row_seat && <span style={{ color: '#9ca3af' }}>{order.row_seat}</span>}
             {order.buyer_email && <span>{order.buyer_email}</span>}
             {order.buyer_phone && <span>{order.buyer_phone}</span>}
             {order.notes && <span style={{ fontStyle: 'italic' }}>{order.notes}</span>}
@@ -744,20 +865,15 @@ export default function Orders() {
           <button className="btn btn-primary" onClick={() => setModal('new')}>+ New Order</button>
         </div>
       ) : (
-        <div>
-          {orders.map(order => (
-            <OrderCard
-              key={order.id}
-              order={order}
-              onEdit={o => setModal({ type: 'edit', order: o })}
-              onDelete={handleDelete}
-              onAddTicket={o => setModal({ type: 'addTicket', order: o })}
-              onRemoveTicket={handleRemoveTicket}
-              onStatusChange={handleStatusChange}
-              onTotalChange={handleTotalChange}
-            />
-          ))}
-        </div>
+        <GameAccordion
+          orders={orders}
+          onEdit={o => setModal({ type: 'edit', order: o })}
+          onDelete={handleDelete}
+          onAddTicket={o => setModal({ type: 'addTicket', order: o })}
+          onRemoveTicket={handleRemoveTicket}
+          onStatusChange={handleStatusChange}
+          onTotalChange={handleTotalChange}
+        />
       )}
     </div>
   );

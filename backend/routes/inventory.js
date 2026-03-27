@@ -682,15 +682,15 @@ ordersRouter.get('/', (req, res) => {
 // POST /api/orders
 ordersRouter.post('/', (req, res) => {
   try {
-    const { buyer_name, buyer_email, buyer_phone, status, notes, game_id, game_name, order_number, sales_channel, total_amount } = req.body;
+    const { buyer_name, buyer_email, buyer_phone, status, notes, game_id, game_name, order_number, sales_channel, total_amount, ticket_quantity, category, row_seat } = req.body;
 
     if (status && !VALID_ORDER_STATUSES.includes(status)) {
       return res.status(400).json({ error: 'Invalid order status' });
     }
 
     const result = db.prepare(`
-      INSERT INTO orders (buyer_name, buyer_email, buyer_phone, status, notes, game_id, game_name, order_number, sales_channel, total_amount)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (buyer_name, buyer_email, buyer_phone, status, notes, game_id, game_name, order_number, sales_channel, total_amount, ticket_quantity, category, row_seat)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       buyer_name     || null,
       buyer_email    || null,
@@ -702,6 +702,9 @@ ordersRouter.post('/', (req, res) => {
       order_number   || null,
       sales_channel  || null,
       parseFloat(total_amount) || 0,
+      parseInt(ticket_quantity) || 1,
+      category       || null,
+      row_seat       || null,
     );
 
     const order = getOrderWithItems(result.lastInsertRowid);
@@ -718,7 +721,7 @@ ordersRouter.put('/:id', (req, res) => {
     const existing = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Order not found' });
 
-    const { buyer_name, buyer_email, buyer_phone, status, notes, game_id, game_name, order_number, sales_channel, total_amount } = req.body;
+    const { buyer_name, buyer_email, buyer_phone, status, notes, game_id, game_name, order_number, sales_channel, total_amount, ticket_quantity, category, row_seat } = req.body;
 
     if (status && !VALID_ORDER_STATUSES.includes(status)) {
       return res.status(400).json({ error: 'Invalid order status' });
@@ -731,28 +734,34 @@ ordersRouter.put('/:id', (req, res) => {
 
     db.prepare(`
       UPDATE orders SET
-        buyer_name    = ?,
-        buyer_email   = ?,
-        buyer_phone   = ?,
-        status        = ?,
-        notes         = ?,
-        total_amount  = ?,
-        game_id       = ?,
-        game_name     = ?,
-        order_number  = ?,
-        sales_channel = ?
+        buyer_name      = ?,
+        buyer_email     = ?,
+        buyer_phone     = ?,
+        status          = ?,
+        notes           = ?,
+        total_amount    = ?,
+        game_id         = ?,
+        game_name       = ?,
+        order_number    = ?,
+        sales_channel   = ?,
+        ticket_quantity = ?,
+        category        = ?,
+        row_seat        = ?
       WHERE id = ?
     `).run(
-      buyer_name    !== undefined ? (buyer_name    || null) : existing.buyer_name,
-      buyer_email   !== undefined ? (buyer_email   || null) : existing.buyer_email,
-      buyer_phone   !== undefined ? (buyer_phone   || null) : existing.buyer_phone,
+      buyer_name      !== undefined ? (buyer_name      || null) : existing.buyer_name,
+      buyer_email     !== undefined ? (buyer_email     || null) : existing.buyer_email,
+      buyer_phone     !== undefined ? (buyer_phone     || null) : existing.buyer_phone,
       status || existing.status,
-      notes         !== undefined ? (notes         || null) : existing.notes,
+      notes           !== undefined ? (notes           || null) : existing.notes,
       total,
-      game_id       !== undefined ? (game_id       || null) : existing.game_id,
-      game_name     !== undefined ? (game_name     || null) : existing.game_name,
-      order_number  !== undefined ? (order_number  || null) : existing.order_number,
-      sales_channel !== undefined ? (sales_channel || null) : existing.sales_channel,
+      game_id         !== undefined ? (game_id         || null) : existing.game_id,
+      game_name       !== undefined ? (game_name       || null) : existing.game_name,
+      order_number    !== undefined ? (order_number    || null) : existing.order_number,
+      sales_channel   !== undefined ? (sales_channel   || null) : existing.sales_channel,
+      ticket_quantity !== undefined ? (parseInt(ticket_quantity) || 1) : existing.ticket_quantity,
+      category        !== undefined ? (category        || null) : existing.category,
+      row_seat        !== undefined ? (row_seat        || null) : existing.row_seat,
       req.params.id,
     );
 
