@@ -95,13 +95,17 @@ function insertOrder(data) {
 //   Payment Total  €612.48
 function parseStubHub(subject, body) {
   try {
+    // Only handle sale confirmations — not purchase confirmations or other emails
+    if (!subject.match(/You sold your (?:ticket|tickets)/i)) return null;
+
     // Game name base — from subject, strip " Tickets" suffix
     const gameMatch = subject.match(/You sold your (?:ticket|tickets) for (.+?)(?:\s+Tickets\b|\s+-\s+Order|$)/i);
     const game_name_base = gameMatch ? gameMatch[1].trim() : null;
 
     // Game datetime — "Sun, 19/04/2026, 16:30 Europe/London"
-    // Format: DayName, DD/MM/YYYY, HH:MM
-    const dtMatch = body.match(/(\w{2,3}),\s+(\d{1,2})\/(\d{1,2})\/(\d{4}),\s+(\d{1,2}:\d{2})/);
+    // Must include timezone marker to avoid matching the order-placed date
+    const dtMatch = body.match(/(\w{2,3}),\s+(\d{1,2})\/(\d{1,2})\/(\d{4}),\s+(\d{1,2}:\d{2})\s+Europe\//i)
+      || body.match(/(\w{2,3}),\s+(\d{1,2})\/(\d{1,2})\/(\d{4}),\s+(\d{1,2}:\d{2})/); // fallback
     let game_date = null;
     let game_datetime = null; // stored string: "Sun, 19/04/2026, 16:30"
     if (dtMatch) {
@@ -164,44 +168,125 @@ function parseStubHub(subject, body) {
 }
 
 // ── FootballTicketNet parser ───────────────────────────────────────────────────
+// FTN emails are "Daily Sales Summary" containing a table with multiple orders.
+// Table columns (after HTML stripping, all on one line):
+//   EventName  EventDate(DD/MM/YYYY HH:MM)  Category  OrderID(7-digit)  Qty  PricePerTicket GBP  SubTotal GBP
+//
+// Example row:
+//   "Arsenal vs Bayer Leverkusen 17/03/2026 20:00 Shortside Upper Level 1598484 2 148.00 GBP 296.00 GBP"
+//
+// Returns an ARRAY of order objects (one email can have multiple orders).
 function parseFootballTicketNet(subject, body) {
+  const results = [];
   try {
-    // Order number
-    const orderMatch = body.match(/Order\s*#?\s*:?\s*(\d{5,10})/i)
-      || subject.match(/(\d{5,10})/);
-    const order_number = orderMatch ? orderMatch[1] : null;
+    const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-    // Game name — look for "vs" pattern
-    const gameMatch = body.match(/([A-Za-z\s]+(?:FC|United|City|Athletic|Hotspur|Liverpool|Arsenal|Chelsea|Madrid|Barça|Barcelona)?)\s+vs\.?\s+([A-Za-z\s]+(?:FC|United|City|Athletic|Hotspur|Liverpool|Arsenal|Chelsea|Madrid|Barça|Barcelona)?)/i);
-    const game_name = gameMatch ? gameMatch[0].trim() : null;
+    function parseFtnDate(dd, mm, yyyy, hh, min) {
+      const d = new Date(parseInt(yyyy), parseInt(mm) - 1, parseInt(dd), parseInt(hh), parseInt(min));
+      return {
+        game_date: d,
+        game_datetime: `${DAY_NAMES[d.getDay()]}, ${dd}/${mm}/${yyyy}, ${hh}:${min}`,
+      };
+    }
 
-    // Buyer name
-    const buyerMatch = body.match(/(?:Name|Customer|Buyer)[:\s]+([A-Za-zÀ-ÿ'\- ]{2,40})(?:\s*[\n\r]|$)/im);
-    const buyer_name = buyerMatch ? buyerMatch[1].trim() : null;
+    // ── Case 1: Individual sale notification ──────────────────────────────────
+    // Subject: "Your tickets have been sold on FootballTicketNet - Order  1602091 - Manchester City vs Liverpool FC"
+    // Body (HTML→plain, table format):
+    //   Order ID         1602091
+    //   Event Name       Manchester City vs Liverpool FC
+    //   Event Date       04/04/2026 12:45
+    //   Ticket Quantity  2
+    //   Category         Longside Lower Level
+    //   Extra Information  Block: 9 - Row: LOWROW; Seats: 193|
+    //   Price Per Ticket GBP 88.00
+    //   Total Price      GBP 176.00
+    const saleMatch = subject.match(/Order\s+(\d{5,10})\s+-\s+(.+)$/i);
+    if (saleMatch) {
+      const order_number  = saleMatch[1];
+      const game_name_raw = saleMatch[2].trim();
 
-    // Ticket quantity + category + row/seat
-    const ticketMatch = body.match(/(\d+)\s*[×x×]\s*([^\n,]+(?:Level|Lower|Upper|Stand|Block|Tier)[^\n,]*)/i)
-      || body.match(/(\d+)\s*[×x×]\s*([^,\n]+)/i);
-    const ticket_quantity = ticketMatch ? parseInt(ticketMatch[1]) : 1;
-    const category        = ticketMatch ? ticketMatch[2].trim() : null;
+      // Event Date: "Event Date  04/04/2026 12:45"
+      const dtM = body.match(/Event Date\s+(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/i)
+        || body.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
+      const { game_date, game_datetime } = dtM
+        ? parseFtnDate(dtM[1], dtM[2], dtM[3], dtM[4], dtM[5])
+        : { game_date: null, game_datetime: null };
 
-    // Block/row info
-    const blockMatch = body.match(/Block\s+([A-Z0-9]+)/i);
-    const row_seat = blockMatch ? `Block ${blockMatch[1]}` : null;
+      // Ticket Quantity: "Ticket Quantity  2"
+      const qtyM = body.match(/Ticket Quantity\s+(\d+)/i)
+        || body.match(/Quantity[:\s]+(\d+)/i);
+      const ticket_quantity = qtyM ? parseInt(qtyM[1]) : 1;
 
-    // Amount (GBP or EUR)
-    const amountMatch = body.match(/(?:GBP|£|€)\s*(\d[\d,]*\.?\d{0,2})/i);
-    const total_amount = amountMatch ? parseFloat(amountMatch[1].replace(',', '')) : 0;
+      // Category: "Category  Longside Lower Level  Split Type..."
+      const catM = body.match(/\bCategory\s+([A-Za-z][A-Za-z\s0-9]+?)(?=\s+(?:Split|Shipping|Fan Side|Extra|Price|$))/i)
+        || body.match(/([A-Za-z][A-Za-z\s0-9]*?(?:Level|Lower|Upper|Longside|Shortside|Side|Stand|Block|Tier)[A-Za-z\s0-9]*)/i);
+      const category = catM ? catM[1].trim() : null;
 
-    return {
-      game_name, order_number, buyer_name, buyer_email: null,
-      ticket_quantity, category, row_seat, total_amount,
-      sales_channel: 'FootballTicketNet',
-    };
+      // Row/Seat from Extra Information: "Block: 9 - Row: LOWROW; Seats: 193|"
+      const rowM = body.match(/Block:\s*([^\s\-]+)\s*-?\s*Row:\s*([^;|\n]+?)(?:;\s*Seats?:\s*([^|\n.]+))?(?:\s|$)/i);
+      const row_seat = rowM
+        ? `Block ${rowM[1].trim()} | Row ${rowM[2].trim()}${rowM[3] ? ' | Seats ' + rowM[3].trim() : ''}`
+        : null;
+
+      // Total Price: "Total Price  GBP 176.00" (GBP before the number)
+      const totalM = body.match(/Total Price\s+(?:GBP|EUR|€|£)\s*([\d,]+\.?\d{0,2})/i)
+        || body.match(/(?:GBP|EUR|€|£)\s*([\d,]+\.?\d{0,2})/i);
+      const total_amount = totalM ? parseFloat(totalM[1].replace(/,/g, '')) : 0;
+
+      const game_name = game_name_raw + (game_datetime ? ` | ${game_datetime}` : '');
+
+      results.push({
+        game_name, order_number, buyer_name: null, buyer_email: null,
+        ticket_quantity, category, row_seat, total_amount,
+        sales_channel: 'FootballTicketNet', game_date, game_datetime,
+      });
+      return results;
+    }
+
+    // ── Case 2: Daily summary / payment email — table rows ────────────────────
+    // Each row: EventName vs Team  DD/MM/YYYY HH:MM  CategoryText  7-digit-OrderID  Qty  Price GBP
+    const rowRegex = /([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'&-]*?\bvs\.?\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.'&-]*?)\s+(\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2})\s+([A-Za-z][A-Za-z\s0-9]*?(?:Level|Lower|Upper|Longside|Shortside|Side|Stand|Block|Tier|End|Corner)[A-Za-z\s0-9]*?)\s+(\d{7})\s+(\d+)\s+([\d]+\.[\d]{2})\s*GBP/gi;
+
+    let match;
+    while ((match = rowRegex.exec(body)) !== null) {
+      const [, game_name_raw, event_date_str, category, order_number, qty_str, price_str] = match;
+
+      // Parse DD/MM/YYYY HH:MM → proper Date + display string
+      const dtMatch = event_date_str.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
+      let game_date = null;
+      let game_datetime = null;
+      if (dtMatch) {
+        const [, dd, mm, yyyy, hh, min] = dtMatch;
+        game_date = new Date(parseInt(yyyy), parseInt(mm) - 1, parseInt(dd), parseInt(hh), parseInt(min));
+        game_datetime = `${DAY_NAMES[game_date.getDay()]}, ${dd}/${mm}/${yyyy}, ${hh}:${min}`;
+      }
+
+      const qty = parseInt(qty_str);
+      const total_amount = qty * parseFloat(price_str);
+      const game_name = game_name_raw.trim() + (game_datetime ? ` | ${game_datetime}` : '');
+
+      results.push({
+        game_name,
+        order_number,
+        buyer_name: null,
+        buyer_email: null,
+        ticket_quantity: qty,
+        category: category.trim(),
+        row_seat: null,
+        total_amount,
+        sales_channel: 'FootballTicketNet',
+        game_date,
+        game_datetime,
+      });
+    }
+
+    if (results.length === 0) {
+      console.log('[FTN] No order rows found in:', subject);
+    }
   } catch (e) {
     console.error('[FootballTicketNet parser error]', e.message);
-    return null;
   }
+  return results; // array (0 or more)
 }
 
 // ── Main importer ─────────────────────────────────────────────────────────────
@@ -254,54 +339,54 @@ async function checkEmailsAndImport(options = {}) {
         const from    = getHeader(headers, 'from').toLowerCase();
         const body    = getPlainText(msg.data.payload);
 
-        let parsed = null;
+        // Build a list of parsed orders from this email
+        // StubHub → single order (or null); FTN → array of orders
+        let parsedList = [];
         if (from.includes('stubhub')) {
-          parsed = parseStubHub(subject, body);
+          const p = parseStubHub(subject, body);
+          if (p) parsedList = [p];
         } else if (from.includes('footballticketnet') || from.includes('football-ticket-net')) {
-          parsed = parseFootballTicketNet(subject, body);
+          parsedList = parseFootballTicketNet(subject, body); // returns array
         }
 
-        if (!parsed) {
-          stats.skipped++;
-          continue;
-        }
-
-        // Future-only filter: skip past games (if date could be parsed and it's before today)
-        if (futureOnly && parsed.game_date instanceof Date && !isNaN(parsed.game_date)) {
-          const gd = new Date(parsed.game_date); gd.setHours(0, 0, 0, 0);
-          if (gd < today) {
-            console.log(`[Gmail] Skipping past game: ${parsed.game_name} (${parsed.game_date.toDateString()})`);
-            stats.skipped++;
-            // Still mark as read so we don't reprocess
-            await gmail.users.messages.modify({
-              userId: 'me', id: msgId,
-              requestBody: { removeLabelIds: ['UNREAD'] },
-            });
-            continue;
-          }
-        }
-
-        if (!parsed.order_number) {
+        if (parsedList.length === 0) {
           stats.errors.push(`No order number found in email: ${subject}`);
           stats.skipped++;
           continue;
         }
 
-        if (orderExists(parsed.order_number)) {
-          console.log(`[Gmail] Order ${parsed.order_number} already exists — skip`);
-          stats.skipped++;
-        } else {
-          const newId = insertOrder(parsed);
-          console.log(`[Gmail] Imported order ${parsed.order_number} → id=${newId}`);
-          stats.imported++;
-          importedOrders.push(parsed);
+        let emailHadAction = false;
+        for (const parsed of parsedList) {
+          // Future-only filter
+          if (futureOnly && parsed.game_date instanceof Date && !isNaN(parsed.game_date)) {
+            const gd = new Date(parsed.game_date); gd.setHours(0, 0, 0, 0);
+            if (gd < today) {
+              console.log(`[Gmail] Skipping past game: ${parsed.game_name}`);
+              stats.skipped++;
+              emailHadAction = true;
+              continue;
+            }
+          }
+
+          if (orderExists(parsed.order_number)) {
+            console.log(`[Gmail] Order ${parsed.order_number} already exists — skip`);
+            stats.skipped++;
+          } else {
+            const newId = insertOrder(parsed);
+            console.log(`[Gmail] Imported order ${parsed.order_number} → id=${newId}`);
+            stats.imported++;
+            importedOrders.push(parsed);
+          }
+          emailHadAction = true;
         }
 
-        // Mark email as read
-        await gmail.users.messages.modify({
-          userId: 'me', id: msgId,
-          requestBody: { removeLabelIds: ['UNREAD'] },
-        });
+        // Mark email as read after processing all its orders
+        if (emailHadAction) {
+          await gmail.users.messages.modify({
+            userId: 'me', id: msgId,
+            requestBody: { removeLabelIds: ['UNREAD'] },
+          });
+        }
       } catch (e) {
         console.error('[Gmail] Error processing message:', e.message);
         stats.errors.push(e.message);

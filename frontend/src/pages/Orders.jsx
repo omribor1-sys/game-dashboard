@@ -456,95 +456,140 @@ function ModalFooter({ onCancel, onSave, saving, label, disabled }) {
 }
 
 // ── Order card ────────────────────────────────────────────────────────────────
+// ── Helpers for date-aware grouping ──────────────────────────────────────────
+function parseGameDate(gameName) {
+  // Extracts date from "Team vs Team | Sun, 19/04/2026, 16:30"
+  const m = gameName?.match(/\|\s*\w+,\s*(\d{2})\/(\d{2})\/(\d{4}),\s*(\d{2}):(\d{2})/);
+  if (!m) return null;
+  return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]), parseInt(m[4]), parseInt(m[5]));
+}
+
 // ── Game Accordion — groups OrderCards by game_name ──────────────────────────
 function GameAccordion({ orders, onEdit, onDelete, onAddTicket, onRemoveTicket, onStatusChange, onTotalChange }) {
-  const [openGames, setOpenGames] = useState({});
+  const [openGames, setOpenGames]     = useState({});
+  const [pastOpen, setPastOpen]       = useState(false);
+  const now = new Date();
 
-  // Group orders by game_name (null/empty → "No Game")
+  // Group orders by game_name
   const groups = {};
   for (const o of orders) {
     const key = o.game_name || 'No Game';
     if (!groups[key]) groups[key] = [];
     groups[key].push(o);
   }
-  // Sort: games with orders first, alphabetically
-  const sortedKeys = Object.keys(groups).sort((a, b) => {
-    if (a === 'No Game') return 1;
-    if (b === 'No Game') return -1;
-    return a.localeCompare(b);
+
+  // Attach parsed date and classify
+  const upcomingGroups = [];
+  const pastGroups     = [];
+
+  for (const [game, gameOrders] of Object.entries(groups)) {
+    const date = parseGameDate(game);
+    const isPast = date && date < now;
+    const entry = { game, gameOrders, date };
+    if (isPast) pastGroups.push(entry);
+    else upcomingGroups.push(entry);
+  }
+
+  // Upcoming: sort by date ascending (no date → end), then "No Game" last
+  upcomingGroups.sort((a, b) => {
+    if (a.game === 'No Game') return 1;
+    if (b.game === 'No Game') return -1;
+    if (a.date && b.date) return a.date - b.date;
+    if (a.date) return -1;
+    if (b.date) return 1;
+    return a.game.localeCompare(b.game);
   });
 
-  // Open all by default on first render
-  useState(() => {
-    const init = {};
-    sortedKeys.forEach(k => { init[k] = true; });
-    setOpenGames(init);
+  // Past: sort by date descending (most recent first)
+  pastGroups.sort((a, b) => {
+    if (a.date && b.date) return b.date - a.date;
+    return b.game.localeCompare(a.game);
   });
 
   function toggle(key) {
     setOpenGames(prev => ({ ...prev, [key]: !prev[key] }));
   }
 
+  function renderGroup({ game, gameOrders }, isPast) {
+    const isOpen     = openGames[game] !== false;
+    const gameTotal  = gameOrders.reduce((s, o) => s + (o.total_amount || 0), 0);
+    const gameTickets = gameOrders.reduce((s, o) => s + (o.ticket_quantity || 1), 0);
+
+    const hdrBg     = isPast ? '#F9FAFB' : '#F0FDF9';
+    const hdrBorder = isPast ? '#E5E7EB' : '#D1FAE5';
+    const titleClr  = isPast ? '#6B7280' : '#065F46';
+    const badgeBg   = isPast ? '#F3F4F6' : '#D1FAE5';
+    const badgeClr  = isPast ? '#6B7280' : '#065F46';
+    const amtClr    = isPast ? '#9CA3AF' : '#1D9E75';
+
+    return (
+      <div key={game} style={{ marginBottom: 16 }}>
+        <div
+          onClick={() => toggle(game)}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 16px', background: hdrBg,
+            border: `1px solid ${hdrBorder}`, borderRadius: isOpen ? '10px 10px 0 0' : 10,
+            cursor: 'pointer', userSelect: 'none',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke={titleClr} strokeWidth="2.5"
+              style={{ transform: isOpen ? 'rotate(90deg)' : '', transition: 'transform 0.2s', flexShrink: 0 }}>
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+            <span style={{ fontWeight: 700, fontSize: 14, color: titleClr }}>{game}</span>
+            <span style={{ background: badgeBg, color: badgeClr, borderRadius: 20, fontSize: 12, fontWeight: 600, padding: '1px 8px' }}>
+              {gameOrders.length} order{gameOrders.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
+            <span style={{ fontSize: 13, color: '#6B7280' }}>🎫 {gameTickets} tickets</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: amtClr }}>{fmt(gameTotal)}</span>
+          </div>
+        </div>
+        {isOpen && (
+          <div style={{ border: `1px solid ${hdrBorder}`, borderTop: 'none', borderRadius: '0 0 10px 10px', overflow: 'hidden' }}>
+            {gameOrders.map(order => (
+              <OrderCard key={order.id} order={order} onEdit={onEdit} onDelete={onDelete}
+                onAddTicket={onAddTicket} onRemoveTicket={onRemoveTicket}
+                onStatusChange={onStatusChange} onTotalChange={onTotalChange} nested />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div>
-      {sortedKeys.map(game => {
-        const gameOrders = groups[game];
-        const isOpen     = openGames[game] !== false;
-        const gameTotal  = gameOrders.reduce((s, o) => s + (o.total_amount || 0), 0);
-        const gameTickets = gameOrders.reduce((s, o) => s + (o.ticket_quantity || 1), 0);
+      {/* Upcoming events */}
+      {upcomingGroups.map(g => renderGroup(g, false))}
 
-        return (
-          <div key={game} style={{ marginBottom: 16 }}>
-            {/* Game header */}
-            <div
-              onClick={() => toggle(game)}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '10px 16px', background: '#F0FDF9',
-                border: '1px solid #D1FAE5', borderRadius: isOpen ? '10px 10px 0 0' : 10,
-                cursor: 'pointer', userSelect: 'none',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#1D9E75" strokeWidth="2.5"
-                  style={{ transform: isOpen ? 'rotate(90deg)' : '', transition: 'transform 0.2s', flexShrink: 0 }}>
-                  <polyline points="9 18 15 12 9 6"/>
-                </svg>
-                <span style={{ fontWeight: 700, fontSize: 14, color: '#065F46' }}>{game}</span>
-                <span style={{
-                  background: '#D1FAE5', color: '#065F46', borderRadius: 20,
-                  fontSize: 12, fontWeight: 600, padding: '1px 8px'
-                }}>
-                  {gameOrders.length} order{gameOrders.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-              <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
-                <span style={{ fontSize: 13, color: '#6B7280' }}>🎫 {gameTickets} tickets</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#1D9E75' }}>{fmt(gameTotal)}</span>
-              </div>
-            </div>
-
-            {/* Orders list */}
-            {isOpen && (
-              <div style={{ border: '1px solid #D1FAE5', borderTop: 'none', borderRadius: '0 0 10px 10px', overflow: 'hidden' }}>
-                {gameOrders.map(order => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                    onAddTicket={onAddTicket}
-                    onRemoveTicket={onRemoveTicket}
-                    onStatusChange={onStatusChange}
-                    onTotalChange={onTotalChange}
-                    nested
-                  />
-                ))}
-              </div>
-            )}
+      {/* Past events section */}
+      {pastGroups.length > 0 && (
+        <div style={{ marginTop: 32 }}>
+          <div
+            onClick={() => setPastOpen(v => !v)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16,
+              cursor: 'pointer', userSelect: 'none',
+            }}
+          >
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#9CA3AF" strokeWidth="2.5"
+              style={{ transform: pastOpen ? 'rotate(90deg)' : '', transition: 'transform 0.2s', flexShrink: 0 }}>
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              Past Events
+            </span>
+            <span style={{ background: '#F3F4F6', color: '#9CA3AF', borderRadius: 20, fontSize: 12, fontWeight: 600, padding: '1px 8px' }}>
+              {pastGroups.length} game{pastGroups.length !== 1 ? 's' : ''}
+            </span>
           </div>
-        );
-      })}
+          {pastOpen && pastGroups.map(g => renderGroup(g, true))}
+        </div>
+      )}
     </div>
   );
 }
@@ -709,10 +754,11 @@ function OrderCard({ order, onEdit, onDelete, onAddTicket, onRemoveTicket, onSta
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function Orders() {
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders]   = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [modal, setModal] = useState(null); // 'new' | { type: 'edit'|'addTicket', order }
+  const [error, setError]     = useState('');
+  const [modal, setModal]     = useState(null); // 'new' | { type: 'edit'|'addTicket', order }
+  const [search, setSearch]   = useState('');
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -794,6 +840,16 @@ export default function Orders() {
   const totalRevenue = orders.reduce((s, o) => s + (o.total_amount || 0), 0);
   const activeOrders = orders.filter(o => !['Cancelled', 'Delivered'].includes(o.status));
 
+  // Filter by search query (game name, order number, buyer name)
+  const q = search.trim().toLowerCase();
+  const filteredOrders = q
+    ? orders.filter(o =>
+        (o.game_name || '').toLowerCase().includes(q) ||
+        (o.order_number || '').toLowerCase().includes(q) ||
+        (o.buyer_name || '').toLowerCase().includes(q)
+      )
+    : orders;
+
   return (
     <div className="page">
       {/* Modals */}
@@ -823,12 +879,38 @@ export default function Orders() {
           <div className="page-title">Orders</div>
           <div className="page-subtitle">{orders.length} order{orders.length !== 1 ? 's' : ''} · {activeOrders.length} active</div>
         </div>
-        <button className="btn btn-primary" onClick={() => setModal('new')}>
-          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          New Order
-        </button>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          {/* Search bar */}
+          <div style={{ position: 'relative' }}>
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#9CA3AF" strokeWidth="2"
+              style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+              type="text"
+              placeholder="Search game, order, buyer…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{
+                paddingLeft: 34, paddingRight: search ? 30 : 12, paddingTop: 8, paddingBottom: 8,
+                border: '1px solid var(--border)', borderRadius: 8, fontSize: 13,
+                outline: 'none', width: 220, background: '#fff',
+              }}
+            />
+            {search && (
+              <button onClick={() => setSearch('')} style={{
+                position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: 16, lineHeight: 1,
+              }}>×</button>
+            )}
+          </div>
+          <button className="btn btn-primary" onClick={() => setModal('new')}>
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            New Order
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -864,9 +946,15 @@ export default function Orders() {
           <div style={{ marginBottom: 20 }}>Create your first order to start managing sales</div>
           <button className="btn btn-primary" onClick={() => setModal('new')}>+ New Order</button>
         </div>
+      ) : filteredOrders.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-muted)' }}>
+          <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
+          <div style={{ fontSize: 15, fontWeight: 600 }}>No results for "{search}"</div>
+          <button className="btn btn-ghost" style={{ marginTop: 12 }} onClick={() => setSearch('')}>Clear search</button>
+        </div>
       ) : (
         <GameAccordion
-          orders={orders}
+          orders={filteredOrders}
           onEdit={o => setModal({ type: 'edit', order: o })}
           onDelete={handleDelete}
           onAddTicket={o => setModal({ type: 'addTicket', order: o })}
