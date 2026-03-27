@@ -84,15 +84,16 @@ function insertOrder(data) {
 }
 
 // ── StubHub parser ─────────────────────────────────────────────────────────────
-// Subject: "You sold your ticket for {game_name}"
+// Subject: "You sold your ticket for {game_name} Tickets - Order# 123456789"
 function parseStubHub(subject, body) {
   try {
-    // Game name from subject
-    const gameMatch = subject.match(/You sold your (?:ticket|tickets) for (.+)/i);
+    // Game name from subject — stop before " Tickets" or " - Order"
+    const gameMatch = subject.match(/You sold your (?:ticket|tickets) for (.+?)(?:\s+Tickets\b|\s+-\s+Order|$)/i);
     const game_name = gameMatch ? gameMatch[1].trim() : null;
 
-    // Order number
-    const orderMatch = body.match(/Order\s*#?\s*:?\s*(\d{6,12})/i);
+    // Order number — check subject first, then body
+    const orderMatch = subject.match(/Order#\s*(\d{6,12})/i)
+      || body.match(/Order\s*#?\s*:?\s*(\d{6,12})/i);
     const order_number = orderMatch ? orderMatch[1] : null;
 
     // Buyer name
