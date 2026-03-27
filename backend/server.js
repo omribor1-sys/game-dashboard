@@ -22,7 +22,9 @@ app.use('/api/orders',    ordersRouter);
 app.post('/api/admin/check-emails', async (req, res) => {
   try {
     const { checkEmailsAndImport } = require('./services/gmail-importer');
-    const stats = await checkEmailsAndImport();
+    const futureOnly = req.query.futureOnly === 'true' || req.body.futureOnly === true;
+    const ignoreRead = req.query.ignoreRead === 'true' || req.body.ignoreRead === true;
+    const { stats } = await checkEmailsAndImport({ futureOnly, ignoreRead });
     res.json(stats);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -48,8 +50,19 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().t
 cron.schedule('0 8 * * *', async () => {
   console.log('[CRON] Running daily Gmail email check…');
   try {
-    const { checkEmailsAndImport } = require('./services/gmail-importer');
-    await checkEmailsAndImport();
+    const { checkEmailsAndImport, sendSummaryEmail } = require('./services/gmail-importer');
+    const { google } = require('googleapis');
+    const { stats, importedOrders } = await checkEmailsAndImport();
+    // Send summary email if anything was imported
+    if (stats.imported > 0) {
+      const auth = new google.auth.OAuth2(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+        'urn:ietf:wg:oauth:2.0:oob'
+      );
+      auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
+      await sendSummaryEmail(auth, stats, importedOrders);
+    }
   } catch (e) {
     console.error('[CRON] Gmail check failed:', e.message);
   }

@@ -19,6 +19,7 @@ try { db.exec("ALTER TABLE orders ADD COLUMN sales_channel TEXT"); } catch (_) {
 try { db.exec("ALTER TABLE orders ADD COLUMN ticket_quantity INTEGER DEFAULT 1"); } catch (_) {}
 try { db.exec("ALTER TABLE orders ADD COLUMN category TEXT"); } catch (_) {}
 try { db.exec("ALTER TABLE orders ADD COLUMN row_seat TEXT"); } catch (_) {}
+try { db.exec("ALTER TABLE orders ADD COLUMN game_datetime TEXT"); } catch (_) {}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS games (
