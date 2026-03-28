@@ -60,6 +60,21 @@ cd .. && flyctl deploy --app game-dashboard-omri
 4. **Bulk import** — parses Excel filename for game name/date (format: `GameName DD_MM_YYYY.xlsx`)
 5. **Fly.io volume** — SQLite DB lives at `/data/games.db` (persistent across deploys)
 
+## WhatsApp notifications
+- Service: `backend/services/whatsapp-notifier.js`
+- Provider: Twilio (HTTP API, no SDK dependency)
+- Env vars needed: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `TWILIO_WHATSAPP_TO`
+- Triggered by: daily cron import + manual `/api/admin/check-emails` endpoint
+- Test endpoint: `POST /api/admin/test-whatsapp`
+- Set via: `flyctl secrets set TWILIO_ACCOUNT_SID=... TWILIO_AUTH_TOKEN=... TWILIO_WHATSAPP_FROM=whatsapp:+14155238886 TWILIO_WHATSAPP_TO=whatsapp:+972XXXXXXXXX`
+
+## StubHub email parser notes
+- StubHub changed format: day names are now full "Saturday" not "Sat"
+- Fixed: regex now uses `\w{2,10}` and normalises to 3-char abbr via `DAY_ABBR[parsedDate.getDay()]`
+- The "Tickets in hand" date (4 days before game) looks like "Tue, DD/MM/YYYY, 00:00" — must NOT match before the game date
+- Primary regex requires `Europe/` timezone suffix to identify game date line
+- Fallback for cases where Europe/ isn't in body
+
 ## Database migrations (run automatically on startup)
 ```js
 try { db.exec("ALTER TABLE games ADD COLUMN notes TEXT DEFAULT ''"); } catch (_) {}

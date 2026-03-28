@@ -103,13 +103,19 @@ function parseStubHub(subject, body) {
     const game_name_base = gameMatch ? gameMatch[1].trim() : null;
 
     // Game datetime — "Sun, 19/04/2026, 16:30 Europe/London"
-    // Must include timezone marker to avoid matching the order-placed date
-    const dtMatch = body.match(/(\w{2,3}),\s+(\d{1,2})\/(\d{1,2})\/(\d{4}),\s+(\d{1,2}:\d{2})\s+Europe\//i)
-      || body.match(/(\w{2,3}),\s+(\d{1,2})\/(\d{1,2})\/(\d{4}),\s+(\d{1,2}:\d{2})/); // fallback
+    // OR newer format: "Saturday, 18/04/2026, 20:00 Europe/London"
+    // Must include timezone marker to avoid matching the ticket-transfer deadline date
+    const dtMatch = body.match(/(\w{2,10}),\s+(\d{1,2})\/(\d{1,2})\/(\d{4}),\s+(\d{1,2}:\d{2})\s+Europe\//i)
+      || body.match(/(\w{2,10}),\s+(\d{1,2})\/(\d{1,2})\/(\d{4}),\s+(\d{1,2}:\d{2})\s+\d{2}:\d{2}/i) // fallback with offset
+      || body.match(/(\w{2,10}),\s+(\d{1,2})\/(\d{1,2})\/(\d{4}),\s+(\d{1,2}:\d{2})(?!\s*\n)/i); // last-resort fallback (not line-end)
     let game_date = null;
-    let game_datetime = null; // stored string: "Sun, 19/04/2026, 16:30"
+    let game_datetime = null; // stored string: "Sat, 18/04/2026, 20:00"
+    const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     if (dtMatch) {
-      const [, dayName, dd, mm, yyyy, hhmm] = dtMatch;
+      const [, dayNameRaw, dd, mm, yyyy, hhmm] = dtMatch;
+      // Parse the date to get correct day abbreviation (normalise full names like "Saturday" → "Sat")
+      const parsedForDay = new Date(parseInt(yyyy), parseInt(mm) - 1, parseInt(dd));
+      const dayName = DAY_ABBR[parsedForDay.getDay()] || dayNameRaw.substring(0, 3);
       game_datetime = `${dayName}, ${dd}/${mm}/${yyyy}, ${hhmm}`;
       // Parse to Date (month is 0-indexed)
       const [hh, min] = hhmm.split(':').map(Number);
@@ -147,8 +153,12 @@ function parseStubHub(subject, body) {
       : 0;
 
     // Buyer name — all-caps full name on its own line (e.g. "EVEN CIENFUEGOS")
-    const buyerMatch = body.match(/^([A-Z][A-Z' \-]{2,40})$/m);
-    const buyer_name = buyerMatch ? buyerMatch[1].trim() : null;
+    // Exclude common non-name all-caps words (UTC, USA, UK, etc.)
+    const EXCLUDE_NAMES = new Set(['UTC', 'USA', 'UK', 'EU', 'VAT', 'PDF', 'N/A', 'N A']);
+    const buyerMatch = body.match(/^([A-Z][A-Z' \-]{2,40})$/gm);
+    const buyer_name = buyerMatch
+      ? buyerMatch.map(s => s.trim()).find(s => !EXCLUDE_NAMES.has(s) && s.includes(' ')) || null
+      : null;
 
     // Buyer email
     const emailMatch = body.match(/([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/);

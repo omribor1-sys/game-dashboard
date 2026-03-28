@@ -21,11 +21,41 @@ app.use('/api/orders',    ordersRouter);
 // ── Admin / manual trigger endpoints ─────────────────────────────────────────
 app.post('/api/admin/check-emails', async (req, res) => {
   try {
-    const { checkEmailsAndImport } = require('./services/gmail-importer');
+    const { checkEmailsAndImport, sendSummaryEmail } = require('./services/gmail-importer');
+    const { sendWhatsAppSummary } = require('./services/whatsapp-notifier');
+    const { google } = require('googleapis');
+
     const futureOnly = req.query.futureOnly === 'true' || req.body.futureOnly === true;
     const ignoreRead = req.query.ignoreRead === 'true' || req.body.ignoreRead === true;
-    const { stats } = await checkEmailsAndImport({ futureOnly, ignoreRead });
+    const { stats, importedOrders } = await checkEmailsAndImport({ futureOnly, ignoreRead });
+
+    // Send notifications if anything was imported
+    if (stats.imported > 0) {
+      // Email summary
+      const auth = new google.auth.OAuth2(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+        'urn:ietf:wg:oauth:2.0:oob'
+      );
+      auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
+      await sendSummaryEmail(auth, stats, importedOrders).catch(e => console.error('[admin] email err:', e.message));
+
+      // WhatsApp summary
+      await sendWhatsAppSummary(stats, importedOrders).catch(e => console.error('[admin] whatsapp err:', e.message));
+    }
+
     res.json(stats);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// WhatsApp test endpoint
+app.post('/api/admin/test-whatsapp', async (req, res) => {
+  try {
+    const { sendWhatsApp } = require('./services/whatsapp-notifier');
+    await sendWhatsApp('🎟️ GameYield WhatsApp test — connection OK!');
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -51,18 +81,31 @@ cron.schedule('0 8 * * *', async () => {
   console.log('[CRON] Running daily Gmail email check…');
   try {
     const { checkEmailsAndImport, sendSummaryEmail } = require('./services/gmail-importer');
+    const { sendWhatsAppSummary } = require('./services/whatsapp-notifier');
     const { google } = require('googleapis');
+
     // Daily cron: import only future-game orders (futureOnly=true)
     const { stats, importedOrders } = await checkEmailsAndImport({ futureOnly: true });
-    // Send summary email (also covers no-date orders that need attention)
-    if (stats.imported > 0 || importedOrders.some(o => !o.game_date)) {
+
+    // Send notifications if there are new orders or no-date orders
+    const hasNewOrNoDate = stats.imported > 0 || (importedOrders && importedOrders.some(o => !o.game_date));
+    if (hasNewOrNoDate) {
       const auth = new google.auth.OAuth2(
         process.env.GOOGLE_CLIENT_ID,
         process.env.GOOGLE_CLIENT_SECRET,
         'urn:ietf:wg:oauth:2.0:oob'
       );
       auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
-      await sendSummaryEmail(auth, stats, importedOrders);
+
+      // Email summary
+      await sendSummaryEmail(auth, stats, importedOrders).catch(e =>
+        console.error('[CRON] Email summary failed:', e.message)
+      );
+
+      // WhatsApp summary
+      await sendWhatsAppSummary(stats, importedOrders).catch(e =>
+        console.error('[CRON] WhatsApp summary failed:', e.message)
+      );
     }
   } catch (e) {
     console.error('[CRON] Gmail check failed:', e.message);
