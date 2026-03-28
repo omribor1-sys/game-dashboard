@@ -458,10 +458,32 @@ function ModalFooter({ onCancel, onSave, saving, label, disabled }) {
 // ── Order card ────────────────────────────────────────────────────────────────
 // ── Helpers for date-aware grouping ──────────────────────────────────────────
 function parseGameDate(gameName) {
-  // Extracts date from "Team vs Team | Sun, 19/04/2026, 16:30"
+  // Extracts Date from "Team vs Team | Sun, 19/04/2026, 16:30"
   const m = gameName?.match(/\|\s*\w+,\s*(\d{2})\/(\d{2})\/(\d{4}),\s*(\d{2}):(\d{2})/);
   if (!m) return null;
   return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]), parseInt(m[4]), parseInt(m[5]));
+}
+
+// Group key: use embedded datetime when present so orders from different
+// channels (StubHub / FTN) for the SAME game are merged into one group
+function getGroupKey(gameName) {
+  const m = gameName?.match(/\|\s*(\w+,\s*\d{2}\/\d{2}\/\d{4},\s*\d{2}:\d{2})/);
+  return m ? m[1].trim() : (gameName || 'No Game');
+}
+
+// Among orders in the same group, pick the most descriptive game name
+// (longest base name + the shared datetime suffix)
+function getBestDisplayName(gameOrders) {
+  let bestBase = '';
+  let dtSuffix = '';
+  for (const o of gameOrders) {
+    const parts = (o.game_name || '').split(' | ');
+    const b = parts[0].trim();
+    if (b.length > bestBase.length) bestBase = b;
+    if (parts[1] && !dtSuffix) dtSuffix = parts[1].trim();
+  }
+  if (!bestBase) return 'No Game';
+  return dtSuffix ? `${bestBase} | ${dtSuffix}` : bestBase;
 }
 
 // ── Game Accordion — groups OrderCards by game_name ──────────────────────────
@@ -470,10 +492,10 @@ function GameAccordion({ orders, onEdit, onDelete, onAddTicket, onRemoveTicket, 
   const [pastOpen, setPastOpen]       = useState(false);
   const now = new Date();
 
-  // Group orders by game_name
+  // Group orders by datetime key (merges different channel names for same game)
   const groups = {};
   for (const o of orders) {
-    const key = o.game_name || 'No Game';
+    const key = getGroupKey(o.game_name);
     if (!groups[key]) groups[key] = [];
     groups[key].push(o);
   }
@@ -482,10 +504,11 @@ function GameAccordion({ orders, onEdit, onDelete, onAddTicket, onRemoveTicket, 
   const upcomingGroups = [];
   const pastGroups     = [];
 
-  for (const [game, gameOrders] of Object.entries(groups)) {
-    const date = parseGameDate(game);
+  for (const [key, gameOrders] of Object.entries(groups)) {
+    const displayName = getBestDisplayName(gameOrders);
+    const date = parseGameDate(displayName);
     const isPast = date && date < now;
-    const entry = { game, gameOrders, date };
+    const entry = { game: displayName, gameOrders, date };
     if (isPast) pastGroups.push(entry);
     else upcomingGroups.push(entry);
   }

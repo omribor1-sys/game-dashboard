@@ -52,9 +52,10 @@ cron.schedule('0 8 * * *', async () => {
   try {
     const { checkEmailsAndImport, sendSummaryEmail } = require('./services/gmail-importer');
     const { google } = require('googleapis');
-    const { stats, importedOrders } = await checkEmailsAndImport();
-    // Send summary email if anything was imported
-    if (stats.imported > 0) {
+    // Daily cron: import only future-game orders (futureOnly=true)
+    const { stats, importedOrders } = await checkEmailsAndImport({ futureOnly: true });
+    // Send summary email (also covers no-date orders that need attention)
+    if (stats.imported > 0 || importedOrders.some(o => !o.game_date)) {
       const auth = new google.auth.OAuth2(
         process.env.GOOGLE_CLIENT_ID,
         process.env.GOOGLE_CLIENT_SECRET,

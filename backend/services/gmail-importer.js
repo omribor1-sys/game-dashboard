@@ -404,34 +404,57 @@ async function checkEmailsAndImport(options = {}) {
 
 // ── Summary email ──────────────────────────────────────────────────────────────
 async function sendSummaryEmail(auth, stats, importedOrders) {
-  if (stats.imported === 0) return; // nothing to report
+  // Split into: future orders (have date) vs no-date orders (need attention)
+  const now = new Date();
+  const futureOrders  = importedOrders.filter(o => o.game_date instanceof Date && !isNaN(o.game_date) && o.game_date > now);
+  const nodateOrders  = importedOrders.filter(o => !o.game_date || isNaN(o.game_date));
+
+  // Only send if there are future orders OR no-date orders needing attention
+  if (futureOrders.length === 0 && nodateOrders.length === 0) return;
+
   try {
     const gmail = google.gmail({ version: 'v1', auth });
-    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const now2   = new Date();
+    const dd     = String(now2.getDate()).padStart(2, '0');
+    const mm     = String(now2.getMonth() + 1).padStart(2, '0');
+    const yyyy   = now2.getFullYear();
+    const dateStr = `${dd}/${mm}/${yyyy}`; // pure ASCII
 
-    let bodyText = `GameYield — Daily Import Summary (${dateStr})\n`;
-    bodyText += `${'─'.repeat(50)}\n`;
-    bodyText += `Checked:  ${stats.checked}\n`;
-    bodyText += `Imported: ${stats.imported}\n`;
-    bodyText += `Skipped:  ${stats.skipped}\n`;
-    if (stats.errors.length) bodyText += `Errors:   ${stats.errors.length}\n`;
-    bodyText += `\nNew Orders:\n${'─'.repeat(50)}\n`;
+    // Subject — ASCII only, no special chars
+    const subject = `[GameYield] ${dateStr} - ${futureOrders.length} new order(s) imported`;
 
-    for (const o of importedOrders) {
-      bodyText += `\n🎟  ${o.game_name || '—'}\n`;
-      bodyText += `   Order #${o.order_number}  |  ${o.ticket_quantity} ticket(s)  |  €${o.total_amount}\n`;
-      if (o.category) bodyText += `   ${o.category}`;
-      if (o.row_seat) bodyText += `  |  ${o.row_seat}`;
-      if (o.category || o.row_seat) bodyText += '\n';
-      if (o.buyer_name)  bodyText += `   Buyer: ${o.buyer_name}`;
-      if (o.buyer_email) bodyText += ` <${o.buyer_email}>`;
-      if (o.buyer_name || o.buyer_email) bodyText += '\n';
+    let bodyText = `GameYield - Daily Import Report (${dateStr})\n`;
+    bodyText += `${'='.repeat(50)}\n\n`;
+
+    if (futureOrders.length > 0) {
+      bodyText += `NEW ORDERS (${futureOrders.length}):\n`;
+      bodyText += `${'-'.repeat(40)}\n`;
+      for (const o of futureOrders) {
+        bodyText += `\n[${o.sales_channel}] ${o.game_name || '?'}\n`;
+        bodyText += `  Order #${o.order_number} | ${o.ticket_quantity} ticket(s) | ${o.total_amount ? 'GBP/EUR ' + o.total_amount.toFixed(2) : 'no amount'}\n`;
+        if (o.category)    bodyText += `  Category: ${o.category}\n`;
+        if (o.row_seat)    bodyText += `  Seats: ${o.row_seat}\n`;
+        if (o.buyer_name)  bodyText += `  Buyer: ${o.buyer_name}${o.buyer_email ? ' <' + o.buyer_email + '>' : ''}\n`;
+      }
     }
 
-    const subject = `[GameYield] ${stats.imported} new order(s) imported — ${dateStr}`;
+    if (nodateOrders.length > 0) {
+      bodyText += `\n\nNEEDS ATTENTION - No game date found (${nodateOrders.length}):\n`;
+      bodyText += `${'='.repeat(50)}\n`;
+      bodyText += `Please check these orders and update the game date manually:\n\n`;
+      for (const o of nodateOrders) {
+        bodyText += `  [${o.sales_channel}] Order #${o.order_number} - ${o.game_name || 'No Game'}\n`;
+      }
+    }
+
+    bodyText += `\n${'='.repeat(50)}\n`;
+    bodyText += `Total checked: ${stats.checked} | Imported: ${stats.imported} | Skipped: ${stats.skipped}\n`;
+
+    // RFC 2822 raw message — encode subject as UTF-8 base64 word to be safe
+    const subjectEncoded = `=?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`;
     const rawMessage = [
       `To: omribor1@gmail.com`,
-      `Subject: ${subject}`,
+      `Subject: ${subjectEncoded}`,
       `Content-Type: text/plain; charset=utf-8`,
       `MIME-Version: 1.0`,
       ``,
@@ -445,7 +468,7 @@ async function sendSummaryEmail(auth, stats, importedOrders) {
       userId: 'me',
       requestBody: { raw: encoded },
     });
-    console.log(`[Gmail] Summary email sent — ${stats.imported} order(s)`);
+    console.log(`[Gmail] Summary email sent — ${futureOrders.length} future orders, ${nodateOrders.length} need attention`);
   } catch (e) {
     console.error('[Gmail] Failed to send summary email:', e.message);
   }
