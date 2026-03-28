@@ -458,10 +458,35 @@ function ModalFooter({ onCancel, onSave, saving, label, disabled }) {
 // ── Order card ────────────────────────────────────────────────────────────────
 // ── Helpers for date-aware grouping ──────────────────────────────────────────
 function parseGameDate(gameName) {
-  // Extracts Date from "Team vs Team | Sun, 19/04/2026, 16:30"
-  const m = gameName?.match(/\|\s*\w+,\s*(\d{2})\/(\d{2})\/(\d{4}),\s*(\d{2}):(\d{2})/);
-  if (!m) return null;
-  return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]), parseInt(m[4]), parseInt(m[5]));
+  if (!gameName) return null;
+  // Format 1 (preferred): "Team vs Team | Sun, 19/04/2026, 16:30"
+  let m = gameName.match(/\|\s*\w+,\s*(\d{2})\/(\d{2})\/(\d{4}),\s*(\d{2}):(\d{2})/);
+  if (m) return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]), parseInt(m[4]), parseInt(m[5]));
+  // Format 2: date embedded in name "... 22/03/2026" (no time = midnight)
+  m = gameName.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (m) return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]));
+  return null;
+}
+
+// ── Fuzzy search helpers ───────────────────────────────────────────────────────
+// Normalises a string for fuzzy comparison:
+// removes FC/AFC/United suffixes, lowercases, collapses spaces
+function normalise(s) {
+  return (s || '')
+    .toLowerCase()
+    .replace(/\s*\|.*$/, '')            // strip " | datetime" suffix
+    .replace(/\b(fc|afc|utd|united)\b/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function fuzzyMatch(text, query) {
+  if (!query) return true;
+  const nText  = normalise(text);
+  const nQuery = normalise(query);
+  // All words in the query must appear somewhere in the text
+  return nQuery.split(' ').filter(Boolean).every(w => nText.includes(w));
 }
 
 // Group key: use embedded datetime when present so orders from different
@@ -775,6 +800,81 @@ function OrderCard({ order, onEdit, onDelete, onAddTicket, onRemoveTicket, onSta
   );
 }
 
+// ── Smart game search with fuzzy autocomplete ─────────────────────────────────
+function GameSearch({ value, onChange, suggestions }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef();
+
+  // Suggestions filtered by fuzzy match, grouped by base name (strip datetime)
+  const filtered = value.trim()
+    ? [...new Set(
+        suggestions
+          .filter(s => fuzzyMatch(s, value))
+          .map(s => s.replace(/\s*\|.*$/, '').trim())  // show only base name
+      )].slice(0, 8)
+    : [];
+
+  useEffect(() => {
+    function h(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <div style={{ position: 'relative' }}>
+        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#9CA3AF" strokeWidth="2"
+          style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input
+          type="text"
+          placeholder="Search game, order number, buyer…"
+          value={value}
+          onChange={e => { onChange(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          autoComplete="off"
+          style={{
+            paddingLeft: 36, paddingRight: value ? 30 : 14, paddingTop: 9, paddingBottom: 9,
+            border: '1.5px solid var(--border)', borderRadius: 9, fontSize: 13.5,
+            outline: 'none', width: 320, background: '#fff',
+            boxShadow: open && filtered.length ? '0 0 0 3px rgba(29,158,117,0.12)' : 'none',
+            borderColor: open && filtered.length ? '#1D9E75' : 'var(--border)',
+            transition: 'border-color 0.15s, box-shadow 0.15s',
+          }}
+        />
+        {value && (
+          <button onClick={() => { onChange(''); setOpen(false); }} style={{
+            position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)',
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: '#9CA3AF', fontSize: 17, lineHeight: 1, padding: 0,
+          }}>×</button>
+        )}
+      </div>
+      {open && filtered.length > 0 && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 300,
+          background: '#fff', border: '1px solid #E5E7EB', borderRadius: 10,
+          boxShadow: '0 8px 28px rgba(0,0,0,.13)', overflow: 'hidden',
+        }}>
+          <div style={{ padding: '6px 12px', fontSize: 11, color: '#9CA3AF', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6' }}>
+            Matching games
+          </div>
+          {filtered.map(name => (
+            <div key={name} onMouseDown={() => { onChange(name); setOpen(false); }}
+              style={{ padding: '10px 14px', cursor: 'pointer', fontSize: 13.5, fontWeight: 500 }}
+              onMouseEnter={e => e.currentTarget.style.background = '#F0FDF9'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              ⚽ {name}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function Orders() {
   const [orders, setOrders]   = useState([]);
@@ -863,13 +963,16 @@ export default function Orders() {
   const totalRevenue = orders.reduce((s, o) => s + (o.total_amount || 0), 0);
   const activeOrders = orders.filter(o => !['Cancelled', 'Delivered'].includes(o.status));
 
-  // Filter by search query (game name, order number, buyer name)
-  const q = search.trim().toLowerCase();
+  // Unique game names for autocomplete suggestions
+  const allGameNames = [...new Set(orders.map(o => o.game_name || '').filter(Boolean))];
+
+  // Fuzzy filter: matches game name (fuzzy) OR order number / buyer name (exact-ish)
+  const q = search.trim();
   const filteredOrders = q
     ? orders.filter(o =>
-        (o.game_name || '').toLowerCase().includes(q) ||
-        (o.order_number || '').toLowerCase().includes(q) ||
-        (o.buyer_name || '').toLowerCase().includes(q)
+        fuzzyMatch(o.game_name, q) ||
+        (o.order_number || '').toLowerCase().includes(q.toLowerCase()) ||
+        (o.buyer_name  || '').toLowerCase().includes(q.toLowerCase())
       )
     : orders;
 
@@ -903,30 +1006,12 @@ export default function Orders() {
           <div className="page-subtitle">{orders.length} order{orders.length !== 1 ? 's' : ''} · {activeOrders.length} active</div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          {/* Search bar */}
-          <div style={{ position: 'relative' }}>
-            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#9CA3AF" strokeWidth="2"
-              style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input
-              type="text"
-              placeholder="Search game, order, buyer…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{
-                paddingLeft: 34, paddingRight: search ? 30 : 12, paddingTop: 8, paddingBottom: 8,
-                border: '1px solid var(--border)', borderRadius: 8, fontSize: 13,
-                outline: 'none', width: 220, background: '#fff',
-              }}
-            />
-            {search && (
-              <button onClick={() => setSearch('')} style={{
-                position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: 16, lineHeight: 1,
-              }}>×</button>
-            )}
-          </div>
+          {/* Smart search with fuzzy autocomplete */}
+          <GameSearch
+            value={search}
+            onChange={setSearch}
+            suggestions={allGameNames}
+          />
           <button className="btn btn-primary" onClick={() => setModal('new')}>
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
