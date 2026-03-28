@@ -402,7 +402,7 @@ function AddTicketModal({ order, onSave, onClose }) {
                         <td style={{ fontWeight: 600 }}>{it.game_name}</td>
                         <td style={{ color: 'var(--text-muted)' }}>{it.game_date || '—'}</td>
                         <td>{it.section || '—'}</td>
-                        <td>{it.seat || '—'}</td>
+                        <td style={{ whiteSpace: 'nowrap' }}>{it.seat || '—'}</td>
                         <td style={{ textAlign: 'right' }}>{fmt(it.sell_price)}</td>
                       </tr>
                     ))}
@@ -675,6 +675,18 @@ function OrderCard({ order, onEdit, onDelete, onAddTicket, onRemoveTicket, onSta
             {order.buyer_phone && <span>{order.buyer_phone}</span>}
             {order.notes && <span style={{ fontStyle: 'italic' }}>{order.notes}</span>}
           </div>
+          {order.items?.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+              {order.items.map(it => (
+                <span key={it.id} style={{
+                  background: '#e8f5f0', color: '#1D9E75', borderRadius: 5,
+                  padding: '2px 8px', fontSize: 11, fontWeight: 600, border: '1px solid #b6e4d3'
+                }}>
+                  {[it.section, it.seat].filter(Boolean).join(' · ') || it.game_name || `#${it.id}`}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>

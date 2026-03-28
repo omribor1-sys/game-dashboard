@@ -97,20 +97,31 @@ router.get('/', (req, res) => {
     // Aggregate inventory-only games: games that exist in inventory but NOT in games table
     const inventoryGames = db.prepare(`
       SELECT
-        game_name AS name,
-        game_date AS date,
-        COUNT(*) AS tickets_sold,
-        SUM(CASE WHEN status IN ('Sold','Delivered') THEN sell_price ELSE 0 END) AS total_revenue,
-        SUM(buy_price) AS total_all_costs
-      FROM inventory
-      GROUP BY game_name
-      ORDER BY game_date DESC, game_name
+        i.game_name AS name,
+        i.game_date AS date,
+        COUNT(*) AS tickets_total,
+        SUM(CASE WHEN i.status IN ('Sold','Delivered') THEN i.sell_price ELSE 0 END) AS inv_revenue,
+        SUM(i.buy_price) AS total_all_costs,
+        COALESCE((
+          SELECT SUM(o.total_amount)
+          FROM orders o
+          WHERE o.game_name = i.game_name AND o.status != 'Cancelled'
+        ), 0) AS orders_revenue,
+        COALESCE((
+          SELECT COUNT(DISTINCT o.id)
+          FROM orders o
+          WHERE o.game_name = i.game_name AND o.status != 'Cancelled'
+        ), 0) AS orders_count
+      FROM inventory i
+      GROUP BY i.game_name
+      ORDER BY i.game_date DESC, i.game_name
     `).all();
 
     const inventoryOnlyGames = inventoryGames
       .filter(g => !gamesTableNames.has(g.name))
       .map(g => {
-        const revenue = g.total_revenue || 0;
+        // Use orders revenue if available, otherwise fall back to sold-tickets revenue
+        const revenue = g.orders_revenue > 0 ? g.orders_revenue : (g.inv_revenue || 0);
         const costs = g.total_all_costs || 0;
         const netProfit = round2(revenue - costs);
         const marginPercent = revenue > 0 ? round2((netProfit / revenue) * 100) : 0;
@@ -125,7 +136,8 @@ router.get('/', (req, res) => {
           total_all_costs: round2(costs),
           net_profit: netProfit,
           margin_percent: marginPercent,
-          tickets_sold: g.tickets_sold || 0,
+          tickets_sold: g.tickets_total || 0,
+          orders_count: g.orders_count || 0,
           source: 'inventory',
         };
       });
