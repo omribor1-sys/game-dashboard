@@ -105,12 +105,16 @@ router.get('/', (req, res) => {
         COALESCE((
           SELECT SUM(o.total_amount)
           FROM orders o
-          WHERE o.game_name = i.game_name AND o.status != 'Cancelled'
+          INNER JOIN order_items oi ON oi.order_id = o.id
+          INNER JOIN inventory i2 ON i2.id = oi.inventory_id
+          WHERE i2.game_name = i.game_name AND o.status != 'Cancelled'
         ), 0) AS orders_revenue,
         COALESCE((
           SELECT COUNT(DISTINCT o.id)
           FROM orders o
-          WHERE o.game_name = i.game_name AND o.status != 'Cancelled'
+          INNER JOIN order_items oi ON oi.order_id = o.id
+          INNER JOIN inventory i2 ON i2.id = oi.inventory_id
+          WHERE i2.game_name = i.game_name AND o.status != 'Cancelled'
         ), 0) AS orders_count
       FROM inventory i
       GROUP BY i.game_name
