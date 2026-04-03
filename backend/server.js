@@ -61,6 +61,80 @@ app.post('/api/admin/test-whatsapp', async (req, res) => {
   }
 });
 
+// StubHub sync — accepts scraped orders from local Chrome skill
+// Body: { orders: [{ order_number, game_name, game_datetime, ticket_quantity, category, row_seat, buyer_name, total_amount, sales_channel }] }
+app.post('/api/admin/stubhub-sync', (req, res) => {
+  try {
+    const db = require('./database');
+    const { orders: incoming } = req.body;
+    if (!Array.isArray(incoming) || incoming.length === 0) {
+      return res.status(400).json({ error: 'orders array required' });
+    }
+
+    const report = { inserted: [], updated: [], unchanged: [] };
+
+    for (const o of incoming) {
+      const num = String(o.order_number || '').trim();
+      if (!num) continue;
+
+      const existing = db.prepare('SELECT * FROM orders WHERE order_number = ?').get(num);
+
+      if (!existing) {
+        // Insert new order
+        db.prepare(`
+          INSERT INTO orders
+            (buyer_name, buyer_email, status, notes,
+             game_name, order_number, sales_channel,
+             total_amount, ticket_quantity, category, row_seat, game_datetime)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+        `).run(
+          o.buyer_name    || null,
+          o.buyer_email   || null,
+          'Confirmed',
+          null,
+          o.game_name     || null,
+          num,
+          o.sales_channel || 'StubHub',
+          o.total_amount  || 0,
+          o.ticket_quantity || 1,
+          o.category      || null,
+          o.row_seat      || null,
+          o.game_datetime || null,
+        );
+        report.inserted.push({ order_number: num, game_name: o.game_name });
+        continue;
+      }
+
+      // Check fields that might need updating
+      const changes = {};
+      const fields = ['game_name', 'game_datetime', 'category', 'buyer_name', 'total_amount', 'ticket_quantity', 'row_seat'];
+      for (const f of fields) {
+        const incoming_val = o[f] != null ? String(o[f]).trim() : null;
+        const existing_val = existing[f] != null ? String(existing[f]).trim() : null;
+        if (incoming_val && incoming_val !== existing_val) {
+          changes[f] = { from: existing_val, to: incoming_val };
+        }
+      }
+
+      if (Object.keys(changes).length === 0) {
+        report.unchanged.push(num);
+        continue;
+      }
+
+      // Apply updates
+      const setClauses = Object.keys(changes).map(f => `${f} = ?`).join(', ');
+      const values = Object.keys(changes).map(f => o[f]);
+      db.prepare(`UPDATE orders SET ${setClauses} WHERE order_number = ?`).run(...values, num);
+      report.updated.push({ order_number: num, changes });
+    }
+
+    console.log(`[stubhub-sync] inserted=${report.inserted.length} updated=${report.updated.length} unchanged=${report.unchanged.length}`);
+    res.json(report);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/admin/backup-drive', async (req, res) => {
   try {
     const { backupToDrive } = require('./services/gdrive-backup');

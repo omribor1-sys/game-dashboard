@@ -136,8 +136,9 @@ function parseStubHub(subject, body) {
     const qtyMatch = body.match(/(\d+)\s*ticket\(s\)/i);
     const ticket_quantity = qtyMatch ? parseInt(qtyMatch[1]) : 1;
 
-    // Category — line like "Longside Lower 031" or "Shortside Lower" (contains Lower/Upper/Side/etc.)
-    const categoryMatch = body.match(/^([A-Za-z][A-Za-z0-9\s]*(Lower|Upper|Side|Stand|Block|Tier|Level|End|Corner)[A-Za-z0-9\s]*)$/im);
+    // Category — single line like "Shortside Upper 124" or "Longside Lower 031"
+    // Use [ \t] not \s to avoid spanning multiple lines
+    const categoryMatch = body.match(/^([A-Za-z][A-Za-z0-9 \t]*(Lower|Upper|Side|Stand|Block|Tier|Level|End|Corner)[A-Za-z0-9 \t]*)$/im);
     const category = categoryMatch ? categoryMatch[1].trim() : null;
 
     // Row and seats — "Row oneseatgap | Seat(s) 822,824"
