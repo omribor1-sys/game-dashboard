@@ -141,8 +141,9 @@ inventoryRouter.get('/stats-by-game', (req, res) => {
       ORDER BY game_date DESC, game_name
     `).all();
 
-    // For each game get order count
+    // For each game get order count + orders income
     const result = rows.map(r => {
+      // OQ: orders linked via order_items (legacy manual orders)
       const oq = db.prepare(`
         SELECT COUNT(DISTINCT oi.order_id) AS n
         FROM order_items oi
@@ -150,8 +151,19 @@ inventoryRouter.get('/stats-by-game', (req, res) => {
         WHERE i.game_name = ?
       `).get(r.game_name)?.n || 0;
 
-      const profit = (r.income || 0) - (r.inventory_cost || 0);
-      const margin = r.income > 0 ? Math.round((profit / r.income) * 1000) / 10 : 0;
+      // Orders income: sum of total_amount from orders table by game_name
+      // This captures email-imported orders (StubHub/FTN) that aren't linked via order_items
+      const ordersIncome = db.prepare(`
+        SELECT COALESCE(SUM(total_amount), 0) AS total
+        FROM orders
+        WHERE game_name = ? AND (status IS NULL OR status != 'Cancelled')
+      `).get(r.game_name)?.total || 0;
+
+      // Use whichever is greater: inventory sell_price (manual) or orders total_amount (email import)
+      const income = Math.max(r.income || 0, ordersIncome);
+
+      const profit = income - (r.inventory_cost || 0);
+      const margin = income > 0 ? Math.round((profit / income) * 1000) / 10 : 0;
       const mq     = (r.bq || 0) - (r.sq || 0) - (r.reserved || 0); // unsold & unreserved
 
       return {
@@ -163,7 +175,7 @@ inventoryRouter.get('/stats-by-game', (req, res) => {
         mq:             Math.max(0, mq),
         available:      r.available || 0,
         reserved:       r.reserved  || 0,
-        income:         round2(r.income         || 0),
+        income:         round2(income),
         inventory_cost: round2(r.inventory_cost || 0),
         profit:         round2(profit),
         margin,
@@ -658,9 +670,23 @@ ordersRouter.get('/game-names', (req, res) => {
 });
 
 // GET /api/orders
+// Supports ?game_name=X filter — matches both exact and fuzzy (LIKE) against orders.game_name
 ordersRouter.get('/', (req, res) => {
   try {
-    const orders = db.prepare('SELECT * FROM orders ORDER BY created_at DESC').all();
+    let orders;
+    const gn = req.query.game_name ? String(req.query.game_name).trim() : null;
+    if (gn) {
+      // Try exact match first, then LIKE on key words (handles naming inconsistencies across sources)
+      const words = gn.replace(/[^a-zA-Z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 3);
+      const likeClause = words.map(() => "game_name LIKE ?").join(' AND ');
+      const likeArgs  = words.map(w => `%${w}%`);
+      orders = db.prepare(
+        `SELECT * FROM orders WHERE game_name = ? OR (${likeClause}) ORDER BY created_at DESC`
+      ).all(gn, ...likeArgs);
+    } else {
+      orders = db.prepare('SELECT * FROM orders ORDER BY created_at DESC').all();
+    }
+
     const result = orders.map(order => {
       order.items = db.prepare(`
         SELECT oi.id, oi.inventory_id, oi.sell_price,
@@ -670,6 +696,10 @@ ordersRouter.get('/', (req, res) => {
         WHERE oi.order_id = ?
         ORDER BY oi.id
       `).all(order.id);
+      // items_total: sum of item sell_prices (linked), or fall back to order total_amount
+      // if items have sell_price=0 (linked but not priced), also fall back to total_amount
+      const itemsSum = order.items.reduce((s, i) => s + (i.sell_price || 0), 0);
+      order.items_total = itemsSum > 0 ? itemsSum : (order.total_amount || 0);
       return order;
     });
     res.json(result);

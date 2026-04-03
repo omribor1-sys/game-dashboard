@@ -871,7 +871,7 @@ export default function GameDetail() {
                 <StatCard
                   label="Net Profit"
                   value={(() => {
-                    const rev = orders.reduce((s, o) => s + (Number(o.items_total) || 0), 0);
+                    const rev = orders.reduce((s, o) => s + (Number(o.items_total) || Number(o.total_amount) || 0), 0);
                     const profit = rev - totalCost;
                     return fmt(profit);
                   })()}
@@ -880,7 +880,7 @@ export default function GameDetail() {
 
               {/* Revenue from orders */}
               {orders.length > 0 && (() => {
-                const rev = orders.reduce((s, o) => s + (Number(o.items_total) || 0), 0);
+                const rev = orders.reduce((s, o) => s + (Number(o.items_total) || Number(o.total_amount) || 0), 0);
                 const profit = rev - totalCost;
                 const margin = rev > 0 ? ((profit / rev) * 100).toFixed(1) : null;
                 return (
