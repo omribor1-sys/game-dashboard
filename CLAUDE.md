@@ -60,6 +60,43 @@ cd .. && flyctl deploy --app game-dashboard-omri
 4. **Bulk import** — parses Excel filename for game name/date (format: `GameName DD_MM_YYYY.xlsx`)
 5. **Fly.io volume** — SQLite DB lives at `/data/games.db` (persistent across deploys)
 
+## Monitoring & Snapshot System
+
+### Daily Cron Schedule
+| Time (UTC) | Job | Description |
+|---|---|---|
+| 01:00 | `createSnapshot('daily')` | Local DB copy → `/data/backups/` (14 days kept) |
+| 02:00 | `backupToDrive()` | Google Drive backup (daily) |
+| 07:45 | `runIntegrityCheck()` | Data validation → WhatsApp alert |
+| 08:00 | `checkEmailsAndImport()` | Gmail import (last 24h only) |
+| 19:00 | Daily WhatsApp report | Orders summary |
+
+### Snapshot System (`backend/services/snapshot.js`)
+- Auto-snapshot before every Gmail import (`pre-gmail-import`)
+- Auto-snapshot before every StubHub sync that has data to write (`pre-stubhub-sync`)
+- Manual: `POST /api/admin/snapshots` with `{ "label": "before-fix" }`
+- List: `GET /api/admin/snapshots`
+- Storage: `/data/backups/YYYY-MM-DD_HH-MM_label.db` (14 most recent kept)
+- **To restore:** SSH into Fly.io and copy a backup file to `/data/games.db`
+
+### Integrity Check (`backend/services/integrity-check.js`)
+- `GET /api/admin/integrity` — returns JSON report
+- `POST /api/admin/integrity/notify` — runs check + sends WhatsApp
+- Checks:
+  1. Duplicate active order_numbers (CRITICAL)
+  2. Confirmed orders with €0 amount (CRITICAL)
+  3. SQ > BQ per game — impossible case (CRITICAL)
+  4. Orders with game_name not in inventory (WARNING — expected for orders-only games)
+- Returns: `{ ok, issues[], warnings[], stats, revenue_summary[] }`
+
+### To restore a snapshot (admin only)
+```bash
+flyctl ssh console --app game-dashboard-omri
+cp /data/backups/2026-04-03_01-00_daily.db /data/games.db
+# Then restart the app
+flyctl apps restart game-dashboard-omri
+```
+
 ## WhatsApp notifications
 - Service: `backend/services/whatsapp-notifier.js`
 - Provider: Twilio (HTTP API, no SDK dependency)

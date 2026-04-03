@@ -172,7 +172,7 @@ inventoryRouter.get('/stats-by-game', (req, res) => {
       const income = ordersIncome > 0 ? ordersIncome : (r.income || 0);
 
       const profit = income - (r.inventory_cost || 0);
-      const margin = income > 0 ? Math.round((profit / income) * 1000) / 10 : 0;
+      const margin = income > 0 ? round2((profit / income) * 100) : 0;
       const mq     = (r.bq || 0) - (r.sq || 0) - (r.reserved || 0); // unsold & unreserved
 
       return {

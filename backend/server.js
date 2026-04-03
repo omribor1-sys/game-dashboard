@@ -21,6 +21,9 @@ app.use('/api/orders',    ordersRouter);
 // ── Admin / manual trigger endpoints ─────────────────────────────────────────
 app.post('/api/admin/check-emails', async (req, res) => {
   try {
+    // Snapshot before import so we can roll back if something goes wrong
+    try { require('./services/snapshot').createSnapshot('pre-gmail-import'); } catch (_) {}
+
     const { checkEmailsAndImport, sendSummaryEmail } = require('./services/gmail-importer');
     const { sendWhatsAppSummary } = require('./services/whatsapp-notifier');
     const { google } = require('googleapis');
@@ -63,7 +66,7 @@ app.post('/api/admin/test-whatsapp', async (req, res) => {
 
 // StubHub sync — accepts scraped orders from local Chrome skill
 // Body: { orders: [{ order_number, game_name, game_datetime, ticket_quantity, category, row_seat, buyer_name, total_amount, sales_channel }] }
-app.post('/api/admin/stubhub-sync', (req, res) => {
+app.post('/api/admin/stubhub-sync', async (req, res) => {
   try {
     const db = require('./database');
     const { logInsert, logUpdate } = require('./services/audit');
@@ -74,6 +77,8 @@ app.post('/api/admin/stubhub-sync', (req, res) => {
 
     const report = { inserted: [], updated: [], unchanged: [] };
 
+    // ── Phase 1: detect what will change (read-only, no writes yet) ─────────
+    const pending = [];
     for (const o of incoming) {
       const num = String(o.order_number || '').trim();
       if (!num) continue;
@@ -81,13 +86,34 @@ app.post('/api/admin/stubhub-sync', (req, res) => {
       const existing = db.prepare('SELECT * FROM orders WHERE order_number = ?').get(num);
 
       if (!existing) {
-        // Skip if this order_number was manually deleted by user
         const wasDeleted = db.prepare('SELECT id FROM orders WHERE order_number = ? AND deleted_at IS NOT NULL').get(num);
-        if (wasDeleted) {
-          report.unchanged.push(num); // silently skip
-          continue;
+        if (wasDeleted) { report.unchanged.push(num); continue; }
+        pending.push({ type: 'insert', o, num });
+      } else {
+        // ⚠️  PROTECTED FIELDS (never auto-update): total_amount, buyer_email
+        const changes = {};
+        const fields = ['game_name', 'game_datetime', 'category', 'buyer_name', 'ticket_quantity', 'row_seat'];
+        for (const f of fields) {
+          const incoming_val = o[f] != null ? String(o[f]).trim() : null;
+          const existing_val = existing[f] != null ? String(existing[f]).trim() : null;
+          if (incoming_val && incoming_val !== existing_val) {
+            changes[f] = { from: existing_val, to: incoming_val };
+          }
         }
-        // Insert new order
+        if (Object.keys(changes).length === 0) { report.unchanged.push(num); continue; }
+        pending.push({ type: 'update', o, num, existing, changes });
+      }
+    }
+
+    // ── Phase 2: snapshot BEFORE any writes (only if there's something to write)
+    if (pending.length > 0) {
+      try { require('./services/snapshot').createSnapshot('pre-stubhub-sync'); } catch (_) {}
+    }
+
+    // ── Phase 3: execute writes ──────────────────────────────────────────────
+    for (const item of pending) {
+      const { type, o, num } = item;
+      if (type === 'insert') {
         db.prepare(`
           INSERT INTO orders
             (buyer_name, buyer_email, status, notes,
@@ -110,34 +136,16 @@ app.post('/api/admin/stubhub-sync', (req, res) => {
         );
         logInsert('stubhub-sync', num, o.game_name);
         report.inserted.push({ order_number: num, game_name: o.game_name });
-        continue;
-      }
-
-      // Check fields that might need updating
-      // ⚠️  PROTECTED FIELDS (never auto-update): total_amount, buyer_email
-      const changes = {};
-      const fields = ['game_name', 'game_datetime', 'category', 'buyer_name', 'ticket_quantity', 'row_seat'];
-      for (const f of fields) {
-        const incoming_val = o[f] != null ? String(o[f]).trim() : null;
-        const existing_val = existing[f] != null ? String(existing[f]).trim() : null;
-        if (incoming_val && incoming_val !== existing_val) {
-          changes[f] = { from: existing_val, to: incoming_val };
+      } else {
+        const { changes } = item;
+        const setClauses = Object.keys(changes).map(f => `${f} = ?`).join(', ');
+        const values = Object.keys(changes).map(f => o[f]);
+        db.prepare(`UPDATE orders SET ${setClauses} WHERE order_number = ?`).run(...values, num);
+        for (const [field, { from, to }] of Object.entries(changes)) {
+          logUpdate('stubhub-sync', num, field, from, to);
         }
+        report.updated.push({ order_number: num, changes });
       }
-
-      if (Object.keys(changes).length === 0) {
-        report.unchanged.push(num);
-        continue;
-      }
-
-      // Apply updates + log each change
-      const setClauses = Object.keys(changes).map(f => `${f} = ?`).join(', ');
-      const values = Object.keys(changes).map(f => o[f]);
-      db.prepare(`UPDATE orders SET ${setClauses} WHERE order_number = ?`).run(...values, num);
-      for (const [field, { from, to }] of Object.entries(changes)) {
-        logUpdate('stubhub-sync', num, field, from, to);
-      }
-      report.updated.push({ order_number: num, changes });
     }
 
     console.log(`[stubhub-sync] inserted=${report.inserted.length} updated=${report.updated.length} unchanged=${report.unchanged.length}`);
@@ -195,6 +203,57 @@ app.post('/api/admin/daily-report', async (req, res) => {
   }
 });
 
+// ── Snapshot endpoints ─────────────────────────────────────────────────────
+
+// GET /api/admin/snapshots — list local snapshots
+app.get('/api/admin/snapshots', (req, res) => {
+  try {
+    const { listSnapshots } = require('./services/snapshot');
+    res.json(listSnapshots());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/admin/snapshots — create manual snapshot
+app.post('/api/admin/snapshots', (req, res) => {
+  try {
+    const { createSnapshot } = require('./services/snapshot');
+    const label = (req.body.label || 'manual').replace(/[^a-zA-Z0-9_-]/g, '-');
+    const result = createSnapshot(label);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Integrity check endpoints ──────────────────────────────────────────────
+
+// GET /api/admin/integrity — run integrity check, return JSON
+app.get('/api/admin/integrity', (req, res) => {
+  try {
+    const { runIntegrityCheck } = require('./services/integrity-check');
+    res.json(runIntegrityCheck());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/admin/integrity/notify — run check + send WhatsApp if issues
+app.post('/api/admin/integrity/notify', async (req, res) => {
+  try {
+    const { runIntegrityCheck } = require('./services/integrity-check');
+    const { sendWhatsApp }      = require('./services/whatsapp-notifier');
+    const result = runIntegrityCheck();
+    await sendWhatsApp(_buildIntegrityMessage(result)).catch(e =>
+      console.error('[admin] integrity notify WhatsApp failed:', e.message)
+    );
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/admin/backup-drive', async (req, res) => {
   try {
     const { backupToDrive } = require('./services/gdrive-backup');
@@ -207,6 +266,34 @@ app.post('/api/admin/backup-drive', async (req, res) => {
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+
+// ── Helper: build Hebrew WhatsApp integrity message ────────────────────────
+function _buildIntegrityMessage(result) {
+  const dateStr = new Date().toLocaleDateString('he-IL');
+  let msg = `🔍 *בדיקת שלמות נתונים — ${dateStr}*\n\n`;
+
+  if (result.ok && result.warnings.length === 0) {
+    msg += `✅ כל הנתונים תקינים\n`;
+    msg += `📦 ${result.stats.total_active_orders} הזמנות פעילות | `;
+    msg += `${result.stats.total_tickets} כרטיסים | `;
+    msg += `${result.stats.total_sold} נמכרו\n`;
+  } else {
+    if (result.issues.length > 0) {
+      msg += `🔴 *בעיות קריטיות (${result.issues.length}):*\n`;
+      result.issues.forEach(i => { msg += `• ${i}\n`; });
+      msg += '\n';
+    }
+    if (result.warnings.length > 0) {
+      msg += `🟡 *אזהרות (${result.warnings.length}):*\n`;
+      result.warnings.forEach(w => { msg += `• ${w}\n`; });
+      msg += '\n';
+    }
+    msg += `📦 ${result.stats.total_active_orders} הזמנות פעילות | `;
+    msg += `${result.stats.total_tickets} כרטיסים | `;
+    msg += `${result.stats.total_sold} נמכרו\n`;
+  }
+  return msg;
+}
 
 // ── Scheduled jobs ────────────────────────────────────────────────────────────
 
@@ -274,14 +361,44 @@ cron.schedule('0 19 * * *', async () => {
   }
 });
 
-// Google Drive backup — every Friday and Sunday at 02:00 UTC
-cron.schedule('0 2 * * 0,5', async () => {
+// Daily local snapshot — every day at 01:00 UTC
+cron.schedule('0 1 * * *', () => {
+  console.log('[CRON] Running daily snapshot…');
+  try {
+    const { createSnapshot } = require('./services/snapshot');
+    createSnapshot('daily');
+  } catch (e) {
+    console.error('[CRON] Daily snapshot failed:', e.message);
+  }
+});
+
+// Google Drive backup — every day at 02:00 UTC (changed from bi-weekly)
+cron.schedule('0 2 * * *', async () => {
   console.log('[CRON] Running scheduled Drive backup…');
   try {
     const { backupToDrive } = require('./services/gdrive-backup');
     await backupToDrive();
   } catch (e) {
     console.error('[CRON] Drive backup failed:', e.message);
+  }
+});
+
+// Integrity check — every day at 07:45 UTC (15 min before Gmail import)
+cron.schedule('45 7 * * *', async () => {
+  console.log('[CRON] Running daily integrity check…');
+  try {
+    const { runIntegrityCheck } = require('./services/integrity-check');
+    const { sendWhatsApp }      = require('./services/whatsapp-notifier');
+    const result = runIntegrityCheck();
+    // Always send — OK confirmation or alerts
+    await sendWhatsApp(_buildIntegrityMessage(result)).catch(e =>
+      console.error('[CRON] Integrity WhatsApp failed:', e.message)
+    );
+    if (!result.ok) {
+      console.error('[CRON] Integrity issues found:', result.issues);
+    }
+  } catch (e) {
+    console.error('[CRON] Integrity check failed:', e.message);
   }
 });
 
@@ -296,6 +413,8 @@ if (fs.existsSync(frontendDist)) {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 Server running at http://localhost:${PORT}`);
-  console.log(`📧 Gmail check: daily at 08:00 UTC`);
-  console.log(`💾 Drive backup: every Friday & Sunday at 02:00 UTC\n`);
+  console.log(`📸 Snapshot:        daily at 01:00 UTC  → /data/backups/ (14 days)`);
+  console.log(`💾 Drive backup:    daily at 02:00 UTC  → Google Drive`);
+  console.log(`🔍 Integrity check: daily at 07:45 UTC  → WhatsApp alert`);
+  console.log(`📧 Gmail check:     daily at 08:00 UTC  → import new orders\n`);
 });

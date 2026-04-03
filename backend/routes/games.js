@@ -105,16 +105,16 @@ router.get('/', (req, res) => {
         COALESCE((
           SELECT SUM(o.total_amount)
           FROM orders o
-          INNER JOIN order_items oi ON oi.order_id = o.id
-          INNER JOIN inventory i2 ON i2.id = oi.inventory_id
-          WHERE i2.game_name = i.game_name AND o.status != 'Cancelled'
+          WHERE o.game_name = i.game_name
+            AND o.deleted_at IS NULL
+            AND (o.status IS NULL OR o.status != 'Cancelled')
         ), 0) AS orders_revenue,
         COALESCE((
-          SELECT COUNT(DISTINCT o.id)
+          SELECT COUNT(*)
           FROM orders o
-          INNER JOIN order_items oi ON oi.order_id = o.id
-          INNER JOIN inventory i2 ON i2.id = oi.inventory_id
-          WHERE i2.game_name = i.game_name AND o.status != 'Cancelled'
+          WHERE o.game_name = i.game_name
+            AND o.deleted_at IS NULL
+            AND (o.status IS NULL OR o.status != 'Cancelled')
         ), 0) AS orders_count
       FROM inventory i
       GROUP BY i.game_name
@@ -328,11 +328,20 @@ router.get('/:id/orders', (req, res) => {
       SELECT o.*, COUNT(oi.id) AS item_count, COALESCE(SUM(oi.sell_price),0) AS items_total
       FROM orders o
       LEFT JOIN order_items oi ON oi.order_id = o.id
-      WHERE o.game_name = (SELECT name FROM games WHERE id = ?) OR o.game_id = ?
+      WHERE (o.game_name = (SELECT name FROM games WHERE id = ?) OR o.game_id = ?)
+        AND o.deleted_at IS NULL
+        AND (o.status IS NULL OR o.status != 'Cancelled')
       GROUP BY o.id
       ORDER BY o.created_at DESC
     `).all(req.params.id, req.params.id);
-    res.json(rows);
+
+    // Add items_total fallback: if order_items exist but sum to 0, use total_amount
+    const result = rows.map(o => {
+      const itemsTotal = Number(o.items_total) || 0;
+      return { ...o, items_total: itemsTotal > 0 ? itemsTotal : (Number(o.total_amount) || 0) };
+    });
+
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
