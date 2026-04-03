@@ -15,6 +15,17 @@ Built for Omri (omribor1@gmail.com).
 - **Database:** SQLite at `/data/games.db` (persistent Fly.io volume)
 - **Node version:** 24 (required for built-in `node:sqlite`)
 
+## ⚠️ RULE: Checkpoint commit BEFORE every code change
+
+Before making ANY code change, Claude MUST run:
+```bash
+git add -A
+git commit -m "checkpoint: before [description of upcoming change]"
+git push origin main
+```
+This ensures there is always a "before" state to revert to.
+After the change is done, commit again with a descriptive message and push.
+
 ## How to deploy changes
 ```bash
 # 1. Build frontend
