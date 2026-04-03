@@ -489,26 +489,25 @@ function fuzzyMatch(text, query) {
   return nQuery.split(' ').filter(Boolean).every(w => nText.includes(w));
 }
 
-// Group key: use embedded datetime when present so orders from different
-// channels (StubHub / FTN) for the SAME game are merged into one group
-function getGroupKey(gameName) {
-  const m = gameName?.match(/\|\s*(\w+,\s*\d{2}\/\d{2}\/\d{4},\s*\d{2}:\d{2})/);
-  return m ? m[1].trim() : (gameName || 'No Game');
+// Group key: game_datetime is the canonical key (same game = same datetime).
+// Falls back to game_name for orders without a datetime.
+function getGroupKey(order) {
+  const dt = order.game_datetime?.trim();
+  const name = (order.game_name || '').split(' | ')[0].trim();
+  return dt ? `${name}__${dt}` : (name || 'No Game');
 }
 
-// Among orders in the same group, pick the most descriptive game name
-// (longest base name + the shared datetime suffix)
+// Display name: "Game Name | Day, DD/MM/YYYY, HH:MM"
 function getBestDisplayName(gameOrders) {
   let bestBase = '';
-  let dtSuffix = '';
+  let dt = '';
   for (const o of gameOrders) {
-    const parts = (o.game_name || '').split(' | ');
-    const b = parts[0].trim();
-    if (b.length > bestBase.length) bestBase = b;
-    if (parts[1] && !dtSuffix) dtSuffix = parts[1].trim();
+    const base = (o.game_name || '').split(' | ')[0].trim();
+    if (base.length > bestBase.length) bestBase = base;
+    if (o.game_datetime && !dt) dt = o.game_datetime.trim();
   }
   if (!bestBase) return 'No Game';
-  return dtSuffix ? `${bestBase} | ${dtSuffix}` : bestBase;
+  return dt ? `${bestBase} | ${dt}` : bestBase;
 }
 
 // ── Game Accordion — groups OrderCards by game_name ──────────────────────────
@@ -517,10 +516,10 @@ function GameAccordion({ orders, onEdit, onDelete, onAddTicket, onRemoveTicket, 
   const [pastOpen, setPastOpen]       = useState(false);
   const now = new Date();
 
-  // Group orders by datetime key (merges different channel names for same game)
+  // Group orders by game+datetime key (merges different channel names for same game)
   const groups = {};
   for (const o of orders) {
-    const key = getGroupKey(o.game_name);
+    const key = getGroupKey(o);
     if (!groups[key]) groups[key] = [];
     groups[key].push(o);
   }
