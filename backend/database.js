@@ -20,6 +20,7 @@ try { db.exec("ALTER TABLE orders ADD COLUMN ticket_quantity INTEGER DEFAULT 1")
 try { db.exec("ALTER TABLE orders ADD COLUMN category TEXT"); } catch (_) {}
 try { db.exec("ALTER TABLE orders ADD COLUMN row_seat TEXT"); } catch (_) {}
 try { db.exec("ALTER TABLE orders ADD COLUMN game_datetime TEXT"); } catch (_) {}
+try { db.exec("ALTER TABLE orders ADD COLUMN deleted_at DATETIME"); } catch (_) {}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS games (
@@ -79,6 +80,19 @@ db.exec(`
     order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
     inventory_id INTEGER REFERENCES inventory(id) ON DELETE CASCADE,
     sell_price REAL DEFAULT 0
+  );
+
+  CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts DATETIME DEFAULT CURRENT_TIMESTAMP,
+    source TEXT NOT NULL,
+    action TEXT NOT NULL,
+    table_name TEXT,
+    record_id TEXT,
+    field TEXT,
+    old_value TEXT,
+    new_value TEXT,
+    note TEXT
   );
 `);
 

@@ -98,6 +98,55 @@ flyctl logs --app game-dashboard-omri            # view logs
 flyctl ssh console --app game-dashboard-omri     # SSH into server
 ```
 
+## ⚠️ DATA INTEGRITY RULES — CRITICAL — DO NOT VIOLATE
+
+### What automated processes MAY do (pre-approved):
+| Action | Source | Allowed |
+|--------|--------|---------|
+| INSERT new order | gmail-import, stubhub-sync | ✅ YES |
+| UPDATE game_name — remove date suffix ` \| Day, DD/MM/YYYY` | any | ✅ YES |
+| UPDATE category — fix newline bug | any | ✅ YES |
+| UPDATE buyer_name = 'UTC' → NULL | any | ✅ YES |
+| UPDATE buyer_name NULL → real name (from StubHub page) | stubhub-sync | ✅ YES |
+| UPDATE row_seat NULL → value | stubhub-sync | ✅ YES |
+| UPDATE inventory status Reserved/Available → Sold | manual or explicit sync | ✅ YES (with audit log) |
+
+### What automated processes MAY NEVER do:
+| Action | Reason |
+|--------|--------|
+| Change `total_amount` on existing order | Financial data — immutable |
+| Change `buy_price` or `sell_price` on inventory | Financial data — immutable |
+| Change `buyer_email` on existing order | Identity data — immutable |
+| Delete any order or inventory record | Irreversible |
+| Change `game_datetime` if already set correctly | Date data — only fix if clearly wrong |
+| Change inventory status Sold → Available/Reserved | Cannot "un-sell" automatically |
+
+### Audit log
+Every automated change is logged to `audit_log` table:
+- Source: which process made the change
+- Field: which field changed
+- Old/new value: exact values before and after
+- Timestamp: when it happened
+
+### Daily WhatsApp report
+Triggered daily at 22:00 via `POST /api/admin/daily-report`
+Shows: total orders, upcoming games, all automated changes in last 24h
+
+## Revenue Calculation — Source of Truth
+
+**RULE: orders.total_amount > inventory.sell_price**
+
+- `orders.total_amount` = real confirmed payment from buyer (StubHub/FTN email)
+- `inventory.sell_price` = estimated/target price (may be wrong, used only as fallback)
+- When orders exist for a game → use `SUM(orders.total_amount)` as revenue
+- When no orders exist → fall back to `SUM(inventory.sell_price WHERE status='Sold')`
+- NEVER use `Math.max(inventory_income, orders_income)` — orders always win
+
+### Before making any DB change in code, ask:
+1. Is this change in the "allowed" list above?
+2. Is it logged to audit_log?
+3. If changing financial data — STOP and ask the user first
+
 ## User preferences
 - Hebrew UI preferred for communication
 - Parallel work encouraged ("תעבוד במקביל")

@@ -66,6 +66,7 @@ app.post('/api/admin/test-whatsapp', async (req, res) => {
 app.post('/api/admin/stubhub-sync', (req, res) => {
   try {
     const db = require('./database');
+    const { logInsert, logUpdate } = require('./services/audit');
     const { orders: incoming } = req.body;
     if (!Array.isArray(incoming) || incoming.length === 0) {
       return res.status(400).json({ error: 'orders array required' });
@@ -80,6 +81,12 @@ app.post('/api/admin/stubhub-sync', (req, res) => {
       const existing = db.prepare('SELECT * FROM orders WHERE order_number = ?').get(num);
 
       if (!existing) {
+        // Skip if this order_number was manually deleted by user
+        const wasDeleted = db.prepare('SELECT id FROM orders WHERE order_number = ? AND deleted_at IS NOT NULL').get(num);
+        if (wasDeleted) {
+          report.unchanged.push(num); // silently skip
+          continue;
+        }
         // Insert new order
         db.prepare(`
           INSERT INTO orders
@@ -101,13 +108,15 @@ app.post('/api/admin/stubhub-sync', (req, res) => {
           o.row_seat      || null,
           o.game_datetime || null,
         );
+        logInsert('stubhub-sync', num, o.game_name);
         report.inserted.push({ order_number: num, game_name: o.game_name });
         continue;
       }
 
       // Check fields that might need updating
+      // ⚠️  PROTECTED FIELDS (never auto-update): total_amount, buyer_email
       const changes = {};
-      const fields = ['game_name', 'game_datetime', 'category', 'buyer_name', 'total_amount', 'ticket_quantity', 'row_seat'];
+      const fields = ['game_name', 'game_datetime', 'category', 'buyer_name', 'ticket_quantity', 'row_seat'];
       for (const f of fields) {
         const incoming_val = o[f] != null ? String(o[f]).trim() : null;
         const existing_val = existing[f] != null ? String(existing[f]).trim() : null;
@@ -121,15 +130,66 @@ app.post('/api/admin/stubhub-sync', (req, res) => {
         continue;
       }
 
-      // Apply updates
+      // Apply updates + log each change
       const setClauses = Object.keys(changes).map(f => `${f} = ?`).join(', ');
       const values = Object.keys(changes).map(f => o[f]);
       db.prepare(`UPDATE orders SET ${setClauses} WHERE order_number = ?`).run(...values, num);
+      for (const [field, { from, to }] of Object.entries(changes)) {
+        logUpdate('stubhub-sync', num, field, from, to);
+      }
       report.updated.push({ order_number: num, changes });
     }
 
     console.log(`[stubhub-sync] inserted=${report.inserted.length} updated=${report.updated.length} unchanged=${report.unchanged.length}`);
     res.json(report);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/admin/audit-log — view recent automated changes
+app.get('/api/admin/audit-log', (req, res) => {
+  try {
+    const { getRecent, getSinceSummary } = require('./services/audit');
+    const limit = parseInt(req.query.limit) || 200;
+    const since = req.query.since || null; // ISO date string
+    if (since) {
+      res.json(getSinceSummary(since));
+    } else {
+      res.json(getRecent(limit));
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/admin/daily-report — send WhatsApp report of what changed in last 24h
+app.post('/api/admin/daily-report', async (req, res) => {
+  try {
+    const db = require('./database');
+    const { sendWhatsApp } = require('./services/whatsapp-notifier');
+    const { getSinceSummary } = require('./services/audit');
+
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 19);
+    const changes = getSinceSummary(since);
+    const totalOrders = db.prepare("SELECT COUNT(*) n FROM orders").get().n;
+    const upcomingOrders = db.prepare("SELECT COUNT(*) n FROM orders WHERE game_datetime >= date('now') AND (status IS NULL OR status != 'Cancelled')").get().n;
+
+    let msg = `📊 *GameYield יומי — ${new Date().toLocaleDateString('he-IL')}*\n\n`;
+    msg += `📦 סה"כ הזמנות: ${totalOrders} | עתידיות: ${upcomingOrders}\n\n`;
+
+    if (changes.length === 0) {
+      msg += '✅ אין שינויים אוטומטיים ב-24 שעות האחרונות\n';
+    } else {
+      msg += '*שינויים אוטומטיים (24 שעות):*\n';
+      changes.forEach(c => {
+        const action = c.action === 'INSERT' ? '➕ הוכנס' : '✏️ עודכן';
+        msg += `${action} ${c.n}× — ${c.source} → ${c.table_name}${c.field ? '.' + c.field : ''}\n`;
+      });
+    }
+
+    await sendWhatsApp(msg);
+    res.json({ ok: true, changes: changes.length });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -183,6 +243,34 @@ cron.schedule('0 8 * * *', async () => {
     }
   } catch (e) {
     console.error('[CRON] Gmail check failed:', e.message);
+  }
+});
+
+// Daily WhatsApp report — every day at 19:00 UTC (22:00 Israel)
+cron.schedule('0 19 * * *', async () => {
+  console.log('[CRON] Sending daily WhatsApp report…');
+  try {
+    const db = require('./database');
+    const { sendWhatsApp } = require('./services/whatsapp-notifier');
+    const { getSinceSummary } = require('./services/audit');
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 19);
+    const changes = getSinceSummary(since);
+    const totalOrders = db.prepare("SELECT COUNT(*) n FROM orders").get().n;
+    const upcomingOrders = db.prepare("SELECT COUNT(*) n FROM orders WHERE game_datetime >= date('now') AND (status IS NULL OR status != 'Cancelled')").get().n;
+    let msg = `📊 *GameYield יומי — ${new Date().toLocaleDateString('he-IL')}*\n\n`;
+    msg += `📦 סה"כ הזמנות: ${totalOrders} | עתידיות: ${upcomingOrders}\n\n`;
+    if (changes.length === 0) {
+      msg += '✅ אין שינויים אוטומטיים ב-24 שעות האחרונות\n';
+    } else {
+      msg += '*שינויים אוטומטיים (24 שעות):*\n';
+      changes.forEach(c => {
+        const action = c.action === 'INSERT' ? '➕ הוכנס' : '✏️ עודכן';
+        msg += `${action} ${c.n}× — ${c.source}${c.field ? ' → ' + c.field : ''}\n`;
+      });
+    }
+    await sendWhatsApp(msg).catch(e => console.error('[CRON] WhatsApp daily report failed:', e.message));
+  } catch (e) {
+    console.error('[CRON] Daily report failed:', e.message);
   }
 });
 

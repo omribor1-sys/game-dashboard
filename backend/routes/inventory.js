@@ -152,15 +152,24 @@ inventoryRouter.get('/stats-by-game', (req, res) => {
       `).get(r.game_name)?.n || 0;
 
       // Orders income: sum of total_amount from orders table by game_name
-      // This captures email-imported orders (StubHub/FTN) that aren't linked via order_items
+      // Uses exact match + fuzzy word match to handle slight naming differences
+      // Excludes soft-deleted and cancelled orders
+      const gameWords = r.game_name.split(/\s+/).filter(w => w.length > 2);
+      const likeClauseIncome = gameWords.map(() => 'game_name LIKE ?').join(' AND ');
+      const likeArgsIncome   = gameWords.map(w => `%${w}%`);
       const ordersIncome = db.prepare(`
         SELECT COALESCE(SUM(total_amount), 0) AS total
         FROM orders
-        WHERE game_name = ? AND (status IS NULL OR status != 'Cancelled')
-      `).get(r.game_name)?.total || 0;
+        WHERE deleted_at IS NULL
+          AND (status IS NULL OR status != 'Cancelled')
+          AND (game_name = ? OR (${likeClauseIncome}))
+      `).get(r.game_name, ...likeArgsIncome)?.total || 0;
 
-      // Use whichever is greater: inventory sell_price (manual) or orders total_amount (email import)
-      const income = Math.max(r.income || 0, ordersIncome);
+      // REVENUE PRIORITY: actual orders total_amount > inventory sell_price
+      // Orders total_amount = real confirmed payments (from StubHub/FTN emails)
+      // inventory.sell_price = estimated/target price (may be inaccurate)
+      // Only fall back to inventory income when no orders exist
+      const income = ordersIncome > 0 ? ordersIncome : (r.income || 0);
 
       const profit = income - (r.inventory_cost || 0);
       const margin = income > 0 ? Math.round((profit / income) * 1000) / 10 : 0;
@@ -681,10 +690,10 @@ ordersRouter.get('/', (req, res) => {
       const likeClause = words.map(() => "game_name LIKE ?").join(' AND ');
       const likeArgs  = words.map(w => `%${w}%`);
       orders = db.prepare(
-        `SELECT * FROM orders WHERE game_name = ? OR (${likeClause}) ORDER BY created_at DESC`
+        `SELECT * FROM orders WHERE deleted_at IS NULL AND (game_name = ? OR (${likeClause})) ORDER BY created_at DESC`
       ).all(gn, ...likeArgs);
     } else {
-      orders = db.prepare('SELECT * FROM orders ORDER BY created_at DESC').all();
+      orders = db.prepare('SELECT * FROM orders WHERE deleted_at IS NULL ORDER BY created_at DESC').all();
     }
 
     const result = orders.map(order => {
@@ -931,13 +940,13 @@ ordersRouter.delete('/:id/items/:item_id', (req, res) => {
   }
 });
 
-// DELETE /api/orders/:id
+// DELETE /api/orders/:id — soft delete (sets deleted_at) so sync never re-inserts it
 ordersRouter.delete('/:id', (req, res) => {
   try {
     const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
 
-    // Revert Reserved tickets to Available before cascade delete
+    // Revert Reserved tickets to Available
     const reservedItems = db.prepare(`
       SELECT oi.inventory_id FROM order_items oi
       JOIN inventory i ON i.id = oi.inventory_id
@@ -948,7 +957,17 @@ ordersRouter.delete('/:id', (req, res) => {
       db.prepare("UPDATE inventory SET status = 'Available' WHERE id = ?").run(inventory_id);
     }
 
-    db.prepare('DELETE FROM orders WHERE id = ?').run(req.params.id);
+    // Soft delete — keep the row so the sync doesn't re-insert it
+    db.prepare("UPDATE orders SET deleted_at = datetime('now') WHERE id = ?").run(req.params.id);
+
+    // Log the deletion
+    try {
+      const { log } = require('../services/audit');
+      log({ source: 'manual', action: 'DELETE', table_name: 'orders',
+            record_id: order.order_number || req.params.id,
+            note: `${order.game_name} | ${order.buyer_name || order.buyer_email || ''}` });
+    } catch(_) {}
+
     res.json({ success: true });
   } catch (err) {
     console.error(err);

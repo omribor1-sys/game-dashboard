@@ -55,6 +55,7 @@ function getPlainText(payload) {
 
 function orderExists(orderNumber) {
   if (!orderNumber) return false;
+  // Consider both active AND soft-deleted orders as "existing" — never re-import a deleted order
   const row = db.prepare('SELECT id FROM orders WHERE order_number = ?').get(String(orderNumber));
   return !!row;
 }
@@ -317,12 +318,16 @@ async function checkEmailsAndImport(options = {}) {
   const importedOrders = [];
 
   try {
-    // Search for relevant emails (unread by default)
+    // Search for relevant emails from the last 24 hours ONLY
+    // This is a critical rule: never re-import old emails
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const afterDate = `${yesterday.getFullYear()}/${String(yesterday.getMonth()+1).padStart(2,'0')}/${String(yesterday.getDate()).padStart(2,'0')}`;
     const unreadFilter = ignoreRead ? '' : ' is:unread';
+    const dateFilter = ignoreRead ? '' : ` after:${afterDate}`; // only 24h, unless ignoreRead override
     const queries = [
-      `from:stubhub subject:"You sold your ticket"${unreadFilter}`,
-      `from:footballticketnet${unreadFilter}`,
-      `from:noreply@stubhub.com${unreadFilter}`,
+      `from:stubhub subject:"You sold your ticket"${unreadFilter}${dateFilter}`,
+      `from:footballticketnet${unreadFilter}${dateFilter}`,
+      `from:noreply@stubhub.com${unreadFilter}${dateFilter}`,
     ];
 
     const messageIds = new Set();
