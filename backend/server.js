@@ -66,6 +66,28 @@ app.post('/api/admin/test-whatsapp', async (req, res) => {
 
 // StubHub sync — accepts scraped orders from local Chrome skill
 // Body: { orders: [{ order_number, game_name, game_datetime, ticket_quantity, category, row_seat, buyer_name, total_amount, sales_channel }] }
+
+// Normalize StubHub raw game names to canonical names stored in DB.
+// Strips date suffixes (e.g. " | Sat, 11/04/2026, 12:30") and fuzzy-matches
+// against existing game_names so duplicates like "Arsenal FC vs AFC Bournemouth"
+// and "Arsenal vs Bournemouth" are merged automatically.
+function normalizeGameName(rawName, db) {
+  if (!rawName) return rawName;
+  // Step 1: strip date/time suffix " | Day, DD/MM/YYYY, HH:MM"
+  let name = rawName.replace(/\s*\|.*$/, '').trim();
+  // Step 2: look for existing canonical name that shares key words
+  const words = name.split(/\s+/).filter(w => w.length > 3 && !/^(vs|vs\.|AFC|FC|United|City)$/i.test(w));
+  if (words.length >= 2) {
+    const likeClause = words.slice(0, 2).map(() => 'game_name LIKE ?').join(' AND ');
+    const params = words.slice(0, 2).map(w => `%${w}%`);
+    const match = db.prepare(
+      `SELECT game_name FROM orders WHERE ${likeClause} AND deleted_at IS NULL LIMIT 1`
+    ).get(...params);
+    if (match) return match.game_name;
+  }
+  return name;
+}
+
 app.post('/api/admin/stubhub-sync', async (req, res) => {
   try {
     const db = require('./database');
@@ -82,6 +104,8 @@ app.post('/api/admin/stubhub-sync', async (req, res) => {
     for (const o of incoming) {
       const num = String(o.order_number || '').trim();
       if (!num) continue;
+      // Normalize game name before any lookup or insert
+      o.game_name = normalizeGameName(o.game_name, db);
 
       const existing = db.prepare('SELECT * FROM orders WHERE order_number = ?').get(num);
 
