@@ -71,11 +71,34 @@ app.post('/api/admin/test-whatsapp', async (req, res) => {
 // Strips date suffixes (e.g. " | Sat, 11/04/2026, 12:30") and fuzzy-matches
 // against existing game_names so duplicates like "Arsenal FC vs AFC Bournemouth"
 // and "Arsenal vs Bournemouth" are merged automatically.
+// Hardcoded StubHub raw name → canonical DB name mapping.
+// Add entries here whenever a new raw variant is discovered.
+const GAME_NAME_MAP = {
+  'arsenal fc vs afc bournemouth': 'Arsenal vs Bournemouth',
+  'afc bournemouth vs arsenal fc': 'Bournemouth vs Arsenal',
+  'manchester city fc vs arsenal fc': 'Manchester City vs Arsenal',
+  'arsenal fc vs manchester city fc': 'Arsenal vs Manchester City',
+  'arsenal fc vs newcastle united fc': 'Arsenal vs Newcastle United',
+  'newcastle united fc vs arsenal fc': 'Newcastle United vs Arsenal',
+  'newcastle united fc vs afc bournemouth': 'Newcastle vs Bournemouth',
+  'chelsea fc vs manchester united': 'Chelsea vs Manchester United',
+  'chelsea fc vs manchester city fc': 'Chelsea vs Manchester City',
+  'tottenham hotspur fc vs brighton & hove albion fc': 'Tottenham vs Brighton',
+  'tottenham hotspur vs brighton & hove albion fc': 'Tottenham vs Brighton',
+  'brentford fc vs everton fc': 'Brentford vs Everton',
+  'liverpool fc vs fulham fc': 'Liverpool vs Fulham',
+  'fulham fc vs aston villa fc': 'Fulham vs Aston Villa',
+  'arsenal fc vs sporting cp': 'Arsenal vs Sporting CP',
+};
+
 function normalizeGameName(rawName, db) {
   if (!rawName) return rawName;
   // Step 1: strip date/time suffix " | Day, DD/MM/YYYY, HH:MM"
   let name = rawName.replace(/\s*\|.*$/, '').trim();
-  // Step 2: look for existing canonical name that shares key words
+  // Step 2: hardcoded mapping (fastest, most reliable)
+  const mapped = GAME_NAME_MAP[name.toLowerCase()];
+  if (mapped) return mapped;
+  // Step 3: fuzzy-match against existing canonical names in DB
   const words = name.split(/\s+/).filter(w => w.length > 3 && !/^(vs|vs\.|AFC|FC|United|City)$/i.test(w));
   if (words.length >= 2) {
     const likeClause = words.slice(0, 2).map(() => 'game_name LIKE ?').join(' AND ');
