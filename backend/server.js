@@ -89,6 +89,10 @@ const GAME_NAME_MAP = {
   'liverpool fc vs fulham fc': 'Liverpool vs Fulham',
   'fulham fc vs aston villa fc': 'Fulham vs Aston Villa',
   'arsenal fc vs sporting cp': 'Arsenal vs Sporting CP',
+  'arsenal fc vs sporting cp - champions league 2025-2026': 'Arsenal vs Sporting CP',
+  'arsenal fc vs fulham fc': 'Arsenal vs Fulham',
+  'brentford fc vs west ham united fc': 'Brentford vs West Ham',
+  'brentford fc vs crystal palace fc': 'Brentford vs Crystal Palace',
 };
 
 function normalizeGameName(rawName, db) {
