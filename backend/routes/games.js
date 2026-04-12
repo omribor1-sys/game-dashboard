@@ -83,20 +83,25 @@ router.post('/upload', upload.single('file'), (req, res) => {
 // Body: { game_name, total_ticket_cost, eli_cost, game_date? }
 router.post('/close-by-name', (req, res) => {
   try {
-    const { game_name, total_ticket_cost, eli_cost, game_date } = req.body;
+    const { game_name, total_ticket_cost, eli_cost, game_date, total_revenue: revenueOverride } = req.body;
     if (!game_name) return res.status(400).json({ error: 'game_name is required' });
 
     const ticketCost = parseFloat(total_ticket_cost) || 0;
     const eliC = parseFloat(eli_cost) || 0;
 
-    // Get revenue from orders
-    const revRow = db.prepare(`
-      SELECT COALESCE(SUM(total_amount), 0) AS rev
-      FROM orders
-      WHERE game_name = ? AND deleted_at IS NULL
-        AND (status IS NULL OR status != 'Cancelled')
-    `).get(game_name);
-    const totalRevenue = round2(revRow.rev);
+    // Use manual override if provided, otherwise compute from orders
+    let totalRevenue;
+    if (revenueOverride != null && revenueOverride !== '') {
+      totalRevenue = round2(parseFloat(revenueOverride) || 0);
+    } else {
+      const revRow = db.prepare(`
+        SELECT COALESCE(SUM(total_amount), 0) AS rev
+        FROM orders
+        WHERE game_name = ? AND deleted_at IS NULL
+          AND (status IS NULL OR status != 'Cancelled')
+      `).get(game_name);
+      totalRevenue = round2(revRow.rev);
+    }
 
     // Get tickets_sold from orders (sum of ticket_quantity)
     const tktRow = db.prepare(`

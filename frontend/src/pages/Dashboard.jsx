@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [closeModal, setCloseModal] = useState(null); // { name, date, source, id }
   const [closeTicketCost, setCloseTicketCost] = useState('');
   const [closeEliCost, setCloseEliCost] = useState('');
+  const [closeRevenue, setCloseRevenue] = useState('');
   const [closeDate, setCloseDate] = useState('');
   const [closeSaving, setCloseSaving] = useState(false);
   const navigate = useNavigate();
@@ -109,6 +110,7 @@ export default function Dashboard() {
     setCloseModal(g);
     setCloseTicketCost('');
     setCloseEliCost('');
+    setCloseRevenue('');
     setCloseDate(g.date || '');
   };
 
@@ -123,6 +125,7 @@ export default function Dashboard() {
           game_name: closeModal.name,
           total_ticket_cost: parseFloat(closeTicketCost) || 0,
           eli_cost: parseFloat(closeEliCost) || 0,
+          total_revenue: closeRevenue ? parseFloat(closeRevenue) : undefined,
           game_date: closeDate || null,
         }),
       });
@@ -428,6 +431,17 @@ export default function Dashboard() {
 
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14, color: '#374151' }}>
+                Total Revenue (€) <span style={{ fontWeight: 400, color: '#9ca3af' }}>— leave blank to auto-compute from orders</span>
+              </label>
+              <input
+                type="number" step="0.01" placeholder="e.g. 13264"
+                value={closeRevenue} onChange={e => setCloseRevenue(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14, color: '#374151' }}>
                 Eli's Cost (€)
               </label>
               <input
@@ -448,11 +462,22 @@ export default function Dashboard() {
             {/* Preview P&L if costs entered */}
             {closeTicketCost && (
               <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '12px 14px', marginBottom: 16, fontSize: 13 }}>
-                <div style={{ fontWeight: 600, marginBottom: 8, color: '#374151' }}>Preview (revenue from orders)</div>
-                <div style={{ color: '#6b7280' }}>Revenue will be fetched from all orders for this game.</div>
-                <div style={{ marginTop: 6, color: '#ef4444' }}>
-                  Total costs: {fmt((parseFloat(closeTicketCost) || 0) + (parseFloat(closeEliCost) || 0))}
-                </div>
+                {(() => {
+                  const rev = parseFloat(closeRevenue) || null;
+                  const costs = (parseFloat(closeTicketCost) || 0) + (parseFloat(closeEliCost) || 0);
+                  const profit = rev != null ? rev - costs : null;
+                  return (
+                    <>
+                      {rev != null && <div style={{ marginBottom: 4, color: '#111827' }}>Revenue: {fmt(rev)}</div>}
+                      <div style={{ color: '#ef4444' }}>Total costs: {fmt(costs)}</div>
+                      {profit != null && (
+                        <div style={{ marginTop: 6, fontWeight: 700, color: profit >= 0 ? '#1D9E75' : '#ef4444', fontSize: 15 }}>
+                          Net Profit: {fmt(profit)}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             )}
 
