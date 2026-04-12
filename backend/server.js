@@ -93,6 +93,10 @@ const GAME_NAME_MAP = {
   'arsenal fc vs fulham fc': 'Arsenal vs Fulham',
   'brentford fc vs west ham united fc': 'Brentford vs West Ham',
   'brentford fc vs crystal palace fc': 'Brentford vs Crystal Palace',
+  'tottenham hotspur vs nottingham forest fc': 'Tottenham Hotspur vs Nottingham Forest FC',
+  'liverpool fc vs galatasaray': 'Liverpool FC vs Galatasaray',
+  'carabao cup final 2026 - arsenal fc vs manchester city fc': 'Manchester City VS Arsenal CARABAO CUP 22 03 2026',
+  'arsenal vs bayer leverkusen': 'Arsenal vs Bayer Leverkusen 17 03 2026',
 };
 
 function normalizeGameName(rawName, db) {
@@ -310,6 +314,26 @@ app.post('/api/admin/backup-drive', async (req, res) => {
     const { backupToDrive } = require('./services/gdrive-backup');
     const result = await backupToDrive();
     res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/admin/rename-game-in-orders — bulk rename game_name in orders table
+// Body: { renames: [{ from: "old name", to: "new name" }] }
+app.post('/api/admin/rename-game-in-orders', (req, res) => {
+  try {
+    const db = require('./database');
+    const { renames } = req.body;
+    if (!Array.isArray(renames)) return res.status(400).json({ error: 'renames must be an array' });
+    const results = [];
+    const stmt = db.prepare('UPDATE orders SET game_name = ? WHERE game_name = ?');
+    for (const { from, to } of renames) {
+      if (!from || !to) continue;
+      const r = stmt.run(to, from);
+      results.push({ from, to, updated: r.changes });
+    }
+    res.json({ ok: true, results });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
