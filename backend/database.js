@@ -21,6 +21,7 @@ try { db.exec("ALTER TABLE orders ADD COLUMN category TEXT"); } catch (_) {}
 try { db.exec("ALTER TABLE orders ADD COLUMN row_seat TEXT"); } catch (_) {}
 try { db.exec("ALTER TABLE orders ADD COLUMN game_datetime TEXT"); } catch (_) {}
 try { db.exec("ALTER TABLE orders ADD COLUMN deleted_at DATETIME"); } catch (_) {}
+try { db.exec("ALTER TABLE games ADD COLUMN completed INTEGER DEFAULT 0"); } catch (_) {}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS games (

@@ -79,12 +79,74 @@ router.post('/upload', upload.single('file'), (req, res) => {
   }
 });
 
+// POST /api/games/close-by-name — finalize a completed game with costs
+// Body: { game_name, total_ticket_cost, eli_cost, game_date? }
+router.post('/close-by-name', (req, res) => {
+  try {
+    const { game_name, total_ticket_cost, eli_cost, game_date } = req.body;
+    if (!game_name) return res.status(400).json({ error: 'game_name is required' });
+
+    const ticketCost = parseFloat(total_ticket_cost) || 0;
+    const eliC = parseFloat(eli_cost) || 0;
+
+    // Get revenue from orders
+    const revRow = db.prepare(`
+      SELECT COALESCE(SUM(total_amount), 0) AS rev
+      FROM orders
+      WHERE game_name = ? AND deleted_at IS NULL
+        AND (status IS NULL OR status != 'Cancelled')
+    `).get(game_name);
+    const totalRevenue = round2(revRow.rev);
+
+    // Get tickets_sold from orders (sum of ticket_quantity)
+    const tktRow = db.prepare(`
+      SELECT COALESCE(SUM(ticket_quantity), COUNT(*)) AS tkt
+      FROM orders
+      WHERE game_name = ? AND deleted_at IS NULL
+        AND (status IS NULL OR status != 'Cancelled')
+    `).get(game_name);
+    const ticketsSold = tktRow.tkt || 0;
+
+    const totalAllCosts = round2(ticketCost + eliC);
+    const netProfit = round2(totalRevenue - totalAllCosts);
+    const marginPercent = totalRevenue > 0 ? round2((netProfit / totalRevenue) * 100) : 0;
+
+    // Upsert into games table
+    const existing = db.prepare('SELECT id FROM games WHERE name = ?').get(game_name);
+    let gameId;
+    if (existing) {
+      db.prepare(`
+        UPDATE games SET total_revenue = ?, total_ticket_cost = ?, eli_cost = ?,
+          total_all_costs = ?, net_profit = ?, margin_percent = ?, tickets_sold = ?,
+          completed = 1, date = COALESCE(?, date)
+        WHERE id = ?
+      `).run(totalRevenue, ticketCost, eliC, totalAllCosts, netProfit, marginPercent,
+             ticketsSold, game_date || null, existing.id);
+      gameId = existing.id;
+    } else {
+      const r = db.prepare(`
+        INSERT INTO games (name, date, total_revenue, total_ticket_cost, eli_cost,
+          total_all_costs, net_profit, margin_percent, tickets_sold, completed)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+      `).run(game_name, game_date || null, totalRevenue, ticketCost, eliC,
+             totalAllCosts, netProfit, marginPercent, ticketsSold);
+      gameId = r.lastInsertRowid;
+    }
+
+    const result = db.prepare('SELECT * FROM games WHERE id = ?').get(gameId);
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/games
 router.get('/', (req, res) => {
   try {
     const gamesFromTable = db.prepare(`
       SELECT id, name, date, uploaded_at, total_revenue, total_ticket_cost,
-        eli_cost, total_all_costs, net_profit, margin_percent, tickets_sold
+        eli_cost, total_all_costs, net_profit, margin_percent, tickets_sold, completed
       FROM games ORDER BY date DESC, uploaded_at DESC
     `).all();
 

@@ -12,14 +12,19 @@ export default function Dashboard() {
   const [data, setData]         = useState(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
-  const [editGame, setEditGame] = useState(null);   // { id, name, date, source, inv_name }
+  const [editGame, setEditGame] = useState(null);
   const [editName, setEditName] = useState('');
   const [editDate, setEditDate] = useState('');
   const [saving, setSaving]     = useState(false);
   const [dismissedDups, setDismissedDups] = useState(() => {
     try { return JSON.parse(localStorage.getItem('dismissedDups') || '[]'); } catch { return []; }
   });
-  const [dupPopup, setDupPopup] = useState(null); // { gameId, gameName }
+  const [dupPopup, setDupPopup] = useState(null);
+  const [closeModal, setCloseModal] = useState(null); // { name, date, source, id }
+  const [closeTicketCost, setCloseTicketCost] = useState('');
+  const [closeEliCost, setCloseEliCost] = useState('');
+  const [closeDate, setCloseDate] = useState('');
+  const [closeSaving, setCloseSaving] = useState(false);
   const navigate = useNavigate();
 
   const load = () => {
@@ -45,16 +50,13 @@ export default function Dashboard() {
 
     try {
       if (g.source === 'inventory') {
-        // Delete all inventory with this game_name
         await fetch('/api/inventory/by-game', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ game_name: g.name }),
         });
       } else {
-        // Delete from games table (backend also deletes inventory)
         await fetch(`/api/games/${g.id}`, { method: 'DELETE' });
-        // Also delete any inventory-only entries with same name
         await fetch('/api/inventory/by-game', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
@@ -80,14 +82,12 @@ export default function Dashboard() {
       const newName = editName.trim();
       const oldName = editGame.name;
 
-      // Always rename in inventory table
       await fetch('/api/inventory/rename-game', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ old_name: oldName, new_name: newName, new_date: editDate || null }),
       });
 
-      // If it's in games table, update there too
       if (editGame.source !== 'inventory' && editGame.id) {
         await fetch(`/api/games/${editGame.id}`, {
           method: 'PUT',
@@ -105,24 +105,56 @@ export default function Dashboard() {
     }
   };
 
+  const openCloseModal = (g) => {
+    setCloseModal(g);
+    setCloseTicketCost('');
+    setCloseEliCost('');
+    setCloseDate(g.date || '');
+  };
+
+  const handleCloseGame = async () => {
+    if (!closeTicketCost) return;
+    setCloseSaving(true);
+    try {
+      await fetch('/api/games/close-by-name', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          game_name: closeModal.name,
+          total_ticket_cost: parseFloat(closeTicketCost) || 0,
+          eli_cost: parseFloat(closeEliCost) || 0,
+          game_date: closeDate || null,
+        }),
+      });
+      setCloseModal(null);
+      load();
+    } catch (err) {
+      alert('Failed: ' + err.message);
+    } finally {
+      setCloseSaving(false);
+    }
+  };
+
   if (loading) return <div className="loading">Loading dashboard…</div>;
   if (error)   return <div className="page"><div className="error-box">Error: {error}</div></div>;
 
   const { games = [], summary = {} } = data;
 
-  const chartLabels = games.map(g => g.name.length > 20 ? g.name.slice(0, 18) + '…' : g.name);
+  const completedGames = games.filter(g => g.completed);
+  const activeGames = games.filter(g => !g.completed);
+
+  const chartLabels = activeGames.map(g => g.name.length > 20 ? g.name.slice(0, 18) + '…' : g.name);
   const chartData = {
     labels: chartLabels,
     datasets: [{
       label: 'Net Profit',
-      data: games.map(g => g.net_profit),
-      backgroundColor: games.map(g => (g.net_profit >= 0 ? 'rgba(29,158,117,0.8)' : 'rgba(216,90,48,0.8)')),
+      data: activeGames.map(g => g.net_profit),
+      backgroundColor: activeGames.map(g => (g.net_profit >= 0 ? 'rgba(29,158,117,0.8)' : 'rgba(216,90,48,0.8)')),
       borderRadius: 6,
       borderSkipped: false,
     }],
   };
 
-  // Detect possible duplicates (similar game names in games table vs inventory)
   const invGames = games.filter(g => g.source === 'inventory').map(g => g.name.toLowerCase());
   const dupWarnings = new Set(
     games
@@ -155,7 +187,63 @@ export default function Dashboard() {
         <MetricCard label="Games"          value={summary.gameCount || 0} />
       </div>
 
-      {games.length > 0 && (
+      {/* ── Completed Games Summary ─────────────────────────────────── */}
+      {completedGames.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ background: '#1D9E75', color: '#fff', borderRadius: 6, padding: '2px 10px', fontSize: 12, fontWeight: 600 }}>COMPLETED</span>
+            Game Summaries
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+            {completedGames.map((g, idx) => {
+              const margin = g.margin_percent != null ? g.margin_percent.toFixed(1) : null;
+              const profit = g.net_profit ?? 0;
+              return (
+                <div key={g.id ?? `c-${idx}`} style={{
+                  background: '#fff',
+                  border: '1.5px solid #d1fae5',
+                  borderRadius: 14,
+                  padding: '18px 20px',
+                  boxShadow: '0 2px 12px rgba(29,158,117,0.08)',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 15, color: '#111827' }}>{g.name}</div>
+                      {g.date && <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{g.date}</div>}
+                    </div>
+                    <span style={{ background: '#ecfdf5', color: '#065f46', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20, whiteSpace: 'nowrap' }}>
+                      ✅ Closed
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', marginBottom: 14 }}>
+                    <SummaryLine label="Revenue" value={fmt(g.total_revenue)} color="#111827" />
+                    <SummaryLine label="Tickets sold" value={g.tickets_sold ?? '—'} />
+                    <SummaryLine label="Ticket cost" value={fmt(g.total_ticket_cost)} color="#ef4444" />
+                    <SummaryLine label="Eli's cost" value={fmt(g.eli_cost)} color="#ef4444" />
+                    <SummaryLine label="Total costs" value={fmt(g.total_all_costs)} color="#ef4444" />
+                    <SummaryLine label="Margin" value={margin != null ? `${margin}%` : '—'} color={profit >= 0 ? '#1D9E75' : '#ef4444'} />
+                  </div>
+
+                  <div style={{
+                    background: profit >= 0 ? '#f0fdf4' : '#fef2f2',
+                    border: `1px solid ${profit >= 0 ? '#bbf7d0' : '#fecaca'}`,
+                    borderRadius: 8, padding: '10px 14px',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Net Profit</span>
+                    <span style={{ fontSize: 20, fontWeight: 800, color: profit >= 0 ? '#1D9E75' : '#ef4444' }}>
+                      {fmt(profit)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {activeGames.length > 0 && (
         <BarChart title="Net Profit per Game" labels={chartData.labels} datasets={chartData.datasets} height={260} />
       )}
 
@@ -177,7 +265,7 @@ export default function Dashboard() {
                 <th style={{ textAlign: 'right' }}>Costs</th>
                 <th style={{ textAlign: 'right' }}>Net Profit</th>
                 <th style={{ textAlign: 'right' }}>Margin</th>
-                <th style={{ textAlign: 'center', width: 130 }}>Actions</th>
+                <th style={{ textAlign: 'center', width: 160 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -186,7 +274,7 @@ export default function Dashboard() {
                 return (
                   <tr
                     key={g.id != null ? g.id : `inv-${idx}`}
-                    style={{ cursor: 'pointer' }}
+                    style={{ cursor: 'pointer', opacity: g.completed ? 0.7 : 1 }}
                     onClick={() => g.source === 'inventory'
                       ? navigate(`/game/0?name=${encodeURIComponent(g.name)}`)
                       : navigate(`/game/${g.id}`)
@@ -196,11 +284,16 @@ export default function Dashboard() {
                       <span style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                         <span style={{
                           width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                          background: hasTickets ? '#1D9E75' : '#d1d5db',
+                          background: g.completed ? '#9ca3af' : (hasTickets ? '#1D9E75' : '#d1d5db'),
                           display: 'inline-block',
-                        }} title={hasTickets ? 'Has tickets' : 'No tickets yet'} />
+                        }} />
                         {g.name}
-                        {g.source === 'inventory' && (
+                        {g.completed && (
+                          <span style={{ fontSize: 11, background: '#ecfdf5', color: '#065f46', padding: '1px 6px', borderRadius: 8, fontWeight: 500, border: '1px solid #bbf7d0' }}>
+                            ✅ Closed
+                          </span>
+                        )}
+                        {g.source === 'inventory' && !g.completed && (
                           <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>(inventory)</span>
                         )}
                         {dupWarnings.has(g.id) && (
@@ -223,7 +316,6 @@ export default function Dashboard() {
                                 <div style={{ display: 'flex', gap: 8 }}>
                                   <button
                                     onClick={async () => {
-                                      // YES → find inventory-only game with similar name and delete it
                                       const invGame = games.find(ig => ig.source === 'inventory' &&
                                         (ig.name.toLowerCase().includes(g.name.toLowerCase().substring(0, 15)) ||
                                          g.name.toLowerCase().includes(ig.name.toLowerCase().substring(0, 15))));
@@ -243,7 +335,6 @@ export default function Dashboard() {
                                   </button>
                                   <button
                                     onClick={() => {
-                                      // NO → dismiss this warning
                                       const next = [...dismissedDups, g.id];
                                       setDismissedDups(next);
                                       localStorage.setItem('dismissedDups', JSON.stringify(next));
@@ -273,7 +364,17 @@ export default function Dashboard() {
                       </span>
                     </td>
                     <td onClick={e => e.stopPropagation()}>
-                      <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                      <div style={{ display: 'flex', gap: 5, justifyContent: 'center', flexWrap: 'wrap' }}>
+                        {!g.completed && (
+                          <button
+                            className="btn btn-sm"
+                            style={{ background: '#f0fdf4', color: '#065f46', border: '1px solid #bbf7d0', fontSize: 11 }}
+                            onClick={() => openCloseModal(g)}
+                            title="Close game and enter final costs"
+                          >
+                            🏁 Close
+                          </button>
+                        )}
                         <button
                           className="btn btn-sm"
                           style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb' }}
@@ -287,7 +388,7 @@ export default function Dashboard() {
                           onClick={() => handleDelete(g)}
                           title="Delete game and all tickets"
                         >
-                          🗑️ Delete
+                          🗑️
                         </button>
                       </div>
                     </td>
@@ -299,7 +400,77 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Edit Modal */}
+      {/* ── Close Game Modal ─────────────────────────────────────────── */}
+      {closeModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        }} onClick={() => setCloseModal(null)}>
+          <div style={{ background: '#fff', borderRadius: 14, padding: 28, width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}
+            onClick={e => e.stopPropagation()}>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <h3 style={{ margin: 0, fontSize: 18 }}>🏁 Close Game</h3>
+              <button onClick={() => setCloseModal(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af' }}>✕</button>
+            </div>
+            <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 20 }}>{closeModal.name}</div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14, color: '#374151' }}>
+                Ticket Purchase Cost (€) <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <input
+                type="number" step="0.01" placeholder="e.g. 3167"
+                value={closeTicketCost} onChange={e => setCloseTicketCost(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14, color: '#374151' }}>
+                Eli's Cost (€)
+              </label>
+              <input
+                type="number" step="0.01" placeholder="e.g. 975"
+                value={closeEliCost} onChange={e => setCloseEliCost(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14, color: '#374151' }}>Game Date</label>
+              <input
+                type="date" value={closeDate} onChange={e => setCloseDate(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            {/* Preview P&L if costs entered */}
+            {closeTicketCost && (
+              <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '12px 14px', marginBottom: 16, fontSize: 13 }}>
+                <div style={{ fontWeight: 600, marginBottom: 8, color: '#374151' }}>Preview (revenue from orders)</div>
+                <div style={{ color: '#6b7280' }}>Revenue will be fetched from all orders for this game.</div>
+                <div style={{ marginTop: 6, color: '#ef4444' }}>
+                  Total costs: {fmt((parseFloat(closeTicketCost) || 0) + (parseFloat(closeEliCost) || 0))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setCloseModal(null)}
+                style={{ flex: '0 0 auto', padding: '9px 16px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontWeight: 500, fontSize: 14 }}>
+                Cancel
+              </button>
+              <button onClick={handleCloseGame} disabled={closeSaving || !closeTicketCost}
+                style={{ flex: 1, padding: '9px 16px', borderRadius: 8, border: 'none', background: (closeSaving || !closeTicketCost) ? '#9ca3af' : '#1D9E75', color: '#fff', fontWeight: 600, fontSize: 14, cursor: (closeSaving || !closeTicketCost) ? 'not-allowed' : 'pointer' }}>
+                {closeSaving ? 'Saving...' : '✅ Close Game & Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Game Modal ─────────────────────────────────────────── */}
       {editGame && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000,
@@ -313,7 +484,6 @@ export default function Dashboard() {
               <button onClick={() => setEditGame(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af' }}>✕</button>
             </div>
 
-            {/* Stats summary */}
             <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
               <div style={{ flex: 1, background: '#f9fafb', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
                 <div style={{ fontSize: 18, fontWeight: 700, color: '#1D9E75' }}>{editGame.tickets_sold ?? editGame.bq ?? 0}</div>
@@ -331,28 +501,24 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Name */}
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14, color: '#374151' }}>Game Name</label>
               <input value={editName} onChange={e => setEditName(e.target.value)}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }} />
             </div>
 
-            {/* Date */}
             <div style={{ marginBottom: 20 }}>
               <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 14, color: '#374151' }}>Date</label>
               <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }} />
             </div>
 
-            {/* Info about source */}
             <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: 13, color: '#166534' }}>
               {editGame.source === 'inventory'
                 ? `📦 Inventory-only game — name change will update all ${editGame.bq ?? 0} tickets`
                 : `📊 Game with financial tracking — changes update both game record and inventory`}
             </div>
 
-            {/* Action buttons */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button onClick={() => setEditGame(null)}
                 style={{ flex: '0 0 auto', padding: '9px 16px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontWeight: 500, fontSize: 14 }}>
@@ -370,6 +536,15 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function SummaryLine({ label, value, color }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 1 }}>{label}</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: color || '#374151' }}>{value}</div>
     </div>
   );
 }
