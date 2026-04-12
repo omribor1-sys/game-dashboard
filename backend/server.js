@@ -352,7 +352,9 @@ app.post('/api/admin/missing-costs/notify', async (req, res) => {
 });
 
 function _getMissingCosts(db) {
-  // Only past games (game_datetime < now) that have revenue but no cost data
+  // Only PAST games that have revenue but no cost data.
+  // game_datetime format in orders: "Day, DD/MM/YYYY, HH:MM" → parse to ISO for comparison.
+  // Also falls back to games.date or inventory.game_date (both in YYYY-MM-DD).
   return db.prepare(`
     SELECT
       o.game_name,
@@ -360,7 +362,13 @@ function _getMissingCosts(db) {
       ROUND(SUM(o.total_amount), 2)     AS total_revenue,
       COALESCE(g.total_ticket_cost, 0)  AS total_ticket_cost,
       g.completed,
-      MAX(o.game_datetime)              AS game_datetime
+      MAX(o.game_datetime)              AS game_datetime,
+      -- Parse "Day, DD/MM/YYYY, HH:MM" → "YYYY-MM-DD" for the latest order
+      MAX(
+        CASE WHEN o.game_datetime IS NOT NULL AND length(o.game_datetime) >= 15
+          THEN substr(o.game_datetime,12,4)||'-'||substr(o.game_datetime,9,2)||'-'||substr(o.game_datetime,6,2)
+        END
+      ) AS game_date_iso
     FROM orders o
     LEFT JOIN games g ON g.name = o.game_name
     WHERE o.deleted_at IS NULL
@@ -374,9 +382,27 @@ function _getMissingCosts(db) {
         SELECT 1 FROM inventory i
         WHERE i.game_name = o.game_name AND COALESCE(i.buy_price, 0) > 0
       )
-      AND MAX(o.game_datetime) IS NOT NULL
-      AND MAX(o.game_datetime) < datetime('now')
-    ORDER BY MAX(o.game_datetime) DESC
+      AND (
+        -- game_datetime parsed to ISO is in the past
+        (
+          MAX(CASE WHEN o.game_datetime IS NOT NULL AND length(o.game_datetime) >= 15
+            THEN substr(o.game_datetime,12,4)||'-'||substr(o.game_datetime,9,2)||'-'||substr(o.game_datetime,6,2)
+          END) IS NOT NULL
+          AND MAX(CASE WHEN o.game_datetime IS NOT NULL AND length(o.game_datetime) >= 15
+            THEN substr(o.game_datetime,12,4)||'-'||substr(o.game_datetime,9,2)||'-'||substr(o.game_datetime,6,2)
+          END) < date('now')
+        )
+        OR
+        -- OR fallback: games table date is in the past
+        (g.date IS NOT NULL AND g.date < date('now'))
+        OR
+        -- OR fallback: inventory game_date is in the past
+        EXISTS (
+          SELECT 1 FROM inventory i
+          WHERE i.game_name = o.game_name AND i.game_date IS NOT NULL AND i.game_date < date('now')
+        )
+      )
+    ORDER BY game_date_iso DESC
   `).all();
 }
 
