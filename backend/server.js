@@ -352,7 +352,7 @@ app.post('/api/admin/missing-costs/notify', async (req, res) => {
 });
 
 function _getMissingCosts(db) {
-  // Games with revenue from orders but total_ticket_cost = 0 or NULL and not completed
+  // Games with revenue from orders but no cost data anywhere (games table OR inventory buy_prices)
   return db.prepare(`
     SELECT
       o.game_name,
@@ -368,6 +368,10 @@ function _getMissingCosts(db) {
     HAVING SUM(o.total_amount) > 0
       AND (g.id IS NULL OR COALESCE(g.total_ticket_cost, 0) = 0)
       AND COALESCE(g.completed, 0) = 0
+      AND NOT EXISTS (
+        SELECT 1 FROM inventory i
+        WHERE i.game_name = o.game_name AND COALESCE(i.buy_price, 0) > 0
+      )
     ORDER BY total_revenue DESC
   `).all();
 }
