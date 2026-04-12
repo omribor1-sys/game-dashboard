@@ -340,6 +340,26 @@ app.post('/api/admin/rename-game-in-orders', (req, res) => {
   }
 });
 
+// POST /api/admin/normalize-all-order-names
+// Strips date suffixes and applies GAME_NAME_MAP to ALL orders in DB
+app.post('/api/admin/normalize-all-order-names', (req, res) => {
+  try {
+    const db = require('./database');
+    const rows = db.prepare('SELECT DISTINCT game_name FROM orders WHERE game_name IS NOT NULL').all();
+    const results = [];
+    for (const { game_name } of rows) {
+      const normalized = normalizeGameName(game_name, db);
+      if (normalized !== game_name) {
+        const r = db.prepare('UPDATE orders SET game_name = ? WHERE game_name = ?').run(normalized, game_name);
+        results.push({ from: game_name, to: normalized, updated: r.changes });
+      }
+    }
+    res.json({ ok: true, fixed: results.length, results });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Missing-costs check ────────────────────────────────────────────────────
 // Returns games that have orders/revenue but no ticket cost data entered
 app.get('/api/admin/missing-costs', (req, res) => {
@@ -599,6 +619,26 @@ if (fs.existsSync(frontendDist)) {
     res.sendFile(path.join(frontendDist, 'index.html'));
   });
 }
+
+// ── Startup: normalize all order game_names ───────────────────────────────
+(function normalizeOrdersOnStartup() {
+  try {
+    const db = require('./database');
+    const rows = db.prepare('SELECT DISTINCT game_name FROM orders WHERE game_name IS NOT NULL').all();
+    let fixed = 0;
+    for (const { game_name } of rows) {
+      const normalized = normalizeGameName(game_name, db);
+      if (normalized !== game_name) {
+        db.prepare('UPDATE orders SET game_name = ? WHERE game_name = ?').run(normalized, game_name);
+        console.log(`[startup] normalized: "${game_name}" → "${normalized}"`);
+        fixed++;
+      }
+    }
+    if (fixed > 0) console.log(`[startup] Fixed ${fixed} order game_name(s)`);
+  } catch (e) {
+    console.error('[startup] normalize orders failed:', e.message);
+  }
+})();
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 Server running at http://localhost:${PORT}`);
