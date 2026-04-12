@@ -352,27 +352,31 @@ app.post('/api/admin/missing-costs/notify', async (req, res) => {
 });
 
 function _getMissingCosts(db) {
-  // Games with revenue from orders but no cost data anywhere (games table OR inventory buy_prices)
+  // Only past games (game_datetime < now) that have revenue but no cost data
   return db.prepare(`
     SELECT
       o.game_name,
-      COUNT(*) AS order_count,
-      ROUND(SUM(o.total_amount), 2) AS total_revenue,
-      COALESCE(g.total_ticket_cost, 0) AS total_ticket_cost,
-      g.completed
+      COUNT(*)                          AS order_count,
+      ROUND(SUM(o.total_amount), 2)     AS total_revenue,
+      COALESCE(g.total_ticket_cost, 0)  AS total_ticket_cost,
+      g.completed,
+      MAX(o.game_datetime)              AS game_datetime
     FROM orders o
     LEFT JOIN games g ON g.name = o.game_name
     WHERE o.deleted_at IS NULL
       AND (o.status IS NULL OR o.status != 'Cancelled')
     GROUP BY o.game_name
-    HAVING SUM(o.total_amount) > 0
+    HAVING
+      SUM(o.total_amount) > 0
       AND (g.id IS NULL OR COALESCE(g.total_ticket_cost, 0) = 0)
       AND COALESCE(g.completed, 0) = 0
       AND NOT EXISTS (
         SELECT 1 FROM inventory i
         WHERE i.game_name = o.game_name AND COALESCE(i.buy_price, 0) > 0
       )
-    ORDER BY total_revenue DESC
+      AND MAX(o.game_datetime) IS NOT NULL
+      AND MAX(o.game_datetime) < datetime('now')
+    ORDER BY MAX(o.game_datetime) DESC
   `).all();
 }
 
