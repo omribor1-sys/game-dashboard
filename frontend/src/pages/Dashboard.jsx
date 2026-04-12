@@ -220,58 +220,7 @@ export default function Dashboard() {
 
       {/* ── Completed Games Summary ─────────────────────────────────── */}
       {completedGames.length > 0 && (
-        <div style={{ marginBottom: 32 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ background: '#1D9E75', color: '#fff', borderRadius: 6, padding: '2px 10px', fontSize: 12, fontWeight: 600 }}>COMPLETED</span>
-            Game Summaries
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-            {completedGames.map((g, idx) => {
-              const margin = g.margin_percent != null ? g.margin_percent.toFixed(1) : null;
-              const profit = g.net_profit ?? 0;
-              return (
-                <div key={g.id ?? `c-${idx}`} style={{
-                  background: '#fff',
-                  border: '1.5px solid #d1fae5',
-                  borderRadius: 14,
-                  padding: '18px 20px',
-                  boxShadow: '0 2px 12px rgba(29,158,117,0.08)',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 15, color: '#111827' }}>{g.name}</div>
-                      {g.date && <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{g.date}</div>}
-                    </div>
-                    <span style={{ background: '#ecfdf5', color: '#065f46', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20, whiteSpace: 'nowrap' }}>
-                      ✅ Closed
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', marginBottom: 14 }}>
-                    <SummaryLine label="Revenue" value={fmt(g.total_revenue)} color="#111827" />
-                    <SummaryLine label="Tickets sold" value={g.tickets_sold ?? '—'} />
-                    <SummaryLine label="Ticket cost" value={fmt(g.total_ticket_cost)} color="#ef4444" />
-                    <SummaryLine label="Eli's cost" value={fmt(g.eli_cost)} color="#ef4444" />
-                    <SummaryLine label="Total costs" value={fmt(g.total_all_costs)} color="#ef4444" />
-                    <SummaryLine label="Margin" value={margin != null ? `${margin}%` : '—'} color={profit >= 0 ? '#1D9E75' : '#ef4444'} />
-                  </div>
-
-                  <div style={{
-                    background: profit >= 0 ? '#f0fdf4' : '#fef2f2',
-                    border: `1px solid ${profit >= 0 ? '#bbf7d0' : '#fecaca'}`,
-                    borderRadius: 8, padding: '10px 14px',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Net Profit</span>
-                    <span style={{ fontSize: 20, fontWeight: 800, color: profit >= 0 ? '#1D9E75' : '#ef4444' }}>
-                      {fmt(profit)}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <CompletedGamesTable games={completedGames} />
       )}
 
       {activeGames.length > 0 && (
@@ -593,11 +542,143 @@ export default function Dashboard() {
   );
 }
 
-function SummaryLine({ label, value, color }) {
+function CompletedGamesTable({ games }) {
+  const [expanded, setExpanded] = useState(null);
+
+  const toggle = (id) => setExpanded(prev => prev === id ? null : id);
+
+  return (
+    <div style={{ marginBottom: 32 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <span style={{
+          background: '#1D9E75', color: '#fff',
+          borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
+        }}>COMPLETED</span>
+        <span style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>Game Summaries</span>
+        <span style={{ fontSize: 13, color: '#9ca3af' }}>· {games.length} game{games.length !== 1 ? 's' : ''}</span>
+      </div>
+
+      {/* Table */}
+      <div style={{
+        background: '#fff', borderRadius: 12,
+        border: '1px solid #e5e7eb',
+        overflow: 'hidden',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+      }}>
+        {/* Column headers */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 110px 130px 130px 140px 90px 40px',
+          padding: '10px 20px',
+          background: '#f9fafb',
+          borderBottom: '1px solid #e5e7eb',
+          fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5,
+        }}>
+          <span>Game</span>
+          <span>Date</span>
+          <span style={{ textAlign: 'right' }}>Revenue</span>
+          <span style={{ textAlign: 'right' }}>Total Costs</span>
+          <span style={{ textAlign: 'right' }}>Net Profit</span>
+          <span style={{ textAlign: 'right' }}>Margin</span>
+          <span />
+        </div>
+
+        {/* Rows */}
+        {games.map((g, idx) => {
+          const key = g.id ?? `c-${idx}`;
+          const isOpen = expanded === key;
+          const profit = g.net_profit ?? 0;
+          const isLast = idx === games.length - 1;
+
+          return (
+            <div key={key}>
+              {/* Main row */}
+              <div
+                onClick={() => toggle(key)}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 110px 130px 130px 140px 90px 40px',
+                  padding: '14px 20px',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  borderBottom: isLast && !isOpen ? 'none' : '1px solid #f3f4f6',
+                  background: isOpen ? '#f0fdf4' : 'transparent',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => { if (!isOpen) e.currentTarget.style.background = '#f9fafb'; }}
+                onMouseLeave={e => { if (!isOpen) e.currentTarget.style.background = 'transparent'; }}
+              >
+                {/* Game name */}
+                <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>{g.name}</div>
+
+                {/* Date */}
+                <div style={{ fontSize: 13, color: '#6b7280' }}>{g.date || '—'}</div>
+
+                {/* Revenue */}
+                <div style={{ textAlign: 'right', fontSize: 14, color: '#111827', fontWeight: 500 }}>
+                  {fmt(g.total_revenue)}
+                </div>
+
+                {/* Total Costs */}
+                <div style={{ textAlign: 'right', fontSize: 14, color: '#ef4444' }}>
+                  {fmt(g.total_all_costs)}
+                </div>
+
+                {/* Net Profit */}
+                <div style={{
+                  textAlign: 'right', fontSize: 15, fontWeight: 700,
+                  color: profit >= 0 ? '#1D9E75' : '#ef4444',
+                }}>
+                  {fmt(profit)}
+                </div>
+
+                {/* Margin */}
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{
+                    fontSize: 12, fontWeight: 600, padding: '3px 8px', borderRadius: 8,
+                    background: profit >= 0 ? '#ecfdf5' : '#fef2f2',
+                    color: profit >= 0 ? '#065f46' : '#991b1b',
+                  }}>
+                    {g.margin_percent != null ? `${g.margin_percent.toFixed(1)}%` : '—'}
+                  </span>
+                </div>
+
+                {/* Chevron */}
+                <div style={{
+                  textAlign: 'center', fontSize: 12, color: '#9ca3af',
+                  transform: isOpen ? 'rotate(180deg)' : 'none',
+                  transition: 'transform 0.2s',
+                }}>▾</div>
+              </div>
+
+              {/* Expanded detail row */}
+              {isOpen && (
+                <div style={{
+                  padding: '14px 20px 18px',
+                  background: '#f0fdf4',
+                  borderBottom: isLast ? 'none' : '1px solid #d1fae5',
+                  display: 'flex', gap: 40, flexWrap: 'wrap',
+                }}>
+                  <DetailStat label="Ticket Cost" value={fmt(g.total_ticket_cost)} color="#ef4444" />
+                  <DetailStat label="Eli's Cost" value={fmt(g.eli_cost)} color="#ef4444" />
+                  <DetailStat label="Tickets Sold" value={g.tickets_sold ?? '—'} />
+                  <DetailStat label="Avg per Ticket" value={g.tickets_sold > 0 ? fmt(g.total_revenue / g.tickets_sold) : '—'} />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function DetailStat({ label, value, color }) {
   return (
     <div>
-      <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 1 }}>{label}</div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: color || '#374151' }}>{value}</div>
+      <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 2, fontWeight: 500 }}>{label}</div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: color || '#111827' }}>{value}</div>
     </div>
   );
 }
