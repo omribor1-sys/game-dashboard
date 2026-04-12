@@ -9,9 +9,10 @@ function fmt(n) {
 }
 
 export default function Dashboard() {
-  const [data, setData]         = useState(null);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState(null);
+  const [data, setData]             = useState(null);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState(null);
+  const [missingCosts, setMissingCosts] = useState([]);
   const [editGame, setEditGame] = useState(null);
   const [editName, setEditName] = useState('');
   const [editDate, setEditDate] = useState('');
@@ -30,10 +31,14 @@ export default function Dashboard() {
 
   const load = () => {
     setLoading(true);
-    fetch('/api/games')
-      .then(r => r.json())
-      .then(d => { setData(d); setLoading(false); })
-      .catch(e => { setError(e.message); setLoading(false); });
+    Promise.all([
+      fetch('/api/games').then(r => r.json()),
+      fetch('/api/admin/missing-costs').then(r => r.json()).catch(() => []),
+    ]).then(([gamesData, missing]) => {
+      setData(gamesData);
+      setMissingCosts(Array.isArray(missing) ? missing : []);
+      setLoading(false);
+    }).catch(e => { setError(e.message); setLoading(false); });
   };
 
   useEffect(load, []);
@@ -180,6 +185,29 @@ export default function Dashboard() {
           Add Game
         </button>
       </div>
+
+      {/* ── Missing costs warning ─────────────────────────────────────── */}
+      {missingCosts.length > 0 && (
+        <div style={{
+          background: '#fffbeb', border: '1.5px solid #fcd34d', borderRadius: 10,
+          padding: '14px 18px', marginBottom: 20,
+          display: 'flex', alignItems: 'flex-start', gap: 12,
+        }}>
+          <span style={{ fontSize: 20, flexShrink: 0 }}>⚠️</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, color: '#92400e', fontSize: 14, marginBottom: 4 }}>
+              נתוני עלויות חסרים — {missingCosts.length} משחק/ים
+            </div>
+            <div style={{ fontSize: 13, color: '#78350f' }}>
+              {missingCosts.map((g, i) => (
+                <span key={i} style={{ marginRight: 12 }}>
+                  <strong>{g.game_name}</strong> — €{Number(g.total_revenue).toLocaleString('en-US', { minimumFractionDigits: 2 })} הכנסות, {g.order_count} הזמנות
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="metrics-grid">
         <MetricCard label="Total Revenue"  value={fmt(summary.totalRevenue)} />

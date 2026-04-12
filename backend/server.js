@@ -315,6 +315,63 @@ app.post('/api/admin/backup-drive', async (req, res) => {
   }
 });
 
+// ── Missing-costs check ────────────────────────────────────────────────────
+// Returns games that have orders/revenue but no ticket cost data entered
+app.get('/api/admin/missing-costs', (req, res) => {
+  try {
+    const db = require('./database');
+    const missing = _getMissingCosts(db);
+    res.json(missing);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/admin/missing-costs/notify — send WhatsApp asking for missing costs
+app.post('/api/admin/missing-costs/notify', async (req, res) => {
+  try {
+    const db = require('./database');
+    const { sendWhatsApp } = require('./services/whatsapp-notifier');
+    const missing = _getMissingCosts(db);
+    if (missing.length === 0) {
+      await sendWhatsApp('✅ GameYield — כל המשחקים עם הזמנות כוללים עלויות. אין פעולה נדרשת.');
+    } else {
+      let msg = `⚠️ *GameYield — נתונים חסרים*\n\n`;
+      msg += `ל-${missing.length} משחק/ים יש הזמנות אך חסרות עלויות רכישה:\n\n`;
+      missing.forEach((g, i) => {
+        msg += `${i + 1}. *${g.game_name}*\n`;
+        msg += `   📦 הזמנות: ${g.order_count} | הכנסות: €${g.total_revenue.toFixed(2)}\n`;
+      });
+      msg += `\nאנא הזן עלויות דרך הדשבורד: https://game-dashboard-omri.fly.dev`;
+      await sendWhatsApp(msg);
+    }
+    res.json({ ok: true, missing_count: missing.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+function _getMissingCosts(db) {
+  // Games with revenue from orders but total_ticket_cost = 0 or NULL and not completed
+  return db.prepare(`
+    SELECT
+      o.game_name,
+      COUNT(*) AS order_count,
+      ROUND(SUM(o.total_amount), 2) AS total_revenue,
+      COALESCE(g.total_ticket_cost, 0) AS total_ticket_cost,
+      g.completed
+    FROM orders o
+    LEFT JOIN games g ON g.name = o.game_name
+    WHERE o.deleted_at IS NULL
+      AND (o.status IS NULL OR o.status != 'Cancelled')
+    GROUP BY o.game_name
+    HAVING SUM(o.total_amount) > 0
+      AND (g.id IS NULL OR COALESCE(g.total_ticket_cost, 0) = 0)
+      AND COALESCE(g.completed, 0) = 0
+    ORDER BY total_revenue DESC
+  `).all();
+}
+
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
@@ -450,6 +507,28 @@ cron.schedule('45 7 * * *', async () => {
     }
   } catch (e) {
     console.error('[CRON] Integrity check failed:', e.message);
+  }
+});
+
+// Missing-costs check — every Sunday at 09:00 UTC (12:00 Israel)
+cron.schedule('0 9 * * 0', async () => {
+  console.log('[CRON] Running weekly missing-costs check…');
+  try {
+    const db = require('./database');
+    const { sendWhatsApp } = require('./services/whatsapp-notifier');
+    const missing = _getMissingCosts(db);
+    if (missing.length > 0) {
+      let msg = `⚠️ *GameYield — בדיקת שבועית: נתונים חסרים*\n\n`;
+      msg += `ל-${missing.length} משחק/ים יש הזמנות אך חסרות עלויות רכישה:\n\n`;
+      missing.forEach((g, i) => {
+        msg += `${i + 1}. *${g.game_name}*\n`;
+        msg += `   📦 הזמנות: ${g.order_count} | הכנסות: €${g.total_revenue.toFixed(2)}\n`;
+      });
+      msg += `\nאנא הזן עלויות דרך הדשבורד: https://game-dashboard-omri.fly.dev`;
+      await sendWhatsApp(msg).catch(e => console.error('[CRON] missing-costs WhatsApp failed:', e.message));
+    }
+  } catch (e) {
+    console.error('[CRON] Missing-costs check failed:', e.message);
   }
 });
 
