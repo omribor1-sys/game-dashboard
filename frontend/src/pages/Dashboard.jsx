@@ -3,6 +3,31 @@ import { useNavigate } from 'react-router-dom';
 import MetricCard from '../components/MetricCard';
 import BarChart from '../components/BarChart';
 
+function fmtDate(d) {
+  if (!d) return '—';
+  const parts = String(d).split('-');
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return d;
+}
+
+function marginColor(pct) {
+  if (pct == null) return { bg: '#f3f4f6', fg: '#6b7280' };
+  if (pct >= 50)   return { bg: '#ecfdf5', fg: '#065f46' };
+  if (pct >= 20)   return { bg: '#fffbeb', fg: '#92400e' };
+  if (pct >= 0)    return { bg: '#fff7ed', fg: '#c2410c' };
+  return               { bg: '#fef2f2', fg: '#991b1b' };
+}
+
+function channelText(channels) {
+  if (!channels || Object.keys(channels).length === 0) return '—';
+  return Object.entries(channels)
+    .map(([ch, d]) => {
+      const label = ch === 'FootballTicketNet' ? 'FTN' : ch;
+      return `${label} ×${d.count}`;
+    })
+    .join('  ·  ');
+}
+
 function fmt(n) {
   if (n == null) return '—';
   return `€${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -151,16 +176,26 @@ export default function Dashboard() {
   const completedGames = games.filter(g => g.completed);
   const activeGames = games.filter(g => !g.completed);
 
-  const chartLabels = activeGames.map(g => g.name.length > 20 ? g.name.slice(0, 18) + '…' : g.name);
-  const chartData = {
-    labels: chartLabels,
-    datasets: [{
-      label: 'Net Profit',
-      data: activeGames.map(g => g.net_profit),
-      backgroundColor: activeGames.map(g => (g.net_profit >= 0 ? 'rgba(29,158,117,0.8)' : 'rgba(216,90,48,0.8)')),
-      borderRadius: 6,
-      borderSkipped: false,
-    }],
+  // Revenue vs Profit chart for completed games (sorted oldest → newest)
+  const sortedCompleted = [...completedGames].sort((a, b) => (a.date || '') < (b.date || '') ? -1 : 1);
+  const revProfitChart = {
+    labels: sortedCompleted.map(g => g.name.length > 18 ? g.name.slice(0, 16) + '…' : g.name),
+    datasets: [
+      {
+        label: 'Revenue',
+        data: sortedCompleted.map(g => g.total_revenue),
+        backgroundColor: 'rgba(29,158,117,0.22)',
+        borderRadius: 4,
+        borderSkipped: false,
+      },
+      {
+        label: 'Net Profit',
+        data: sortedCompleted.map(g => g.net_profit),
+        backgroundColor: sortedCompleted.map(g => g.net_profit >= 0 ? 'rgba(29,158,117,0.85)' : 'rgba(216,90,48,0.85)'),
+        borderRadius: 4,
+        borderSkipped: false,
+      },
+    ],
   };
 
   const invGames = games.filter(g => g.source === 'inventory').map(g => g.name.toLowerCase());
@@ -220,11 +255,17 @@ export default function Dashboard() {
 
       {/* ── Completed Games Summary ─────────────────────────────────── */}
       {completedGames.length > 0 && (
-        <CompletedGamesTable games={completedGames} />
-      )}
-
-      {activeGames.length > 0 && (
-        <BarChart title="Net Profit per Game" labels={chartData.labels} datasets={chartData.datasets} height={260} />
+        <>
+          <CompletedGamesTable games={completedGames} />
+          {sortedCompleted.length > 1 && (
+            <BarChart
+              title="Revenue vs Net Profit per Game"
+              labels={revProfitChart.labels}
+              datasets={revProfitChart.datasets}
+              height={200}
+            />
+          )}
+        </>
       )}
 
       {games.length === 0 ? (
@@ -331,7 +372,7 @@ export default function Dashboard() {
                         )}
                       </span>
                     </td>
-                    <td style={{ color: 'var(--text-muted)' }}>{g.date || '—'}</td>
+                    <td style={{ color: 'var(--text-muted)' }}>{fmtDate(g.date)}</td>
                     <td style={{ textAlign: 'right' }}>{g.tickets_sold ?? (g.bq ?? '—')}</td>
                     <td style={{ textAlign: 'right' }}>{fmt(g.total_revenue)}</td>
                     <td style={{ textAlign: 'right', color: 'var(--red)' }}>{fmt(g.total_all_costs)}</td>
@@ -544,11 +585,12 @@ export default function Dashboard() {
 
 function CompletedGamesTable({ games }) {
   const [expanded, setExpanded] = useState(null);
-
   const toggle = (id) => setExpanded(prev => prev === id ? null : id);
 
+  const COLS = '1fr 105px 120px 76px 130px 82px 36px';
+
   return (
-    <div style={{ marginBottom: 32 }}>
+    <div style={{ marginBottom: 28 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
         <span style={{
@@ -561,24 +603,20 @@ function CompletedGamesTable({ games }) {
 
       {/* Table */}
       <div style={{
-        background: '#fff', borderRadius: 12,
-        border: '1px solid #e5e7eb',
-        overflow: 'hidden',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+        background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb',
+        overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
       }}>
         {/* Column headers */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 110px 130px 130px 140px 90px 40px',
+          display: 'grid', gridTemplateColumns: COLS,
           padding: '10px 20px',
-          background: '#f9fafb',
-          borderBottom: '1px solid #e5e7eb',
+          background: '#f9fafb', borderBottom: '1px solid #e5e7eb',
           fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5,
         }}>
           <span>Game</span>
           <span>Date</span>
           <span style={{ textAlign: 'right' }}>Revenue</span>
-          <span style={{ textAlign: 'right' }}>Total Costs</span>
+          <span style={{ textAlign: 'right' }}>Tickets</span>
           <span style={{ textAlign: 'right' }}>Net Profit</span>
           <span style={{ textAlign: 'right' }}>Margin</span>
           <span />
@@ -590,6 +628,9 @@ function CompletedGamesTable({ games }) {
           const isOpen = expanded === key;
           const profit = g.net_profit ?? 0;
           const isLast = idx === games.length - 1;
+          const mc = marginColor(g.margin_percent);
+          const hasEliCost = g.eli_cost != null && g.eli_cost > 0;
+          const avgProfit = g.tickets_sold > 0 ? fmt(profit / g.tickets_sold) : '—';
 
           return (
             <div key={key}>
@@ -597,11 +638,8 @@ function CompletedGamesTable({ games }) {
               <div
                 onClick={() => toggle(key)}
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 110px 130px 130px 140px 90px 40px',
-                  padding: '14px 20px',
-                  alignItems: 'center',
-                  cursor: 'pointer',
+                  display: 'grid', gridTemplateColumns: COLS,
+                  padding: '13px 20px', alignItems: 'center', cursor: 'pointer',
                   borderBottom: isLast && !isOpen ? 'none' : '1px solid #f3f4f6',
                   background: isOpen ? '#f0fdf4' : 'transparent',
                   transition: 'background 0.15s',
@@ -609,42 +647,25 @@ function CompletedGamesTable({ games }) {
                 onMouseEnter={e => { if (!isOpen) e.currentTarget.style.background = '#f9fafb'; }}
                 onMouseLeave={e => { if (!isOpen) e.currentTarget.style.background = 'transparent'; }}
               >
-                {/* Game name */}
                 <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>{g.name}</div>
-
-                {/* Date */}
-                <div style={{ fontSize: 13, color: '#6b7280' }}>{g.date || '—'}</div>
-
-                {/* Revenue */}
+                <div style={{ fontSize: 13, color: '#6b7280' }}>{fmtDate(g.date)}</div>
                 <div style={{ textAlign: 'right', fontSize: 14, color: '#111827', fontWeight: 500 }}>
                   {fmt(g.total_revenue)}
                 </div>
-
-                {/* Total Costs */}
-                <div style={{ textAlign: 'right', fontSize: 14, color: '#ef4444' }}>
-                  {fmt(g.total_all_costs)}
+                <div style={{ textAlign: 'right', fontSize: 14, color: '#374151' }}>
+                  {g.tickets_sold ?? '—'}
                 </div>
-
-                {/* Net Profit */}
-                <div style={{
-                  textAlign: 'right', fontSize: 15, fontWeight: 700,
-                  color: profit >= 0 ? '#1D9E75' : '#ef4444',
-                }}>
+                <div style={{ textAlign: 'right', fontSize: 15, fontWeight: 700, color: profit >= 0 ? '#1D9E75' : '#ef4444' }}>
                   {fmt(profit)}
                 </div>
-
-                {/* Margin */}
                 <div style={{ textAlign: 'right' }}>
                   <span style={{
                     fontSize: 12, fontWeight: 600, padding: '3px 8px', borderRadius: 8,
-                    background: profit >= 0 ? '#ecfdf5' : '#fef2f2',
-                    color: profit >= 0 ? '#065f46' : '#991b1b',
+                    background: mc.bg, color: mc.fg,
                   }}>
                     {g.margin_percent != null ? `${g.margin_percent.toFixed(1)}%` : '—'}
                   </span>
                 </div>
-
-                {/* Chevron */}
                 <div style={{
                   textAlign: 'center', fontSize: 12, color: '#9ca3af',
                   transform: isOpen ? 'rotate(180deg)' : 'none',
@@ -655,15 +676,18 @@ function CompletedGamesTable({ games }) {
               {/* Expanded detail row */}
               {isOpen && (
                 <div style={{
-                  padding: '14px 20px 18px',
+                  padding: '14px 20px 16px',
                   background: '#f0fdf4',
                   borderBottom: isLast ? 'none' : '1px solid #d1fae5',
-                  display: 'flex', gap: 40, flexWrap: 'wrap',
+                  display: 'flex', gap: 36, flexWrap: 'wrap', alignItems: 'flex-start',
                 }}>
                   <DetailStat label="Ticket Cost" value={fmt(g.total_ticket_cost)} color="#ef4444" />
-                  <DetailStat label="Eli's Cost" value={fmt(g.eli_cost)} color="#ef4444" />
-                  <DetailStat label="Tickets Sold" value={g.tickets_sold ?? '—'} />
-                  <DetailStat label="Avg per Ticket" value={g.tickets_sold > 0 ? fmt(g.total_revenue / g.tickets_sold) : '—'} />
+                  {hasEliCost && (
+                    <DetailStat label="Eli's Cost" value={fmt(g.eli_cost)} color="#ef4444" />
+                  )}
+                  <DetailStat label="Total Costs" value={fmt(g.total_all_costs)} color="#ef4444" />
+                  <DetailStat label="Channels" value={channelText(g.channels)} />
+                  <DetailStat label="Avg Profit / Ticket" value={avgProfit} color="#1D9E75" />
                 </div>
               )}
             </div>

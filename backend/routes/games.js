@@ -155,8 +155,22 @@ router.get('/', (req, res) => {
       FROM games ORDER BY date DESC, uploaded_at DESC
     `).all();
 
-    // Add source flag to games-table entries
-    const gamesWithSource = gamesFromTable.map(g => ({ ...g, source: 'games' }));
+    // Build channels breakdown map: game_name → { channel → { count, revenue } }
+    const channelRows = db.prepare(`
+      SELECT game_name, COALESCE(sales_channel, 'Unknown') AS sales_channel,
+        COUNT(*) AS cnt, COALESCE(SUM(total_amount), 0) AS rev
+      FROM orders
+      WHERE deleted_at IS NULL AND (status IS NULL OR status != 'Cancelled')
+      GROUP BY game_name, sales_channel
+    `).all();
+    const channelMap = {};
+    for (const row of channelRows) {
+      if (!channelMap[row.game_name]) channelMap[row.game_name] = {};
+      channelMap[row.game_name][row.sales_channel] = { count: row.cnt, revenue: row.rev };
+    }
+
+    // Add source flag + channels to games-table entries
+    const gamesWithSource = gamesFromTable.map(g => ({ ...g, source: 'games', channels: channelMap[g.name] || {} }));
 
     // Get names of games already in the games table (for deduplication)
     const gamesTableNames = new Set(gamesFromTable.map(g => g.name));
@@ -210,6 +224,7 @@ router.get('/', (req, res) => {
           tickets_sold: g.tickets_total || 0,
           orders_count: g.orders_count || 0,
           source: 'inventory',
+          channels: channelMap[g.name] || {},
         };
       });
 
