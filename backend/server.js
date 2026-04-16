@@ -98,6 +98,7 @@ const GAME_NAME_MAP = {
   'carabao cup final 2026 - arsenal fc vs manchester city fc': 'Manchester City VS Arsenal CARABAO CUP 22 03 2026',
   'arsenal vs bayer leverkusen': 'Arsenal vs Bayer Leverkusen 17 03 2026',
   'chelsea fc vs manchester city fc': 'Chelsea vs Manchester City',
+  'manchester city fc vs southampton fc - fa cup - semi-final': 'Manchester City vs Southampton - FA Cup Semi-Final',
 };
 
 function normalizeGameName(rawName, db) {
