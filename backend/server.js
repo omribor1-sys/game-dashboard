@@ -67,60 +67,9 @@ app.post('/api/admin/test-whatsapp', async (req, res) => {
 // StubHub sync — accepts scraped orders from local Chrome skill
 // Body: { orders: [{ order_number, game_name, game_datetime, ticket_quantity, category, row_seat, buyer_name, total_amount, sales_channel }] }
 
-// Normalize StubHub raw game names to canonical names stored in DB.
-// Strips date suffixes (e.g. " | Sat, 11/04/2026, 12:30") and fuzzy-matches
-// against existing game_names so duplicates like "Arsenal FC vs AFC Bournemouth"
-// and "Arsenal vs Bournemouth" are merged automatically.
-// Hardcoded StubHub raw name → canonical DB name mapping.
-// Add entries here whenever a new raw variant is discovered.
-const GAME_NAME_MAP = {
-  'arsenal fc vs afc bournemouth': 'Arsenal vs Bournemouth',
-  'afc bournemouth vs arsenal fc': 'Bournemouth vs Arsenal',
-  'manchester city fc vs arsenal fc': 'Manchester City vs Arsenal',
-  'arsenal fc vs manchester city fc': 'Arsenal vs Manchester City',
-  'arsenal fc vs newcastle united fc': 'Arsenal vs Newcastle United',
-  'newcastle united fc vs arsenal fc': 'Newcastle United vs Arsenal',
-  'newcastle united fc vs afc bournemouth': 'Newcastle vs Bournemouth',
-  'chelsea fc vs manchester united': 'Chelsea vs Manchester United',
-  'chelsea fc vs manchester city fc': 'Chelsea vs Manchester City',
-  'tottenham hotspur fc vs brighton & hove albion fc': 'Tottenham vs Brighton',
-  'tottenham hotspur vs brighton & hove albion fc': 'Tottenham vs Brighton',
-  'brentford fc vs everton fc': 'Brentford vs Everton',
-  'liverpool fc vs fulham fc': 'Liverpool vs Fulham',
-  'fulham fc vs aston villa fc': 'Fulham vs Aston Villa',
-  'arsenal fc vs sporting cp': 'Arsenal VS Sporting Lisbon 15/04/2026',
-  'arsenal fc vs sporting cp - champions league 2025-2026': 'Arsenal VS Sporting Lisbon 15/04/2026',
-  'arsenal vs sporting cp': 'Arsenal VS Sporting Lisbon 15/04/2026',
-  'arsenal fc vs fulham fc': 'Arsenal vs Fulham',
-  'brentford fc vs west ham united fc': 'Brentford vs West Ham',
-  'brentford fc vs crystal palace fc': 'Brentford vs Crystal Palace',
-  'tottenham hotspur vs nottingham forest fc': 'Tottenham Hotspur vs Nottingham Forest FC',
-  'liverpool fc vs galatasaray': 'Liverpool FC vs Galatasaray',
-  'carabao cup final 2026 - arsenal fc vs manchester city fc': 'Manchester City VS Arsenal CARABAO CUP 22 03 2026',
-  'arsenal vs bayer leverkusen': 'Arsenal vs Bayer Leverkusen 17 03 2026',
-  'chelsea fc vs manchester city fc': 'Chelsea vs Manchester City',
-  'manchester city fc vs southampton fc - fa cup - semi-final': 'Manchester City vs Southampton - FA Cup Semi-Final',
-};
-
-function normalizeGameName(rawName, db) {
-  if (!rawName) return rawName;
-  // Step 1: strip date/time suffix " | Day, DD/MM/YYYY, HH:MM"
-  let name = rawName.replace(/\s*\|.*$/, '').trim();
-  // Step 2: hardcoded mapping (fastest, most reliable)
-  const mapped = GAME_NAME_MAP[name.toLowerCase()];
-  if (mapped) return mapped;
-  // Step 3: fuzzy-match against existing canonical names in DB
-  const words = name.split(/\s+/).filter(w => w.length > 3 && !/^(vs|vs\.|AFC|FC|United|City)$/i.test(w));
-  if (words.length >= 2) {
-    const likeClause = words.slice(0, 2).map(() => 'game_name LIKE ?').join(' AND ');
-    const params = words.slice(0, 2).map(w => `%${w}%`);
-    const match = db.prepare(
-      `SELECT game_name FROM orders WHERE ${likeClause} AND deleted_at IS NULL LIMIT 1`
-    ).get(...params);
-    if (match) return match.game_name;
-  }
-  return name;
-}
+// Normalize StubHub/FTN raw game names to canonical names stored in DB.
+// Shared logic lives in utils/normalize.js — import from there, do not duplicate.
+const { normalizeGameName } = require('./utils/normalize');
 
 app.post('/api/admin/stubhub-sync', async (req, res) => {
   try {

@@ -2,6 +2,7 @@
 
 const { google } = require('googleapis');
 const db = require('../database');
+const { normalizeGameName } = require('../utils/normalize');
 
 // ── OAuth2 client ─────────────────────────────────────────────────────────────
 function getOAuth2Client() {
@@ -123,10 +124,11 @@ function parseStubHub(subject, body) {
       game_date = new Date(parseInt(yyyy), parseInt(mm) - 1, parseInt(dd), hh, min);
     }
 
-    // Combine game name + datetime
-    const game_name = game_name_base && game_datetime
+    // Combine game name + datetime, then normalize to canonical name
+    const game_name_raw = game_name_base && game_datetime
       ? `${game_name_base} | ${game_datetime}`
       : game_name_base;
+    const game_name = normalizeGameName(game_name_raw, db);
 
     // Order number — body: "OrderID #286956987", fallback: subject "Order# XXXXXXX"
     const orderMatch = body.match(/OrderID\s*#\s*(\d{6,12})/i)
@@ -245,7 +247,8 @@ function parseFootballTicketNet(subject, body) {
         || body.match(/(?:GBP|EUR|€|£)\s*([\d,]+\.?\d{0,2})/i);
       const total_amount = totalM ? parseFloat(totalM[1].replace(/,/g, '')) : 0;
 
-      const game_name = game_name_raw + (game_datetime ? ` | ${game_datetime}` : '');
+      const game_name_with_dt = game_name_raw + (game_datetime ? ` | ${game_datetime}` : '');
+      const game_name = normalizeGameName(game_name_with_dt, db);
 
       results.push({
         game_name, order_number, buyer_name: null, buyer_email: null,
