@@ -99,7 +99,7 @@ app.post('/api/admin/stubhub-sync', async (req, res) => {
       } else {
         // ⚠️  PROTECTED FIELDS (never auto-update): total_amount, buyer_email
         const changes = {};
-        const fields = ['game_name', 'game_datetime', 'category', 'buyer_name', 'ticket_quantity', 'row_seat'];
+        const fields = ['game_name', 'game_datetime', 'category', 'buyer_name', 'ticket_quantity', 'row_seat', 'status'];
         for (const f of fields) {
           const incoming_val = o[f] != null ? String(o[f]).trim() : null;
           const existing_val = existing[f] != null ? String(existing[f]).trim() : null;
