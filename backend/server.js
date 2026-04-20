@@ -323,6 +323,23 @@ app.get('/api/admin/missing-costs', (req, res) => {
   }
 });
 
+// POST /api/admin/update-order-status — explicitly cancel or update status on an order
+app.post('/api/admin/update-order-status', (req, res) => {
+  try {
+    const db = require('./database');
+    const { order_number, status } = req.body;
+    if (!order_number || !status) return res.status(400).json({ error: 'order_number and status required' });
+    const allowed = ['Cancelled', 'Confirmed', 'Pending'];
+    if (!allowed.includes(status)) return res.status(400).json({ error: `status must be one of: ${allowed.join(', ')}` });
+    const r = db.prepare('UPDATE orders SET status = ? WHERE order_number = ?').run(status, String(order_number));
+    if (r.changes === 0) return res.status(404).json({ error: 'Order not found' });
+    const row = db.prepare('SELECT order_number, status, game_name, total_amount FROM orders WHERE order_number = ?').get(String(order_number));
+    res.json({ ok: true, updated: r.changes, order: row });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // POST /api/admin/missing-costs/notify — send WhatsApp asking for missing costs
 app.post('/api/admin/missing-costs/notify', async (req, res) => {
   try {
