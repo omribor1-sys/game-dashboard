@@ -1,5 +1,6 @@
-import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
+import { useState } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import Dashboard from './pages/Dashboard';
 import UploadGame from './pages/UploadGame';
 import GameDetail from './pages/GameDetail';
@@ -7,17 +8,26 @@ import Inventory from './pages/Inventory';
 import Orders from './pages/Orders';
 import AddInventory from './pages/AddInventory';
 import BulkImport from './pages/BulkImport';
+import Login from './pages/Login';
+import ResetPassword from './pages/ResetPassword';
+
+// ── Protected route wrapper ──────────────────────────────────────────────────
+
+function ProtectedRoute({ children }) {
+  const { user } = useAuth();
+  if (user === undefined) {
+    // Still loading — show blank (avoids flash)
+    return <div style={{ minHeight: '100vh', background: '#0f1117' }} />;
+  }
+  if (!user) return <Navigate to="/login" replace />;
+  return children;
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
 
 function Sidebar({ open, onClose }) {
-  const [inventoryGames, setInventoryGames] = useState([]);
   const location = useLocation();
-
-  useEffect(() => {
-    fetch('/api/inventory/games')
-      .then(r => r.json())
-      .then(data => setInventoryGames(Array.isArray(data) ? data : []))
-      .catch(() => {});
-  }, []);
+  const { user, logout } = useAuth();
 
   return (
     <>
@@ -59,7 +69,6 @@ function Sidebar({ open, onClose }) {
             All Inventory
           </NavLink>
 
-
           <NavLink to="/orders" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
@@ -69,35 +78,93 @@ function Sidebar({ open, onClose }) {
             Orders
           </NavLink>
         </div>
+
+        {/* ── User / Logout ─────────────────────────── */}
+        {user && (
+          <div style={{
+            marginTop: 'auto',
+            padding: '16px',
+            borderTop: '1px solid #2a2d3a',
+          }}>
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>
+              Signed in as <strong style={{ color: '#94a3b8' }}>{user.username}</strong>
+            </div>
+            <button
+              onClick={() => { logout(); onClose(); }}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                background: 'transparent',
+                border: '1px solid #2a2d3a',
+                borderRadius: 6,
+                color: '#94a3b8',
+                fontSize: 13,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              Sign Out
+            </button>
+          </div>
+        )}
       </nav>
     </>
   );
 }
 
-export default function App() {
+// ── App shell (inside AuthProvider) ──────────────────────────────────────────
+
+function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user } = useAuth();
 
   return (
+    <Routes>
+      {/* Public routes */}
+      <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+
+      {/* Protected routes */}
+      <Route path="/*" element={
+        <ProtectedRoute>
+          <div className="layout">
+            <button className="menu-toggle" onClick={() => setSidebarOpen(v => !v)} aria-label="Menu">
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+              </svg>
+            </button>
+            <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+            <main className="main">
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/upload" element={<UploadGame />} />
+                <Route path="/game/:id" element={<GameDetail />} />
+                <Route path="/inventory" element={<Inventory />} />
+                <Route path="/inventory/add" element={<AddInventory />} />
+                <Route path="/inventory/bulk-import" element={<BulkImport />} />
+                <Route path="/orders" element={<Orders />} />
+              </Routes>
+            </main>
+          </div>
+        </ProtectedRoute>
+      } />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
     <BrowserRouter>
-      <div className="layout">
-        <button className="menu-toggle" onClick={() => setSidebarOpen(v => !v)} aria-label="Menu">
-          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-          </svg>
-        </button>
-        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main className="main">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/upload" element={<UploadGame />} />
-            <Route path="/game/:id" element={<GameDetail />} />
-            <Route path="/inventory" element={<Inventory />} />
-            <Route path="/inventory/add" element={<AddInventory />} />
-            <Route path="/inventory/bulk-import" element={<BulkImport />} />
-            <Route path="/orders" element={<Orders />} />
-          </Routes>
-        </main>
-      </div>
+      <AuthProvider>
+        <AppShell />
+      </AuthProvider>
     </BrowserRouter>
   );
 }

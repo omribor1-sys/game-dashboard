@@ -11,6 +11,16 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ── Auth routes (public — no requireAuth) ────────────────────────────────────
+app.use('/api/auth', require('./routes/auth'));
+
+// Health check (public)
+app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+
+// ── Protect all /api/* routes below this line ────────────────────────────────
+const requireAuth = require('./middleware/requireAuth');
+app.use('/api', requireAuth);
+
 // API routes
 app.use('/api/games', require('./routes/games'));
 
@@ -419,8 +429,7 @@ function _getMissingCosts(db) {
   `).all();
 }
 
-// Health check
-app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+// (health check is now registered above requireAuth — kept here as comment for reference)
 
 // ── Helper: build Hebrew WhatsApp integrity message ────────────────────────
 function _buildIntegrityMessage(result) {
