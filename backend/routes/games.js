@@ -233,7 +233,54 @@ router.get('/', (req, res) => {
         };
       });
 
-    const games = [...gamesWithSource, ...inventoryOnlyGames].sort((a, b) => {
+    // Track all names already covered
+    const inventoryOnlyNames = new Set(inventoryOnlyGames.map(g => g.name));
+
+    // Orders-only games: exist in orders but NOT in games table and NOT in inventory
+    const ordersOnlyRows = db.prepare(`
+      SELECT
+        game_name AS name,
+        MAX(game_datetime) AS game_datetime,
+        COUNT(*) AS order_count,
+        COALESCE(SUM(ticket_quantity), COUNT(*)) AS tickets_sold,
+        ROUND(SUM(total_amount), 2) AS total_revenue
+      FROM orders
+      WHERE deleted_at IS NULL
+        AND (status IS NULL OR status != 'Cancelled')
+        AND game_name IS NOT NULL
+      GROUP BY game_name
+    `).all();
+
+    const ordersOnlyGames = ordersOnlyRows
+      .filter(g => !gamesTableNames.has(g.name) && !inventoryOnlyNames.has(g.name))
+      .map(g => {
+        // Parse "Day, DD/MM/YYYY, HH:MM" → "YYYY-MM-DD"
+        let date = null;
+        if (g.game_datetime && g.game_datetime.length >= 15) {
+          const dd = g.game_datetime.slice(5, 7);
+          const mm = g.game_datetime.slice(8, 10);
+          const yyyy = g.game_datetime.slice(11, 15);
+          if (dd && mm && yyyy) date = `${yyyy}-${mm}-${dd}`;
+        }
+        return {
+          id: null,
+          name: g.name,
+          date,
+          uploaded_at: null,
+          total_revenue: g.total_revenue || 0,
+          total_ticket_cost: 0,
+          eli_cost: 0,
+          total_all_costs: 0,
+          net_profit: null,
+          margin_percent: null,
+          tickets_sold: g.tickets_sold || 0,
+          orders_count: g.order_count || 0,
+          source: 'orders',
+          channels: channelMap[g.name] || {},
+        };
+      });
+
+    const games = [...gamesWithSource, ...inventoryOnlyGames, ...ordersOnlyGames].sort((a, b) => {
       const da = a.date || '';
       const db2 = b.date || '';
       if (da > db2) return -1;
