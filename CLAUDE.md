@@ -15,6 +15,14 @@ Built for Omri (omribor1@gmail.com).
 - **Database:** SQLite at `/data/games.db` (persistent Fly.io volume)
 - **Node version:** 24 (required for built-in `node:sqlite`)
 
+## ⚠️ NO APPROVAL NEEDED in this project
+
+Claude does NOT ask Omri for confirmation before making changes in this project. Execute all tasks autonomously to completion. No "should I proceed?" or "is this correct?" — just do it.
+
+## ⚠️ CRITICAL: UK game times = UK timezone (BST/GMT)
+
+Game times shown on StubHub for UK games are in **local UK time** (BST = UTC+1 in summer, GMT = UTC+0 in winter). Store them exactly as shown — do NOT convert to UTC or any other timezone. Example: a game at "15:00" in London is stored as "15:00", not "14:00".
+
 ## ⚠️ CRITICAL: game_datetime format — ALWAYS use 3-char day abbreviation
 
 When inserting orders manually (from StubHub, spreadsheets, etc.), `game_datetime` MUST use this exact format:
