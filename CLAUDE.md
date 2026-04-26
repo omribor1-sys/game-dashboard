@@ -252,6 +252,40 @@ Shows: total orders, upcoming games, all automated changes in last 24h
 2. Is it logged to audit_log?
 3. If changing financial data — STOP and ask the user first
 
+## ⚠️ CRITICAL: Closing games from spreadsheets — EXACT RULES
+
+### 1. All costs are ALREADY IN EUR — NEVER convert GBP
+Spreadsheets have a "price in euro" column and a "TOTAL COST" summary — these are **already in EUR (€)**.
+Do NOT fetch exchange rates. Do NOT multiply by any GBP→EUR factor. Just use the number as-is.
+- ✅ TOTAL COST: €389.76 → use €389.76
+- ❌ WRONG: "price column shows £389.76, let me convert..." — NO. It's already EUR.
+
+### 2. ONLY close PAST games — never future ones
+Only call `close-by-name` or insert closing data for games whose date has already passed.
+Never close Arsenal vs Fulham (upcoming), Brentford vs West Ham (upcoming), etc.
+
+### 3. Order numbers — copy character by character, NEVER guess
+When inserting orders manually from a spreadsheet, copy `order_number` EXACTLY as shown.
+A single wrong digit (e.g. 286002519 instead of 286992519) creates a duplicate that corrupts revenue.
+Always verify: query DB FIRST — if order already exists (email-imported), SKIP insertion.
+
+### 4. Before closing a game — check for duplicates
+Run a quick query: `SELECT order_number, total_amount FROM orders WHERE game_name LIKE '%X%'`
+Compare with the spreadsheet's order list. If DB has MORE orders than spreadsheet → duplicates exist.
+Soft-delete wrong orders (set `deleted_at`) BEFORE closing the game.
+
+### 5. Revenue for closing = from DB (actual payouts), not spreadsheet sell prices
+The spreadsheet "SOLD" column shows listed sell price. Actual StubHub payouts (in DB from emails) may differ by cents.
+Use the DB total (after removing duplicates), not the spreadsheet ORDERS total.
+If difference > €5 → investigate; if difference < €5 → DB amount is correct, use it.
+
+### 6. Spreadsheet → close-game workflow (always in this order)
+1. Read TOTAL COST from spreadsheet (already EUR)
+2. Read order numbers from spreadsheet
+3. Query DB: which orders already exist? Skip those. Insert only missing ones.
+4. Verify no duplicates (DB count = spreadsheet count)
+5. Run close script with total_ticket_cost from spreadsheet, revenue auto-computed from DB
+
 ## User preferences
 - Hebrew UI preferred for communication
 - Parallel work encouraged ("תעבוד במקביל")
