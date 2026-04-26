@@ -52,6 +52,7 @@ export default function GameDetail() {
   const [activeTab, setActiveTab] = useState('inventory');
   const [inventory, setInventory] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [tickets, setTickets] = useState([]);
   const [summary, setSummary] = useState({ total_revenue: 0, total_ticket_cost: 0, eli_cost: 0, notes: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -114,6 +115,13 @@ export default function GameDetail() {
     loadInventory();
   }, [game]);
 
+  // Load tickets when Tickets tab is active
+  useEffect(() => {
+    if (!game) return;
+    if (activeTab !== 'tickets') return;
+    loadTickets();
+  }, [game, activeTab]);
+
   // Load orders always on mount (needed for summary stats too)
   useEffect(() => {
     if (!game) return;
@@ -145,6 +153,14 @@ export default function GameDetail() {
       .then(r => r.json())
       .then(d => setOrders(Array.isArray(d) ? d : (d.orders || [])))
       .catch(() => setOrders([]));
+  }
+
+  function loadTickets() {
+    const url = `${API}/inventory/tickets?game_name=${encodeURIComponent(game.name)}`;
+    fetch(url)
+      .then(r => r.json())
+      .then(d => setTickets(Array.isArray(d) ? d : []))
+      .catch(() => setTickets([]));
   }
 
   function loadSummary() {
@@ -357,6 +373,7 @@ export default function GameDetail() {
   const tabs = [
     { key: 'inventory', label: '🎫 Inventory' },
     { key: 'orders', label: '📋 Orders' },
+    { key: 'tickets', label: '🪑 Tickets' },
     { key: 'summary', label: '📊 Summary' },
   ];
 
@@ -858,7 +875,110 @@ export default function GameDetail() {
         </div>
       )}
 
-      {/* ─── TAB 3: SUMMARY ─── */}
+      {/* ─── TAB 3: TICKETS ─── */}
+      {activeTab === 'tickets' && (
+        <div>
+          {/* Stats row */}
+          {(() => {
+            const total = tickets.length;
+            const sold = tickets.filter(t => t.order_id).length;
+            const unsold = total - sold;
+            const totalBuy = tickets.reduce((s, t) => s + (Number(t.buy_price) || 0), 0);
+            const totalSell = tickets.reduce((s, t) => {
+              if (!t.order_id) return s;
+              // use sell_price from order_items if available, else share of order total
+              if (t.sell_price) return s + Number(t.sell_price);
+              if (t.total_amount && t.ticket_quantity) return s + Number(t.total_amount) / Number(t.ticket_quantity);
+              return s;
+            }, 0);
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+                <StatCard label="Total Tickets" value={total} />
+                <StatCard label="Sold" value={sold} />
+                <StatCard label="Unsold" value={unsold} />
+                <StatCard label="Total Cost" value={fmt(totalBuy)} />
+              </div>
+            );
+          })()}
+
+          {tickets.length === 0 ? (
+            <div style={{
+              background: '#fff', border: '1px solid #E5E7EB', borderRadius: 12,
+              padding: '48px 24px', textAlign: 'center', color: '#9CA3AF'
+            }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>🪑</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#6B7280' }}>No tickets in inventory</div>
+            </div>
+          ) : (
+            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 12, overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: '#F9FAFB', borderBottom: '2px solid #E5E7EB' }}>
+                    {['Seat', 'Category', 'Member #', 'Buy Price', 'Status', 'Order #', 'Buyer', 'SOLD'].map(h => (
+                      <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#374151', fontSize: 12, whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {tickets.map((t, i) => {
+                    const isSold = !!t.order_id;
+                    const sellAmt = t.sell_price
+                      ? Number(t.sell_price)
+                      : (t.total_amount && t.ticket_quantity ? Number(t.total_amount) / Number(t.ticket_quantity) : null);
+                    return (
+                      <tr
+                        key={t.id || i}
+                        style={{
+                          borderBottom: '1px solid #F3F4F6',
+                          background: isSold ? '#F0FDF9' : undefined,
+                        }}
+                      >
+                        <td style={{ padding: '9px 12px', fontWeight: 600, color: '#111827', fontFamily: 'monospace', fontSize: 13 }}>
+                          {t.seat || '—'}
+                        </td>
+                        <td style={{ padding: '9px 12px', color: '#6B7280' }}>{t.category || '—'}</td>
+                        <td style={{ padding: '9px 12px', color: '#9CA3AF', fontSize: 12 }}>{t.member_number || '—'}</td>
+                        <td style={{ padding: '9px 12px', color: '#374151' }}>{fmt(t.buy_price)}</td>
+                        <td style={{ padding: '9px 12px' }}>
+                          <StatusBadge status={t.status} />
+                        </td>
+                        <td style={{ padding: '9px 12px' }}>
+                          {t.order_number ? (
+                            <span style={{ fontWeight: 600, color: '#1D9E75', fontSize: 12 }}>#{t.order_number}</span>
+                          ) : (
+                            <span style={{ color: '#D1D5DB', fontSize: 12 }}>—</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '9px 12px', maxWidth: 200 }}>
+                          {t.buyer_email ? (
+                            <div>
+                              {t.buyer_name && (
+                                <div style={{ fontSize: 12, fontWeight: 500, color: '#374151' }}>{t.buyer_name}</div>
+                              )}
+                              <div style={{ fontSize: 11, color: '#9CA3AF', wordBreak: 'break-all' }}>{t.buyer_email}</div>
+                            </div>
+                          ) : (
+                            <span style={{ color: '#D1D5DB', fontSize: 12 }}>Unsold</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '9px 12px' }}>
+                          {sellAmt != null ? (
+                            <span style={{ fontWeight: 700, color: '#1D9E75' }}>{fmt(sellAmt)}</span>
+                          ) : (
+                            <span style={{ color: '#D1D5DB', fontSize: 12 }}>—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── TAB 4: SUMMARY ─── */}
       {activeTab === 'summary' && (
         <div>
           {isInventoryOnly ? (

@@ -109,6 +109,37 @@ inventoryRouter.get('/available', (req, res) => {
   }
 });
 
+// GET /api/inventory/tickets?game_name=... — per-ticket view with linked order info
+inventoryRouter.get('/tickets', (req, res) => {
+  try {
+    const { game_name } = req.query;
+    if (!game_name) return res.status(400).json({ error: 'game_name required' });
+
+    const rows = db.prepare(`
+      SELECT
+        i.id, i.seat, i.category, i.member_number, i.buy_price, i.status, i.notes,
+        oi.id        AS order_item_id,
+        oi.sell_price,
+        o.id         AS order_id,
+        o.order_number,
+        o.buyer_name,
+        o.buyer_email,
+        o.total_amount,
+        o.ticket_quantity,
+        o.sales_channel
+      FROM inventory i
+      LEFT JOIN order_items oi ON oi.inventory_id = i.id
+      LEFT JOIN orders o ON o.id = oi.order_id AND (o.deleted_at IS NULL OR o.deleted_at = '')
+      WHERE i.game_name = ?
+      ORDER BY i.category, i.seat
+    `).all(game_name);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/inventory/games — distinct games that have inventory items
 // IMPORTANT: declared before /:id to avoid route shadowing
 inventoryRouter.get('/games', (req, res) => {
