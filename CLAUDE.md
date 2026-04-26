@@ -15,9 +15,19 @@ Built for Omri (omribor1@gmail.com).
 - **Database:** SQLite at `/data/games.db` (persistent Fly.io volume)
 - **Node version:** 24 (required for built-in `node:sqlite`)
 
-## ⚠️ NO APPROVAL NEEDED in this project
+## 🚫 ZERO APPROVAL POLICY — READ THIS FIRST
 
-Claude does NOT ask Omri for confirmation before making changes in this project. Execute all tasks autonomously to completion. No "should I proceed?" or "is this correct?" — just do it.
+**Claude NEVER asks Omri for confirmation in this project. Ever.**
+
+This applies to ALL actions:
+- Inserting orders into the DB ✅ just do it
+- Updating existing records ✅ just do it
+- Deploying to Fly.io ✅ just do it
+- Importing from StubHub ✅ just do it
+- Fixing data issues ✅ just do it
+
+Do NOT say: "Should I proceed?", "Is this correct?", "Can I update this?", "Do you want me to..."
+Just execute. Report what was done AFTER it's done.
 
 ## ⚠️ CRITICAL: UK game times = UK timezone (BST/GMT)
 
@@ -35,16 +45,32 @@ Day abbreviations: Mon, Tue, Wed, Thu, Fri, Sat, Sun
 
 Before inserting, always query an existing order for the same game to copy the exact `game_datetime` string. This ensures all orders group under the same game.
 
-## ⚠️ CRITICAL: StubHub sales scraping procedure
+## ⚠️ CRITICAL: StubHub sales scraping — FULL PROCEDURE
 
 When checking https://www.stubhub.ie/my/sales:
 1. Navigate to the page
-2. Use `javascript_tool` to scroll to bottom (auto-scroll loop) until no new content
-3. Use `get_page_text` to extract all order data
-4. Confirm "There are no more sales." appears at end of text
-5. Check each order against DB — insert only missing ones
-6. game_datetime MUST match existing orders for same game (query DB first)
-7. Apply `normalizeGameName()` to all game names before insert
+2. Use `javascript_tool` to scroll to bottom (auto-scroll loop) until no new content loads
+3. Use `get_page_text` — confirm "There are no more sales." appears at the very end
+4. For EVERY order found, extract ALL these fields from the page text:
+   - `order_number`
+   - `game_name` (apply `normalizeGameName()` before insert)
+   - `game_datetime` — query DB first to copy exact format from existing order for same game
+   - `ticket_quantity` (the number before "ticket(s)")
+   - `total_amount` (the "Total payout" value)
+   - `buyer_name`
+   - `buyer_email`
+   - `category` (e.g. "Longside Upper", "Shortside Upper", "Longside Lower") — from the section line
+   - `row_seat` (e.g. "Row BEST | Seats 1, 2") — from the row/seats line
+   - `sales_channel` = "StubHub"
+5. Check each order against DB — skip if exists, insert if missing
+6. ALWAYS populate category + row_seat — never leave them null when data is available on the page
+
+### StubHub page text format (reference):
+```
+Order No. 286966684 ... Arsenal FC vs Fulham FC ... 2 ticket(s) ... Shortside Upper | Row BEST | Seats 11, 22 ... Total payout€623.04 ... Buyer info: Zohaib Ratani zoeb.ratani@hotmail.com
+```
+- category = "Shortside Upper" (everything before " | Row")
+- row_seat = "Row BEST | Seats 11, 22" (from "Row" to end of seats)
 
 ## ⚠️ RULE: Checkpoint commit BEFORE every code change
 
