@@ -15,6 +15,29 @@ Built for Omri (omribor1@gmail.com).
 - **Database:** SQLite at `/data/games.db` (persistent Fly.io volume)
 - **Node version:** 24 (required for built-in `node:sqlite`)
 
+## ⚠️ CRITICAL: game_datetime format — ALWAYS use 3-char day abbreviation
+
+When inserting orders manually (from StubHub, spreadsheets, etc.), `game_datetime` MUST use this exact format:
+```
+"Sat, DD/MM/YYYY, HH:MM"   ✅ CORRECT
+"Saturday, DD/MM/YYYY, HH:MM"  ❌ WRONG — creates duplicate game groups in dashboard
+```
+
+Day abbreviations: Mon, Tue, Wed, Thu, Fri, Sat, Sun
+
+Before inserting, always query an existing order for the same game to copy the exact `game_datetime` string. This ensures all orders group under the same game.
+
+## ⚠️ CRITICAL: StubHub sales scraping procedure
+
+When checking https://www.stubhub.ie/my/sales:
+1. Navigate to the page
+2. Use `javascript_tool` to scroll to bottom (auto-scroll loop) until no new content
+3. Use `get_page_text` to extract all order data
+4. Confirm "There are no more sales." appears at end of text
+5. Check each order against DB — insert only missing ones
+6. game_datetime MUST match existing orders for same game (query DB first)
+7. Apply `normalizeGameName()` to all game names before insert
+
 ## ⚠️ RULE: Checkpoint commit BEFORE every code change
 
 Before making ANY code change, Claude MUST run:
