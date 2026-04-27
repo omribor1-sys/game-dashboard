@@ -251,6 +251,8 @@ router.get('/', (req, res) => {
       GROUP BY game_name
     `).all();
 
+    const todayISO = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+
     const ordersOnlyGames = ordersOnlyRows
       .filter(g => !gamesTableNames.has(g.name) && !inventoryOnlyNames.has(g.name))
       .map(g => {
@@ -262,6 +264,9 @@ router.get('/', (req, res) => {
           const yyyy = g.game_datetime.slice(11, 15);
           if (dd && mm && yyyy) date = `${yyyy}-${mm}-${dd}`;
         }
+        // RULE: only show orders-only games AFTER the game date has passed.
+        // Upcoming games are hidden until the user sends the cost summary.
+        if (date && date > todayISO) return null;
         return {
           id: null,
           name: g.name,
@@ -280,7 +285,7 @@ router.get('/', (req, res) => {
         };
       });
 
-    const games = [...gamesWithSource, ...inventoryOnlyGames, ...ordersOnlyGames].sort((a, b) => {
+    const games = [...gamesWithSource, ...inventoryOnlyGames, ...ordersOnlyGames.filter(Boolean)].sort((a, b) => {
       const da = a.date || '';
       const db2 = b.date || '';
       if (da > db2) return -1;
