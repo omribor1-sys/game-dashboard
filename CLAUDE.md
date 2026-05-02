@@ -260,12 +260,13 @@ Do NOT fetch exchange rates. Do NOT multiply by any GBP→EUR factor. Just use t
 - ✅ TOTAL COST: €389.76 → use €389.76
 - ❌ WRONG: "price column shows £389.76, let me convert..." — NO. It's already EUR.
 
-### 2. ONLY show/close PAST games — upcoming games are INVISIBLE until they pass
-- Orders-only games appear in the dashboard ONLY after the game date has passed
-- NEVER close a game that hasn't happened yet
-- NEVER add cost data for a future game
-- Wait until the game passes AND the user sends a cost summary screenshot
-- Examples of upcoming (DO NOT touch): Arsenal vs Fulham (02/05), Brentford vs West Ham (02/05), Chelsea vs Nottingham Forest (04/05), Fulham vs Bournemouth (09/05), Brentford vs Crystal Palace (17/05)
+### 2. ONLY show/close PAST games — today's game and future games are INVISIBLE
+- Orders-only games appear in the dashboard ONLY after the game date is STRICTLY IN THE PAST
+- **"Passed" = yesterday or earlier (date < today). A game happening TODAY is NOT "passed".**
+- Code uses `date >= todayISO` to hide — today's games are hidden, yesterday's are shown
+- NEVER close a game that hasn't happened yet (including today!)
+- NEVER add cost data for a future game or today's game
+- Wait until the NEXT DAY after the game AND the user sends a cost summary screenshot
 
 ### 3. Order numbers — copy character by character, NEVER guess
 When inserting orders manually from a spreadsheet, copy `order_number` EXACTLY as shown.

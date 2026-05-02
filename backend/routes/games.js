@@ -264,9 +264,10 @@ router.get('/', (req, res) => {
           const yyyy = g.game_datetime.slice(11, 15);
           if (dd && mm && yyyy) date = `${yyyy}-${mm}-${dd}`;
         }
-        // RULE: only show orders-only games AFTER the game date has passed.
-        // Upcoming games are hidden until the user sends the cost summary.
-        if (date && date > todayISO) return null;
+        // RULE: only show orders-only games AFTER the game date has STRICTLY passed.
+        // Games playing today OR in the future are hidden until user sends cost summary.
+        // "passed" = yesterday or earlier (date < today, NOT today itself)
+        if (date && date >= todayISO) return null;
         return {
           id: null,
           name: g.name,
