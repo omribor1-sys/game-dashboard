@@ -56,7 +56,7 @@ export default function GamePerformancePanel({ games }) {
   const [sortKey, setSortKey] = useState('date');
   const [sortDir, setSortDir] = useState('desc');
 
-  if (!games || games.length < 2) return null;
+  if (!games || games.length === 0) return null;
 
   const maxRevenue = Math.max(...games.map(g => g.total_revenue || 0));
   const maxProfit  = Math.max(...games.map(g => Math.abs(g.net_profit || 0)));
