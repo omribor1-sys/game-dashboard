@@ -161,15 +161,19 @@ export default function GamePerformancePanel({ games }) {
         }}>
           {heatSorted.map((g, i) => {
             const ms = marginStyle(g.margin_percent);
-            const shortName = g.name.length > 22 ? g.name.slice(0, 20) + '…' : g.name;
             return (
-              <div key={g.id ?? i} style={{
+              <div key={g.id ?? i} title={g.name} style={{
                 background: ms.bg, border: `1.5px solid ${ms.border}`,
                 borderRadius: 10, padding: '12px 14px',
                 display: 'flex', flexDirection: 'column', gap: 3,
+                cursor: 'default',
               }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: ms.fg, lineHeight: 1.3, minHeight: 28 }}>
-                  {shortName}
+                <div style={{
+                  fontSize: 11, fontWeight: 600, color: ms.fg, lineHeight: 1.3, minHeight: 28,
+                  overflow: 'hidden', display: '-webkit-box',
+                  WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                }}>
+                  {g.name}
                 </div>
                 <div style={{ fontSize: 20, fontWeight: 800, color: ms.fg, lineHeight: 1.1 }}>
                   {g.margin_percent != null ? `${Math.round(g.margin_percent)}%` : '—'}
