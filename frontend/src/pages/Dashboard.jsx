@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MetricCard from '../components/MetricCard';
-import BarChart from '../components/BarChart';
+import GamePerformancePanel from '../components/GamePerformancePanel';
 
 function fmtDate(d) {
   if (!d) return '—';
@@ -176,27 +176,6 @@ export default function Dashboard() {
   const completedGames = games.filter(g => g.completed);
   const activeGames = games.filter(g => !g.completed);
 
-  // Revenue vs Profit chart for completed games (sorted oldest → newest)
-  const sortedCompleted = [...completedGames].sort((a, b) => (a.date || '') < (b.date || '') ? -1 : 1);
-  const revProfitChart = {
-    labels: sortedCompleted.map(g => g.name.length > 18 ? g.name.slice(0, 16) + '…' : g.name),
-    datasets: [
-      {
-        label: 'Revenue',
-        data: sortedCompleted.map(g => g.total_revenue),
-        backgroundColor: 'rgba(29,158,117,0.22)',
-        borderRadius: 4,
-        borderSkipped: false,
-      },
-      {
-        label: 'Net Profit',
-        data: sortedCompleted.map(g => g.net_profit),
-        backgroundColor: sortedCompleted.map(g => g.net_profit >= 0 ? 'rgba(29,158,117,0.85)' : 'rgba(216,90,48,0.85)'),
-        borderRadius: 4,
-        borderSkipped: false,
-      },
-    ],
-  };
 
   const invGames = games.filter(g => g.source === 'inventory').map(g => g.name.toLowerCase());
   const dupWarnings = new Set(
@@ -257,14 +236,7 @@ export default function Dashboard() {
       {completedGames.length > 0 && (
         <>
           <CompletedGamesTable games={completedGames} />
-          {sortedCompleted.length > 1 && (
-            <BarChart
-              title="Revenue vs Net Profit per Game"
-              labels={revProfitChart.labels}
-              datasets={revProfitChart.datasets}
-              height={200}
-            />
-          )}
+          <GamePerformancePanel games={completedGames} />
         </>
       )}
 
