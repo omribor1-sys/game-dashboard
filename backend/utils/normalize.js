@@ -87,8 +87,11 @@ function normalizeGameName(rawName, db) {
         return dtRow.game_name;
       }
 
-      // 2.5b — team-name + datetime match (catches mislabelled opponents)
-      // Extract team names: everything split around " vs " or " VS "
+      // 2.5b — team-name + datetime conflict detection (WARNING only — no auto-merge)
+      // A team cannot play two games at the same time. If we detect a conflict,
+      // log it loudly so the integrity check picks it up — but do NOT auto-merge,
+      // because the existing name in DB might itself be the wrong one.
+      // A human must decide which name is correct via rename-game-in-orders.
       const vsParts = name.split(/\s+vs\.?\s+/i);
       if (vsParts.length >= 2) {
         const teams = vsParts.map(t => t.replace(/\s*(FC|AFC|United|City|Hotspur)\s*$/i, '').trim()).filter(t => t.length > 2);
@@ -96,9 +99,9 @@ function normalizeGameName(rawName, db) {
           const teamRow = db.prepare(
             `SELECT game_name FROM orders WHERE game_datetime = ? AND game_name LIKE ? AND deleted_at IS NULL LIMIT 1`
           ).get(datetime, `%${team}%`);
-          if (teamRow) {
-            console.log(`[normalize] team+datetime dedup: "${name}" → "${teamRow.game_name}" (team "${team}" at ${datetime})`);
-            return teamRow.game_name;
+          if (teamRow && teamRow.game_name !== name) {
+            console.warn(`[normalize] ⚠️  DUPLICATE GAME DETECTED: "${name}" conflicts with "${teamRow.game_name}" (team "${team}" at ${datetime}). Manual merge required via /api/admin/rename-game-in-orders`);
+            // DO NOT auto-merge — wrong direction would corrupt data
           }
         }
       }
