@@ -32,6 +32,16 @@ const GAME_NAME_MAP = {
   'manchester city fc vs southampton fc - fa cup - semi-final': 'Manchester City vs Southampton - FA Cup Semi-Final',
   'everton fc vs liverpool fc': 'Everton vs Liverpool',
   'liverpool fc vs everton fc': 'Liverpool vs Everton',
+  // FA Cup Final 16/05/2026 — was mislabelled on some StubHub listings
+  'chelsea fc vs manchester city fc - fa cup - final': 'Chelsea vs Manchester City',
+  'chelsea fc vs manchester city fc - fa cup final': 'Chelsea vs Manchester City',
+  'chelsea vs manchester city - fa cup - final': 'Chelsea vs Manchester City',
+  'chelsea vs manchester city - fa cup final': 'Chelsea vs Manchester City',
+  'chelsea vs leeds united - fa cup - semi-final': 'Chelsea vs Manchester City',
+  'chelsea fc vs leeds united - fa cup - semi-final': 'Chelsea vs Manchester City',
+  // Tottenham vs Leeds United
+  'tottenham hotspur fc vs leeds united fc': 'Tottenham vs Leeds United',
+  'tottenham hotspur vs leeds united': 'Tottenham vs Leeds United',
 };
 
 /**
@@ -62,16 +72,35 @@ function normalizeGameName(rawName, db) {
 
   if (db) {
     // Step 2.5: datetime-based dedup ⭐
-    // If we already have orders at this exact datetime, use THAT game's name.
-    // Prevents "Chelsea vs Manchester City" and "Chelsea vs Leeds United - FA Cup - Semi-final"
-    // from both pointing to the same physical game at Sat, 16/05/2026, 17:00.
+    // Rule: a team cannot play two games at the same date+time.
+    // If we already have orders at this EXACT datetime, use THAT game's name,
+    // regardless of the name in the new email.
+    // Also: if any TEAM from the new game appears in an existing game at the same datetime,
+    // it's the same physical game — use the existing name.
     if (datetime) {
+      // 2.5a — exact datetime match (catches most cases)
       const dtRow = db.prepare(
         `SELECT game_name FROM orders WHERE game_datetime = ? AND deleted_at IS NULL LIMIT 1`
       ).get(datetime);
       if (dtRow) {
         console.log(`[normalize] datetime dedup: "${name}" → "${dtRow.game_name}" (same datetime: ${datetime})`);
         return dtRow.game_name;
+      }
+
+      // 2.5b — team-name + datetime match (catches mislabelled opponents)
+      // Extract team names: everything split around " vs " or " VS "
+      const vsParts = name.split(/\s+vs\.?\s+/i);
+      if (vsParts.length >= 2) {
+        const teams = vsParts.map(t => t.replace(/\s*(FC|AFC|United|City|Hotspur)\s*$/i, '').trim()).filter(t => t.length > 2);
+        for (const team of teams) {
+          const teamRow = db.prepare(
+            `SELECT game_name FROM orders WHERE game_datetime = ? AND game_name LIKE ? AND deleted_at IS NULL LIMIT 1`
+          ).get(datetime, `%${team}%`);
+          if (teamRow) {
+            console.log(`[normalize] team+datetime dedup: "${name}" → "${teamRow.game_name}" (team "${team}" at ${datetime})`);
+            return teamRow.game_name;
+          }
+        }
       }
     }
 
