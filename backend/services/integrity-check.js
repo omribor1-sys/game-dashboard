@@ -60,7 +60,24 @@ function runIntegrityCheck() {
     issues.push(`נמכרו יותר כרטיסים ממה שיש: ${row.game_name} — SQ=${row.sq} > BQ=${row.bq}`);
   }
 
-  // ── 4. Orders whose game_name not in inventory (warning) ─────────────────
+  // ── 4. Same game_datetime under different game names (duplicate game) ───────
+  const dupDatetimes = db.prepare(`
+    SELECT game_datetime, COUNT(DISTINCT game_name) AS name_count,
+           GROUP_CONCAT(DISTINCT game_name) AS names
+    FROM orders
+    WHERE deleted_at IS NULL
+      AND game_datetime IS NOT NULL
+      AND game_datetime != ''
+    GROUP BY game_datetime
+    HAVING name_count > 1
+    ORDER BY game_datetime DESC
+    LIMIT 20
+  `).all();
+  for (const row of dupDatetimes) {
+    issues.push(`אותו מועד משחק עם שמות שונים — ${row.game_datetime}: ${row.names}`);
+  }
+
+  // ── 5. Orders whose game_name not in inventory (warning) ─────────────────
   const orphans = db.prepare(`
     SELECT game_name, COUNT(*) AS n
     FROM orders

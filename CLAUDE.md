@@ -173,6 +173,24 @@ flyctl apps restart game-dashboard-omri
 - Test endpoint: `POST /api/admin/test-whatsapp`
 - Set via: `flyctl secrets set TWILIO_ACCOUNT_SID=... TWILIO_AUTH_TOKEN=... TWILIO_WHATSAPP_FROM=whatsapp:+14155238886 TWILIO_WHATSAPP_TO=whatsapp:+972XXXXXXXXX`
 
+## ⚠️ CRITICAL: Duplicate game detection — same game, different names
+
+**Symptom**: Two rows in the Orders page with the same date/time but different game names  
+e.g. "Chelsea vs Manchester City" AND "Chelsea vs Leeds United - FA Cup - Semi-final" both at Sat, 16/05/2026, 17:00.
+
+**Root cause**: StubHub/FTN emails use different game labels. If the raw label isn't in `GAME_NAME_MAP` and no fuzzy match fires, a new group is created.
+
+**Fix in place** (`backend/utils/normalize.js` step 2.5):  
+Before creating a new game group, `normalizeGameName()` checks if ANY order already exists with the SAME `game_datetime`. If yes → reuse that game's name. This prevents the duplicate.
+
+**Integrity check**: `runIntegrityCheck()` now includes check #4 — duplicate datetimes.  
+Shows as CRITICAL issue in WhatsApp alert.
+
+**If a duplicate still slips through**:
+1. Decide which name is correct (use the one with more orders)
+2. `UPDATE orders SET game_name = 'Correct Name' WHERE game_name = 'Wrong Name'`
+3. Add the wrong raw name → correct canonical name to `GAME_NAME_MAP` in `normalize.js`
+
 ## StubHub email parser notes
 - StubHub changed format: day names are now full "Saturday" not "Sat"
 - Fixed: regex now uses `\w{2,10}` and normalises to 3-char abbr via `DAY_ABBR[parsedDate.getDay()]`
