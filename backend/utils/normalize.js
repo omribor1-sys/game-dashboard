@@ -22,6 +22,7 @@ const GAME_NAME_MAP = {
   'arsenal fc vs sporting cp': 'Arsenal VS Sporting Lisbon 15/04/2026',
   'arsenal fc vs sporting cp - champions league 2025-2026': 'Arsenal VS Sporting Lisbon 15/04/2026',
   'arsenal vs sporting cp': 'Arsenal VS Sporting Lisbon 15/04/2026',
+  'arsenal vs sporting lisbon': 'Arsenal VS Sporting Lisbon 15/04/2026',
   'arsenal fc vs fulham fc': 'Arsenal vs Fulham',
   'brentford fc vs west ham united fc': 'Brentford vs West Ham',
   'brentford fc vs crystal palace fc': 'Brentford vs Crystal Palace',
