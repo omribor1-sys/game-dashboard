@@ -321,12 +321,24 @@ async function checkEmailsAndImport(options = {}) {
   const importedOrders = [];
 
   try {
-    // Search for relevant emails from the last 24 hours ONLY
-    // This is a critical rule: never re-import old emails
-    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const afterDate = `${yesterday.getFullYear()}/${String(yesterday.getMonth()+1).padStart(2,'0')}/${String(yesterday.getDate()).padStart(2,'0')}`;
+    // Determine the "after:" date using a persistent watermark stored in the settings table.
+    // This ensures each run only checks emails since the last successful run — no re-scanning old mail.
+    // ignoreRead=true (manual override) bypasses the watermark and searches all mail.
+    let afterDate = null;
+    if (!ignoreRead) {
+      const wmRow = db.prepare("SELECT value FROM settings WHERE key='gmail_last_checked_at'").get();
+      if (wmRow && wmRow.value) {
+        afterDate = wmRow.value; // e.g. "2026/05/30"
+        console.log(`[Gmail] Using watermark: after:${afterDate}`);
+      } else {
+        // First run — fall back to yesterday
+        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        afterDate = `${yesterday.getFullYear()}/${String(yesterday.getMonth()+1).padStart(2,'0')}/${String(yesterday.getDate()).padStart(2,'0')}`;
+        console.log(`[Gmail] No watermark found, using yesterday: after:${afterDate}`);
+      }
+    }
     const unreadFilter = ignoreRead ? '' : ' is:unread';
-    const dateFilter = ignoreRead ? '' : ` after:${afterDate}`; // only 24h, unless ignoreRead override
+    const dateFilter = (ignoreRead || !afterDate) ? '' : ` after:${afterDate}`;
     const queries = [
       `from:stubhub subject:"You sold your ticket"${unreadFilter}${dateFilter}`,
       `from:footballticketnet${unreadFilter}${dateFilter}`,
@@ -413,6 +425,15 @@ async function checkEmailsAndImport(options = {}) {
     }
 
     console.log(`[Gmail] Done: checked=${stats.checked}, imported=${stats.imported}, skipped=${stats.skipped}`);
+
+    // Update watermark to today so the next run only checks emails after today
+    if (!ignoreRead) {
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`;
+      db.prepare("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('gmail_last_checked_at', ?, CURRENT_TIMESTAMP)").run(todayStr);
+      console.log(`[Gmail] Watermark updated to ${todayStr}`);
+    }
+
     return { stats, importedOrders };
   } catch (e) {
     console.error('[Gmail] Fatal error:', e.message);

@@ -95,6 +95,19 @@ db.exec(`
     new_value TEXT,
     note TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
+
+// Seed default watermark on first deploy (set to today so only future emails are checked)
+try {
+  const _today = new Date();
+  const _ds = `${_today.getFullYear()}/${String(_today.getMonth()+1).padStart(2,'0')}/${String(_today.getDate()).padStart(2,'0')}`;
+  db.exec(`INSERT OR IGNORE INTO settings (key, value) VALUES ('gmail_last_checked_at', '${_ds}')`);
+} catch (_) {}
 
 module.exports = db;
