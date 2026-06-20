@@ -10,6 +10,7 @@ import AddInventory from './pages/AddInventory';
 import BulkImport from './pages/BulkImport';
 import Login from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
+import SeasonFixtures from './pages/SeasonFixtures';
 
 // ── Protected route wrapper ──────────────────────────────────────────────────
 
@@ -76,6 +77,14 @@ function Sidebar({ open, onClose }) {
               <line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/>
             </svg>
             Orders
+          </NavLink>
+
+          {/* ── Season ────────────────────────────── */}
+          <div className="sidebar-section-label" style={{ marginTop: 8 }}>Season</div>
+
+          <NavLink to="/fixtures" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            לוח עונה
           </NavLink>
         </div>
 
@@ -150,6 +159,7 @@ function AppShell() {
                 <Route path="/inventory/add" element={<AddInventory />} />
                 <Route path="/inventory/bulk-import" element={<BulkImport />} />
                 <Route path="/orders" element={<Orders />} />
+                <Route path="/fixtures" element={<SeasonFixtures />} />
               </Routes>
             </main>
           </div>
