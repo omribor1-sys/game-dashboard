@@ -27,6 +27,7 @@ app.use('/api/games', require('./routes/games'));
 const { inventoryRouter, ordersRouter } = require('./routes/inventory');
 app.use('/api/inventory', inventoryRouter);
 app.use('/api/orders',    ordersRouter);
+app.use('/api/fixtures', require('./routes/fixtures'));
 
 // ── Admin / manual trigger endpoints ─────────────────────────────────────────
 app.post('/api/admin/check-emails', async (req, res) => {
