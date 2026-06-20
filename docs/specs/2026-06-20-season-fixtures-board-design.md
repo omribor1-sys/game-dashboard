@@ -290,16 +290,14 @@ tab is reflected in the URL (`/fixtures?competition=PL`) so it survives refresh 
 
 Tabs (order): **אנגלית ⭐** · ספרדית · איטלקית · צ'מפיונס · הולנדית · גרמנית · צרפתית.
 
-**Small country-flag icons (decorative):** show a small flag next to each tab label —
-🏴󠁧󠁢󠁥󠁮󠁧󠁿 England (PL), 🇪🇸 Spain (PD), 🇮🇹 Italy (SA), 🇪🇺/UEFA (CL), 🇳🇱 Netherlands (DED),
-🇩🇪 Germany (BL1), 🇫🇷 France (FL1). **Guardrail (Omri's request — only if it doesn't hurt the
-interface):** flags are *decoration, not navigation* — keep them ~14–16px, to the left of the
-text label, never replacing it; the tab must read clearly without the flag. If on any device the
-flags add clutter, misalign, or render inconsistently (emoji flags vary by OS, and the England
-sub-flag emoji isn't universally supported), **drop them** — text labels alone are the baseline
-and must always work. Prefer a tiny inline SVG flag set over OS emoji if consistency matters.
-This same "small, subtle, never at the cost of clarity" rule applies anywhere else a flag/crest
-is added decoratively (e.g. a country flag on a fixture's stadium location).
+**Optional small flag per tab (decorative):** a small country/competition flag may sit left of
+each tab label — England (PL), Spain (PD), Italy (SA), UEFA (CL), Netherlands (DED), Germany
+(BL1), France (FL1). This is optional polish; the **primary** decorative flag in the design is the
+**country flag on each fixture's stadium location** (§8.5), matching the reference image. Same
+guardrail everywhere: flags are *decoration, not navigation* — ~14–16px, never replacing text,
+and **dropped** if they clutter or render inconsistently (emoji flags vary by OS). Prefer a tiny
+inline SVG flag set over OS emoji if consistency matters. Text labels alone are the baseline and
+must always work.
 
 ### 8.1 Page header
 - Title: **"לוח עונה"** + subtitle = active competition name + season (e.g. "Premier League
@@ -334,15 +332,28 @@ a view is shareable/bookmarkable and survives refresh.
   ("מחזור 1 · 21–23/8"). Reuse the accordion pattern (`GameAccordion`) if collapsing is wanted.
 
 ### 8.5 Fixture card anatomy (shared by both views)
+
+**Visual reference:** the Football Ticket Net "Upcoming Football Events" list — a clean row with
+**date/time on the left**, then **home crest `VS` away crest**, then team names, competition, and
+**stadium · city, country + a small country flag**. That row style is the target, especially for
+the matchweek/list view. Our cards add the home/away tag, change indicator, ticket strip, and
+actions.
+
 ```
-┌────────────────────────────────────────────────────────────┐
-│ שבת 21/08 · 20:00      [🔴 בית]                    ⚠️       │
-│ [crest] Arsenal   vs   Coventry City [crest]               │
-│ Emirates Stadium · מחזור 1                                  │
-│ 🎟️ כרטיסים: במכירה · 01/07 14:00     [📅 ▾]   [✎ ערוך]    │
-└────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│ שבת 21/08          [crest] Arsenal  VS  Coventry City [crest]   ⚠️    │
+│ 20:00              Premier League · מחזור 1               [🔴 בית]    │
+│                    Emirates Stadium · London 🇬🇧                       │
+│ 🎟️ כרטיסים: במכירה · 01/07 14:00            [📅 ▾]   [✎ ערוך]        │
+└──────────────────────────────────────────────────────────────────────┘
 ```
-- **Crests** large and prominent ("מוקצנים" — Omri's request): ~36–44px, both teams.
+- **Crests** — clean club badges beside each team name, like the reference. Sized to read clearly
+  and feel prominent but not oversized: **~24–28px** in the list/row view; they may scale up a
+  little in the monthly-calendar cards where there's room. Load from `teams.crest_url`. Always
+  keep a graceful fallback (team `tla` initials in a neutral chip) if a crest image fails to load.
+- **Stadium + country flag** — show the venue and city; a **small country flag (~14–16px)** after
+  the location, exactly like the reference image. Decorative, same guardrail as §8.0: it never
+  replaces text and is dropped if it renders inconsistently.
 - **Home/away tag** for tracked teams: 🔴 בית / ⚪ חוץ (use existing badge classes; home = green
   accent, away = gray). Primary team (Arsenal) gets a stronger highlight (e.g. a left accent
   border in `--green`).
