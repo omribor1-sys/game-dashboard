@@ -595,9 +595,33 @@ cron.schedule('0 9 * * 0', async () => {
 // Cost is trivial (7 throttled requests/day).
 cron.schedule('30 6 * * *', async () => {
   try {
+    const db = require('./database');
     const { syncFixtures } = require('./services/fixtures-sync');
+    const HE = { PL: 'אנגלית', PD: 'ספרדית', SA: 'איטלקית', CL: "צ'מפיונס", DED: 'הולנדית', BL1: 'גרמנית', FL1: 'צרפתית' };
+
+    // Snapshot which competitions had data BEFORE the sync, so we can detect newly-published leagues.
+    const countByComp = () => {
+      const m = {};
+      db.prepare('SELECT competition_code c, COUNT(*) n FROM fixtures GROUP BY competition_code').all().forEach(r => { m[r.c] = r.n; });
+      return m;
+    };
+    const before = countByComp();
+
     const r = await syncFixtures();
     console.log('[cron] fixtures daily sync:', JSON.stringify(r.totals || r));
+
+    // One-time alert: a competition that had 0 fixtures now has some → football-data just published it.
+    const after = countByComp();
+    const newlyPublished = Object.keys(after).filter(c => (before[c] || 0) === 0 && after[c] > 0);
+    if (newlyPublished.length) {
+      const lines = newlyPublished.map(c => `• ${HE[c] || c}: ${after[c]} משחקים`);
+      const msg = `🗓️ לוח עונה — ליגות חדשות פורסמו ונטענו:\n${lines.join('\n')}\n\nזמין עכשיו בדשבורד: https://game-dashboard-omri.fly.dev/fixtures`;
+      try {
+        const { sendWhatsApp } = require('./services/whatsapp-notifier');
+        await sendWhatsApp(msg);
+        console.log('[cron] fixtures: notified newly-published leagues:', newlyPublished.join(', '));
+      } catch (e) { console.error('[cron] fixtures notify failed:', e.message); }
+    }
   } catch (e) {
     console.error('[cron] fixtures daily sync failed:', e.message);
   }
