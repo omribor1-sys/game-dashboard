@@ -84,7 +84,7 @@ function Sidebar({ open, onClose }) {
 
           <NavLink to="/fixtures" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-            לוח עונה
+            Season Fixtures
           </NavLink>
         </div>
 

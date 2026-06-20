@@ -101,18 +101,18 @@ export default function SeasonFixtures() {
   const clearFilters = () => setFilters({ team: '', month: '', homeAway: 'all', tracked: false });
 
   return (
-    <div className="page fixtures-page" dir="rtl">
+    <div className="page fixtures-page" dir="ltr">
       <div className="page-header">
         <div>
-          <h1 className="page-title">לוח עונה</h1>
+          <h1 className="page-title">Season Fixtures</h1>
           <p className="page-subtitle">{activeComp ? activeComp.name : 'Premier League 2026/27'}</p>
         </div>
         <div className="header-actions">
           <button className="btn btn-primary" disabled={syncing} onClick={syncNow}>
-            {syncing ? 'מסנכרן…' : 'סנכרן עכשיו'}
+            {syncing ? 'Syncing…' : 'Sync now'}
           </button>
           {meta.last_synced_at && (
-            <span className="muted">עודכן: {meta.last_synced_at.slice(0, 16).replace('T', ' ')}</span>
+            <span className="muted">Updated: {meta.last_synced_at.slice(0, 16).replace('T', ' ')}</span>
           )}
         </div>
       </div>
@@ -123,19 +123,19 @@ export default function SeasonFixtures() {
       {error && <div className="error-box">{error}</div>}
 
       {loading ? (
-        <div className="loading">טוען…</div>
+        <div className="loading">Loading…</div>
       ) : fixtures.length === 0 ? (
         <div className="fx-empty">
           <div className="fx-empty-icon">📅</div>
-          <p>אין משחקים שמתאימים לסננים</p>
-          <button className="btn btn-ghost btn-sm" onClick={clearFilters}>נקה סננים</button>
+          <p>No fixtures match the filters</p>
+          <button className="btn btn-ghost btn-sm" onClick={clearFilters}>Clear filters</button>
         </div>
       ) : (
         <div className={`fixtures-${view}`}>
           {groups.map(([key, items]) => (
             <section key={key} className="fx-group">
               <h3 className="fx-group-title">
-                {view === 'matchweek' ? `מחזור ${key}` : key}
+                {view === 'matchweek' ? `Matchweek ${key}` : key}
               </h3>
               {items.map(f => (
                 <FixtureCard

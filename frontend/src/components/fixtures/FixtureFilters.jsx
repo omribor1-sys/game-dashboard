@@ -9,9 +9,9 @@ export default function FixtureFilters({ meta, filters, onChange, view, onView }
       <select
         value={filters.team}
         onChange={e => set({ team: e.target.value, homeAway: 'all' })}
-        aria-label="בחר קבוצה"
+        aria-label="Select a team"
       >
-        <option value="">כל הקבוצות</option>
+        <option value="">All teams</option>
         {meta.teams.map(t => (
           <option key={t.api_team_id} value={t.api_team_id}>
             {(t.is_tracked ? '★ ' : '') + t.name + (t.cnt ? ` (${t.cnt})` : '')}
@@ -23,9 +23,9 @@ export default function FixtureFilters({ meta, filters, onChange, view, onView }
       <select
         value={filters.month}
         onChange={e => set({ month: e.target.value })}
-        aria-label="בחר חודש"
+        aria-label="Select month"
       >
-        <option value="">כל העונה</option>
+        <option value="">All season</option>
         {(meta.months || []).map(m => (
           <option key={m} value={m}>{m}</option>
         ))}
@@ -34,14 +34,14 @@ export default function FixtureFilters({ meta, filters, onChange, view, onView }
       {/* Home / Away segmented control */}
       <div
         className={`seg${teamSelected ? '' : ' disabled'}`}
-        title={teamSelected ? '' : 'בחר קבוצה תחילה'}
+        title={teamSelected ? '' : 'Select a team first'}
         role="group"
-        aria-label="בית / חוץ"
+        aria-label="Home / Away"
       >
         {[
-          { v: 'all', label: 'הכל' },
-          { v: 'home', label: 'בית' },
-          { v: 'away', label: 'חוץ' },
+          { v: 'all', label: 'All' },
+          { v: 'home', label: 'Home' },
+          { v: 'away', label: 'Away' },
         ].map(({ v, label }) => (
           <button
             key={v}
@@ -61,22 +61,22 @@ export default function FixtureFilters({ meta, filters, onChange, view, onView }
           checked={filters.tracked}
           onChange={e => set({ tracked: e.target.checked })}
         />
-        רק הקבוצות שלי
+        My teams only
       </label>
 
       {/* View switch */}
-      <div className="seg view-switch" role="group" aria-label="תצוגה">
+      <div className="seg view-switch" role="group" aria-label="View">
         <button
           className={view === 'calendar' ? 'on' : ''}
           onClick={() => onView('calendar')}
         >
-          לוח חודשי
+          Monthly
         </button>
         <button
           className={view === 'matchweek' ? 'on' : ''}
           onClick={() => onView('matchweek')}
         >
-          מחזור
+          Matchweek
         </button>
       </div>
 
@@ -86,7 +86,7 @@ export default function FixtureFilters({ meta, filters, onChange, view, onView }
           className="btn btn-ghost btn-sm"
           onClick={() => onChange({ team: '', month: '', homeAway: 'all', tracked: false })}
         >
-          נקה סננים
+          Clear filters
         </button>
       )}
     </div>

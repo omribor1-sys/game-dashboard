@@ -1,11 +1,11 @@
 import { useState } from 'react';
 
 const STATUSES = [
-  ['unknown', 'לא ידוע'],
-  ['not_yet', 'טרם'],
-  ['on_sale', 'במכירה'],
-  ['bought', 'נקנה'],
-  ['closed', 'נסגר'],
+  ['unknown', 'Unknown'],
+  ['not_yet', 'Not yet'],
+  ['on_sale', 'On sale'],
+  ['bought', 'Bought'],
+  ['closed', 'Closed'],
 ];
 
 // datetime-local <-> ISO helpers

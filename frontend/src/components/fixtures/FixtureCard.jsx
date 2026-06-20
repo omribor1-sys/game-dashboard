@@ -1,11 +1,11 @@
 import { googleCalendarUrl } from './calendarLinks';
 
 const TICKET_LABEL = {
-  unknown: 'לא ידוע',
-  not_yet: 'טרם',
-  on_sale: 'במכירה',
-  bought: 'נקנה',
-  closed: 'נסגר',
+  unknown: 'Unknown',
+  not_yet: 'Not yet',
+  on_sale: 'On sale',
+  bought: 'Bought',
+  closed: 'Closed',
 };
 
 const TICKET_BADGE = {
@@ -49,7 +49,7 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
     const isTickets = kind === 'tickets';
     const start = isTickets ? fx.tickets_onsale_at : fx.kickoff_utc;
     if (!start) return;
-    const title = isTickets ? `🎟️ כרטיסים: ${matchTitle}` : matchTitle;
+    const title = isTickets ? `🎟️ Tickets: ${matchTitle}` : matchTitle;
     window.open(
       googleCalendarUrl({ title, startUtc: start, details: fx.tickets_info || '', location: '' }),
       '_blank',
@@ -88,7 +88,7 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
           {/* Home/away badge for tracked teams */}
           {isTracked && (
             <span className={`badge ${homeTracked ? 'badge-green' : 'badge-gray'}`}>
-              {homeTracked ? '🔴 בית' : '⚪ חוץ'}
+              {homeTracked ? '🏠 Home' : '✈️ Away'}
             </span>
           )}
 
@@ -96,7 +96,7 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
           {fx.last_changed_at && (
             <span
               className="fc-changed"
-              title={`זז מ‑${fx.previous_kickoff_local || '—'} ל‑${fx.kickoff_local || '—'}`}
+              title={`Moved from ${fx.previous_kickoff_local || '—'} to ${fx.kickoff_local || '—'}`}
             >
               ⚠️
             </span>
@@ -106,7 +106,7 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
         {/* Competition + matchday */}
         <div className="fc-meta">
           {fx.competition_code}
-          {fx.matchday ? ` · מחזור ${fx.matchday}` : ''}
+          {fx.matchday ? ` · MW ${fx.matchday}` : ''}
           {fx.stage ? ` · ${fx.stage}` : ''}
         </div>
       </div>
@@ -121,7 +121,7 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>· {fx.tickets_onsale_local}</span>
           )}
           {fx.manually_overridden ? (
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>נערך ידנית</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>manually edited</span>
           ) : null}
         </div>
 
@@ -129,26 +129,26 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
           <button
             className="btn btn-ghost btn-sm"
             onClick={() => openCalendar('match')}
-            title="הוסף תזכורת משחק ליומן"
+            title="Add match reminder to calendar"
             disabled={!fx.kickoff_utc}
           >
-            📅 משחק
+            📅 Match
           </button>
           {fx.tickets_onsale_at && (
             <button
               className="btn btn-ghost btn-sm"
               onClick={() => openCalendar('tickets')}
-              title="הוסף תזכורת רכש כרטיסים ליומן"
+              title="Add ticket purchase reminder to calendar"
             >
-              🎟️ תזכורת
+              🎟️ Tickets
             </button>
           )}
           <button
             className="btn btn-ghost btn-sm"
             onClick={() => onEdit(fx)}
-            title="ערוך משחק"
+            title="Edit fixture"
           >
-            ✎ ערוך
+            ✎ Edit
           </button>
         </div>
       </div>
