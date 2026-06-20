@@ -206,6 +206,27 @@ try { db.exec("ALTER TABLE orders ADD COLUMN order_number TEXT"); } catch (_) {}
 try { db.exec("ALTER TABLE orders ADD COLUMN sales_channel TEXT"); } catch (_) {}
 ```
 
+## Season Fixtures Board (`/fixtures`)
+Visual board for the football season — league tabs (PL default + La Liga, Serie A, Champions
+League, Eredivisie, Bundesliga, Ligue 1), monthly calendar + matchweek toggle, team crests,
+combinable filters (team × month × home/away), reschedule detection, per-fixture ticket-purchase
+info (manual + future scanner), add-to-calendar.
+
+- **Tables:** `seasons` (7 competitions), `teams` (all teams + is_tracked/is_primary flags),
+  `fixtures` (by stable `external_id` for de-dup + change detection). `settings` table also holds
+  the Gmail watermark.
+- **Data source:** football-data.org. Secret: `FOOTBALL_DATA_API_KEY` (set on Fly). Client honors
+  the 10 req/min rate limit (429 → Retry-After; 7s spacing between competitions).
+- **Sync:** `backend/services/fixtures-sync.js` `syncFixtures({competition_code?})`. Daily cron
+  06:30 UTC (`server.js`). Manual: `POST /api/fixtures/sync` (body `{competition_code}` for one
+  league, empty for all). Or SSH: `node -e "require('/app/backend/services/fixtures-sync').syncFixtures().then(r=>console.log(JSON.stringify(r.totals)))"`.
+- **Endpoints:** `GET /api/fixtures/competitions` (tabs), `GET /api/fixtures?competition=PL&month=&team=&homeAway=&tracked=` (list+filters), `GET /api/fixtures/meta?competition=`, `POST /api/fixtures/sync`, `PUT /api/fixtures/:id` (manual edit — sets manually_overridden so sync won't clobber), `GET/POST /api/fixtures/teams`.
+- **⚠️ 2026/27 data availability (as of launch 2026-06-20):** football-data free tier had only SA
+  (380), DED (306), FL1 (306) loaded. PL/PD/CL/BL1 returned 0/404 (season not yet ingested — PL
+  fixtures released 2026-06-18). The daily cron auto-fills them once football-data loads 2026/27.
+  Tracked English teams have no crest until PL syncs.
+- **Frontend:** `frontend/src/pages/SeasonFixtures.jsx` + `frontend/src/components/fixtures/*`.
+
 ## Excel bulk import format
 - Sheet name: `Tickets`
 - Columns: `MEMBER NUMBER` → member_number, `SEAT` → seat, `CAT` → category, `PRICE IN EUR` → buy_price, `NOTE` → notes

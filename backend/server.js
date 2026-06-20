@@ -589,15 +589,17 @@ cron.schedule('0 9 * * 0', async () => {
   }
 });
 
-// Weekly fixtures sync — Mondays 06:30 UTC (all 7 competitions). Reschedules get ≥5wk notice,
-// so weekly is enough to never miss a move with time to act.
-cron.schedule('30 6 * * 1', async () => {
+// Daily fixtures sync — 06:30 UTC (all 7 competitions). Daily (not weekly) so: (1) competitions
+// football-data hasn't ingested for 2026/27 yet (PL/PD/CL/BL1 at launch) auto-appear the moment
+// they land, and (2) date/time reschedules are detected within a day — important for a reseller.
+// Cost is trivial (7 throttled requests/day).
+cron.schedule('30 6 * * *', async () => {
   try {
     const { syncFixtures } = require('./services/fixtures-sync');
     const r = await syncFixtures();
-    console.log('[cron] fixtures weekly sync:', JSON.stringify(r.totals || r));
+    console.log('[cron] fixtures daily sync:', JSON.stringify(r.totals || r));
   } catch (e) {
-    console.error('[cron] fixtures weekly sync failed:', e.message);
+    console.error('[cron] fixtures daily sync failed:', e.message);
   }
 });
 
