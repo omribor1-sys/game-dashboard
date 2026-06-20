@@ -2,7 +2,7 @@ const FLAG = { PL: '🏴', PD: '🇪🇸', SA: '🇮🇹', CL: '🇪🇺', DED: 
 
 export default function LeagueTabs({ competitions, active, onSelect }) {
   return (
-    <div className="league-tabs" role="tablist" aria-label="ליגות">
+    <div className="league-tabs" role="tablist" aria-label="Leagues">
       {competitions.map(c => (
         <button
           key={c.competition_code}
@@ -16,7 +16,7 @@ export default function LeagueTabs({ competitions, active, onSelect }) {
           onClick={() => onSelect(c.competition_code)}
         >
           <span className="flag" aria-hidden="true">{FLAG[c.competition_code] || ''}</span>
-          <span className="label">{c.hebrew_label}</span>
+          <span className="label">{c.label}</span>
           {c.fixture_count > 0 && (
             <span style={{ fontSize: 10, opacity: 0.65 }}>({c.fixture_count})</span>
           )}

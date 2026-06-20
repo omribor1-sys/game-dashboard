@@ -61,7 +61,7 @@ export default function FixtureEditModal({ fixture, onClose, onSaved }) {
         }),
       });
       const data = await res.json();
-      if (!res.ok || data.error) throw new Error(data.error || `שגיאה ${res.status}`);
+      if (!res.ok || data.error) throw new Error(data.error || `Error ${res.status}`);
       onSaved(data);
     } catch (e) {
       setErr(e.message);
@@ -73,10 +73,10 @@ export default function FixtureEditModal({ fixture, onClose, onSaved }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box" onClick={e => e.stopPropagation()}>
-        <h3>עריכת משחק — {fixture.home_team} vs {fixture.away_team}</h3>
+        <h3>Edit fixture — {fixture.home_team} vs {fixture.away_team}</h3>
 
         <label>
-          שעת משחק (שעון בריטניה)
+          Kickoff (UK time)
           <input
             type="datetime-local"
             value={kickoff}
@@ -85,7 +85,7 @@ export default function FixtureEditModal({ fixture, onClose, onSaved }) {
         </label>
 
         <label>
-          סטטוס כרטיסים
+          Ticket status
           <select value={status} onChange={e => setStatus(e.target.value)}>
             {STATUSES.map(([v, l]) => (
               <option key={v} value={v}>{l}</option>
@@ -94,7 +94,7 @@ export default function FixtureEditModal({ fixture, onClose, onSaved }) {
         </label>
 
         <label>
-          תאריך יציאה למכירה
+          On-sale date
           <input
             type="datetime-local"
             value={onsale}
@@ -103,7 +103,7 @@ export default function FixtureEditModal({ fixture, onClose, onSaved }) {
         </label>
 
         <label>
-          הערות
+          Notes
           <textarea
             value={info}
             onChange={e => setInfo(e.target.value)}
@@ -115,9 +115,9 @@ export default function FixtureEditModal({ fixture, onClose, onSaved }) {
         {err && <div className="error-box">{err}</div>}
 
         <div className="modal-footer">
-          <button className="btn btn-ghost" onClick={onClose}>ביטול</button>
+          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" disabled={saving} onClick={save}>
-            {saving ? 'שומר…' : 'שמור'}
+            {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
       </div>

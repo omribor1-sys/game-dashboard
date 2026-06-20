@@ -1,7 +1,6 @@
 /* ── Season Fixtures Board — fixtures.css ───────────────────────────────────
    Uses ONLY CSS variables from index.css. No hardcoded hex.
-   RTL-first (page uses dir="rtl"). Responsive single-column ≤640px.
-   Task 14: polished to design bar — tabs, cards, responsive, RTL.
+   LTR layout (page uses dir="ltr"). Responsive single-column ≤640px.
    ─────────────────────────────────────────────────────────────────────────── */
 
 /* Loading state */
@@ -14,11 +13,11 @@
 
 /* ── Page shell ─────────────────────────────────────────────────────────── */
 .fixtures-page {
-  direction: rtl;
+  direction: ltr;
 }
 
 .fixtures-page .page-title {
-  direction: rtl;
+  direction: ltr;
 }
 
 .fixtures-page .header-actions {
@@ -41,7 +40,7 @@
   margin-bottom: 16px;
   padding-bottom: 12px;
   border-bottom: 2px solid var(--border);
-  direction: rtl;
+  direction: ltr;
 }
 
 .league-tab {
@@ -103,7 +102,7 @@
   flex-wrap: wrap;
   padding: 12px 0;
   margin-bottom: 16px;
-  direction: rtl;
+  direction: ltr;
 }
 
 .fixture-filters select {
@@ -225,7 +224,7 @@
   box-shadow: var(--shadow);
   margin-bottom: 6px;
   transition: box-shadow 0.15s, border-color 0.15s;
-  direction: rtl;
+  direction: ltr;
 }
 
 .fixture-card:hover {
@@ -235,12 +234,12 @@
 
 /* Tracked fixtures get a subtle left accent */
 .fixture-card.tracked {
-  border-right: 3px solid var(--green);
+  border-left: 3px solid var(--green);
 }
 
 /* Primary team (Arsenal) gets a stronger accent */
 .fixture-card.primary-home {
-  border-right: 3px solid var(--green);
+  border-left: 3px solid var(--green);
   background: #fafffe;
 }
 
@@ -432,7 +431,7 @@
   padding: 28px;
   max-width: 480px;
   width: 100%;
-  direction: rtl;
+  direction: ltr;
   max-height: 90vh;
   overflow-y: auto;
 }

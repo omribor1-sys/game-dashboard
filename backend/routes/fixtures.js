@@ -29,12 +29,12 @@ function defaultCompetition() {
 
 // GET /api/fixtures/competitions  → league tabs
 router.get('/competitions', (req, res) => {
-  const HEBREW = { PL:'אנגלית', PD:'ספרדית', SA:'איטלקית', CL:"צ'מפיונס", DED:'הולנדית', BL1:'גרמנית', FL1:'צרפתית' };
+  const LABELS = { PL:'Premier League', PD:'La Liga', SA:'Serie A', CL:'Champions League', DED:'Eredivisie', BL1:'Bundesliga', FL1:'Ligue 1' };
   const rows = db.prepare('SELECT * FROM seasons WHERE active=1 ORDER BY sort_order').all();
   const out = rows.map(s => ({
     competition_code: s.competition_code,
     name: s.name,
-    hebrew_label: HEBREW[s.competition_code] || s.competition_code,
+    label: LABELS[s.competition_code] || s.competition_code,
     is_default: s.is_default,
     sort_order: s.sort_order,
     fixture_count: db.prepare('SELECT COUNT(*) c FROM fixtures WHERE competition_code=?').get(s.competition_code).c,
