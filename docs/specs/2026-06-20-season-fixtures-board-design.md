@@ -284,12 +284,22 @@ CSS variables and classes (`.card`, `.btn`, `.badge*`, `ModalShell`) — **no ha
 A horizontal tab bar above everything, one tab per competition from `GET /api/competitions`,
 in `sort_order`. **Premier League is the default and is emphasized** — it is selected on first
 load and styled more prominently than the others (e.g. it sits first, slightly larger, with the
-active accent; the others are calmer secondary tabs). Optionally show a small competition crest /
-flag per tab. Switching a tab reloads fixtures + meta for that `competition_code` and resets the
-filter bar (team list is competition-specific). The active tab is reflected in the URL
-(`/fixtures?competition=PL`) so it survives refresh and is bookmarkable.
+active accent; the others are calmer secondary tabs). Switching a tab reloads fixtures + meta for
+that `competition_code` and resets the filter bar (team list is competition-specific). The active
+tab is reflected in the URL (`/fixtures?competition=PL`) so it survives refresh and is bookmarkable.
 
 Tabs (order): **אנגלית ⭐** · ספרדית · איטלקית · צ'מפיונס · הולנדית · גרמנית · צרפתית.
+
+**Small country-flag icons (decorative):** show a small flag next to each tab label —
+🏴󠁧󠁢󠁥󠁮󠁧󠁿 England (PL), 🇪🇸 Spain (PD), 🇮🇹 Italy (SA), 🇪🇺/UEFA (CL), 🇳🇱 Netherlands (DED),
+🇩🇪 Germany (BL1), 🇫🇷 France (FL1). **Guardrail (Omri's request — only if it doesn't hurt the
+interface):** flags are *decoration, not navigation* — keep them ~14–16px, to the left of the
+text label, never replacing it; the tab must read clearly without the flag. If on any device the
+flags add clutter, misalign, or render inconsistently (emoji flags vary by OS, and the England
+sub-flag emoji isn't universally supported), **drop them** — text labels alone are the baseline
+and must always work. Prefer a tiny inline SVG flag set over OS emoji if consistency matters.
+This same "small, subtle, never at the cost of clarity" rule applies anywhere else a flag/crest
+is added decoratively (e.g. a country flag on a fixture's stadium location).
 
 ### 8.1 Page header
 - Title: **"לוח עונה"** + subtitle = active competition name + season (e.g. "Premier League
