@@ -101,6 +101,60 @@ db.exec(`
     value TEXT,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS seasons (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    competition_code TEXT NOT NULL UNIQUE,
+    source_season TEXT NOT NULL,
+    start_date TEXT,
+    end_date TEXT,
+    is_default INTEGER DEFAULT 0,
+    sort_order INTEGER DEFAULT 0,
+    active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS teams (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    api_team_id INTEGER UNIQUE,
+    name TEXT NOT NULL,
+    full_name TEXT,
+    tla TEXT,
+    crest_url TEXT,
+    is_tracked INTEGER DEFAULT 0,
+    is_primary INTEGER DEFAULT 0,
+    active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS fixtures (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    external_id INTEGER UNIQUE NOT NULL,
+    season_id INTEGER REFERENCES seasons(id),
+    competition_code TEXT DEFAULT 'PL',
+    matchday INTEGER,
+    stage TEXT,
+    home_team_id INTEGER,
+    away_team_id INTEGER,
+    home_team TEXT,
+    away_team TEXT,
+    kickoff_utc TEXT,
+    status TEXT,
+    is_tracked INTEGER DEFAULT 0,
+    previous_kickoff_utc TEXT,
+    last_changed_at DATETIME,
+    tickets_onsale_at TEXT,
+    tickets_status TEXT DEFAULT 'unknown',
+    tickets_info TEXT,
+    tickets_source TEXT,
+    manually_overridden INTEGER DEFAULT 0,
+    last_synced_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE INDEX IF NOT EXISTS idx_fixtures_season ON fixtures(season_id);
+  CREATE INDEX IF NOT EXISTS idx_fixtures_kickoff ON fixtures(kickoff_utc);
+  CREATE INDEX IF NOT EXISTS idx_fixtures_competition ON fixtures(competition_code);
 `);
 
 // Seed default watermark on first deploy (set to today so only future emails are checked)
@@ -109,5 +163,42 @@ try {
   const _ds = `${_today.getFullYear()}/${String(_today.getMonth()+1).padStart(2,'0')}/${String(_today.getDate()).padStart(2,'0')}`;
   db.exec(`INSERT OR IGNORE INTO settings (key, value) VALUES ('gmail_last_checked_at', '${_ds}')`);
 } catch (_) {}
+
+// Seed competitions (league tabs). INSERT OR IGNORE keeps it idempotent.
+const COMPETITIONS = [
+  ['Premier League 2026/27', 'PL',  '2026', '2026-08-21', '2027-05-30', 1, 0],
+  ['La Liga 2026/27',        'PD',  '2026', null, null, 0, 1],
+  ['Serie A 2026/27',        'SA',  '2026', null, null, 0, 2],
+  ['Champions League 2026/27','CL', '2026', null, null, 0, 3],
+  ['Eredivisie 2026/27',     'DED', '2026', null, null, 0, 4],
+  ['Bundesliga 2026/27',     'BL1', '2026', null, null, 0, 5],
+  ['Ligue 1 2026/27',        'FL1', '2026', null, null, 0, 6],
+];
+const _seedSeason = db.prepare(
+  `INSERT OR IGNORE INTO seasons (name, competition_code, source_season, start_date, end_date, is_default, sort_order)
+   VALUES (?, ?, ?, ?, ?, ?, ?)`
+);
+for (const c of COMPETITIONS) { try { _seedSeason.run(...c); } catch (_) {} }
+
+// Tracked teams Omri works with — football-data team ids are stable.
+// First sync fills crest_url/full_name; here we ensure the row exists with the tracking flag.
+const TRACKED_TEAMS = [
+  [57,  'Arsenal',          1], // [api_team_id, display name, is_primary]
+  [61,  'Chelsea',          0],
+  [67,  'Newcastle United', 0],
+  [64,  'Liverpool',        0],
+  [65,  'Manchester City',  0],
+  [66,  'Manchester United',0],
+  [63,  'Fulham',           0],
+  [402, 'Brentford',        0],
+  [354, 'Crystal Palace',   0],
+  [62,  'Everton',          0],
+];
+const _seedTeam = db.prepare(
+  `INSERT INTO teams (api_team_id, name, is_tracked, is_primary)
+   VALUES (?, ?, 1, ?)
+   ON CONFLICT(api_team_id) DO UPDATE SET is_tracked=1, is_primary=excluded.is_primary`
+);
+for (const t of TRACKED_TEAMS) { try { _seedTeam.run(t[0], t[1], t[2]); } catch (_) {} }
 
 module.exports = db;
