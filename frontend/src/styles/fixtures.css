@@ -1,7 +1,16 @@
 /* ── Season Fixtures Board — fixtures.css ───────────────────────────────────
    Uses ONLY CSS variables from index.css. No hardcoded hex.
    RTL-first (page uses dir="rtl"). Responsive single-column ≤640px.
+   Task 14: polished to design bar — tabs, cards, responsive, RTL.
    ─────────────────────────────────────────────────────────────────────────── */
+
+/* Loading state */
+.loading {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
 
 /* ── Page shell ─────────────────────────────────────────────────────────── */
 .fixtures-page {
