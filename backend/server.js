@@ -589,6 +589,18 @@ cron.schedule('0 9 * * 0', async () => {
   }
 });
 
+// Weekly fixtures sync — Mondays 06:30 UTC (all 7 competitions). Reschedules get ≥5wk notice,
+// so weekly is enough to never miss a move with time to act.
+cron.schedule('30 6 * * 1', async () => {
+  try {
+    const { syncFixtures } = require('./services/fixtures-sync');
+    const r = await syncFixtures();
+    console.log('[cron] fixtures weekly sync:', JSON.stringify(r.totals || r));
+  } catch (e) {
+    console.error('[cron] fixtures weekly sync failed:', e.message);
+  }
+});
+
 // ── Serve frontend ────────────────────────────────────────────────────────────
 const frontendDist = path.join(__dirname, '../frontend/dist');
 if (fs.existsSync(frontendDist)) {
