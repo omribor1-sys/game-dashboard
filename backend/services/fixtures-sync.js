@@ -1,8 +1,11 @@
 'use strict';
 
 const db = require('../database');
-const { hasApiKey, fetchMatches } = require('./football-data-client');
+const { hasApiKey, fetchMatches, sleep } = require('./football-data-client');
 const { kickoffChanged } = require('../utils/fixtures-format');
+
+// Free tier = 10 req/min. Space competition fetches ~7s apart to stay safely under it.
+const INTER_COMPETITION_DELAY_MS = 7000;
 
 // ── prepared statements ──────────────────────────────────────────────────────
 const getSeasons = (code) => code
@@ -58,7 +61,9 @@ async function syncFixtures(options = {}) {
   const seasons = getSeasons(options.competition_code);
   const summary = { perCompetition: [], totals: { teams: 0, inserted: 0, updated: 0, changed: 0 }, changed: [] };
 
-  for (const season of seasons) {
+  for (let i = 0; i < seasons.length; i++) {
+    const season = seasons[i];
+    if (i > 0) await sleep(INTER_COMPETITION_DELAY_MS); // throttle between competitions
     const result = { code: season.competition_code, inserted: 0, updated: 0, changed: 0, error: null };
     try {
       const matches = await fetchMatches(season.competition_code, season.source_season);
