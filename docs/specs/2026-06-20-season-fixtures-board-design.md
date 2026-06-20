@@ -15,7 +15,9 @@ the page meets a high visual/UX bar. Backend follows the existing project conven
 Give Omri a single, highly visual board to plan the football season ahead for his ticket-resale
 business. He must be able to, at a glance:
 
-- See every fixture of the 2026/27 Premier League season (21 Aug 2026 → 30 May 2027).
+- See every fixture of the 2026/27 Premier League season (21 Aug 2026 → 30 May 2027) — with the
+  **Premier League as the default, emphasized view** — and switch via tabs to six more
+  competitions (La Liga, Serie A, Champions League, Eredivisie, Bundesliga, Ligue 1).
 - Instantly spot the teams he works with (Arsenal primary; Chelsea, Newcastle, Liverpool, Man
   City, Man United, Fulham, Brentford, Crystal Palace, Everton, and more he can add).
 - Distinguish **home vs away** for his teams (he mostly buys tickets for home games).
@@ -40,16 +42,20 @@ an automatic ticket-onsale scanner, and more leagues. Those are explicitly **out
 ### In scope (Phase 1)
 - New backend: `seasons`, `teams`, `fixtures` tables; a sync service against football-data.org;
   REST endpoints; a weekly cron + manual sync.
+- **Multiple competitions via league tabs** (7): Premier League (default + emphasized), La Liga,
+  Serie A, Champions League, Eredivisie, Bundesliga, Ligue 1. One fetcher parameterized by
+  `competition_code`; one tab per competition on the page.
 - Minimal change detection: store the previous kickoff and flag a fixture that moved.
 - Per-fixture ticket-purchase fields (manual entry now; auto-scanner later).
-- New frontend page `/fixtures`: monthly calendar (default) + matchweek list toggle, combinable
-  filters, team crests, change indicators, ticket info, manual edit, calendar-add.
+- New frontend page `/fixtures`: league tabs → monthly calendar (default) + matchweek list
+  toggle, combinable filters, team crests, change indicators, ticket info, manual edit,
+  calendar-add.
 
 ### Explicitly OUT of scope (later phases — see §11)
 - Linking fixtures to existing `games`/`inventory`/`orders` (Phase 3).
 - Change alerts to WhatsApp/Telegram (Phase 2).
 - Automatic ticket-onsale scanner (Phase 3).
-- Additional leagues / competitions and a full auto-scraper (Phase 4).
+- A full auto-scraper and competitions beyond the 7 free ones above (Phase 4).
 
 ---
 
@@ -66,8 +72,26 @@ Store the key as a Fly secret: `FOOTBALL_DATA_API_KEY`. The backend reads it fro
 `process.env.FOOTBALL_DATA_API_KEY`. If the env var is missing, the sync service logs a clear
 warning and no-ops (it must never crash the app).
 
-**Rate limit:** 10 requests/min on the free tier. Our sync is one request per competition, so we
-are far under the limit.
+**Rate limit:** 10 requests/min on the free tier. Our sync is one request per competition. With
+7 competitions that's 7 requests per sync run — comfortably under the limit (no throttling code
+needed, but loop sequentially, not in parallel, to be safe).
+
+**Competitions (league tabs), by football-data `competition_code`:**
+
+| Tab (Hebrew) | Name | Code | Default season key |
+|---|---|---|---|
+| אנגלית ⭐ | Premier League | `PL` | `2026` |
+| ספרדית | La Liga (Primera Division) | `PD` | `2026` |
+| איטלקית | Serie A | `SA` | `2026` |
+| צ'מפיונס | UEFA Champions League | `CL` | `2026` |
+| הולנדית | Eredivisie | `DED` | `2026` |
+| גרמנית | Bundesliga | `BL1` | `2026` |
+| צרפתית | Ligue 1 | `FL1` | `2026` |
+
+Premier League is the default tab and is visually emphasized. **Champions League note:** CL has a
+group/league phase + knockouts; `matchday` semantics differ from a domestic league, and matches
+carry a `stage` field. The matchweek view for CL groups by `stage`+`matchday`; the calendar view
+works unchanged (it groups by date). Treat `matchday` as opaque per competition.
 
 **Primary endpoint (all PL 2026/27 fixtures):**
 ```
@@ -106,11 +130,15 @@ CREATE TABLE IF NOT EXISTS seasons (
   source_season TEXT NOT NULL,        -- "2026"  (football-data season key)
   start_date TEXT,                    -- "2026-08-21"
   end_date TEXT,                      -- "2027-05-30"
+  is_default INTEGER DEFAULT 0,       -- 1 = the tab shown first (Premier League)
+  sort_order INTEGER DEFAULT 0,       -- tab order on the page
   active INTEGER DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
-Seed one row on first deploy: Premier League 2026/27, `PL`, `2026`.
+Seed seven rows on first deploy (one per competition in the §3 table). Premier League gets
+`is_default=1, sort_order=0` and is listed first; the rest follow in the table's order. A `stage`
+column is **not** needed on `seasons` (stage lives per-fixture for CL).
 
 ### 4.2 `teams`
 Holds ALL teams seen in the season (so opponents get crests too), with tracking flags.
@@ -139,7 +167,8 @@ CREATE TABLE IF NOT EXISTS fixtures (
   external_id INTEGER UNIQUE NOT NULL,    -- football-data match id (THE key for de-dup + change detection)
   season_id INTEGER REFERENCES seasons(id),
   competition_code TEXT DEFAULT 'PL',
-  matchday INTEGER,                        -- 1..38
+  matchday INTEGER,                        -- 1..38 (opaque per competition)
+  stage TEXT,                              -- CL/cups: GROUP_STAGE, LEAGUE_STAGE, LAST_16, etc. NULL for leagues
   home_team_id INTEGER,                    -- api_team_id
   away_team_id INTEGER,                    -- api_team_id
   home_team TEXT,                          -- canonical name snapshot
@@ -175,14 +204,24 @@ CREATE INDEX IF NOT EXISTS idx_fixtures_kickoff ON fixtures(kickoff_utc);
 
 New file: `backend/services/fixtures-sync.js`. Exports `syncFixtures(options)`.
 
+`syncFixtures(options)` accepts an optional `{ competition_code }`. If given, sync only that
+competition (used by the per-tab "sync now" button). If omitted, **loop over all active seasons**
+(all 7 competitions), sequentially, aggregating one summary. The weekly cron calls it with no
+argument (full sync).
+
 ### Algorithm
 1. If `!process.env.FOOTBALL_DATA_API_KEY` → log warning, return `{ skipped: true, reason: 'no api key' }`. Never throw.
-2. Load the active season (`competition_code`, `source_season`).
-3. `GET /v4/competitions/{code}/matches?season={source_season}` with the auth header.
+2. Resolve the season list: the one matching `options.competition_code`, or all active seasons.
+3. **For each season** (sequentially): `GET /v4/competitions/{code}/matches?season={source_season}`
+   with the auth header. On a per-competition error (e.g. 403/429), log it, record it in the
+   summary, and continue to the next competition — one bad league must not abort the others.
 4. **Upsert teams first**: for each unique team in the response, upsert into `teams` by
    `api_team_id` (insert if new with `is_tracked=0`; always refresh `crest_url`, `full_name`,
    `tla`, and `name` from `shortName`). Do NOT clobber `is_tracked`/`is_primary` on existing rows.
-5. **Upsert fixtures** by `external_id`:
+   Teams are shared across competitions (e.g. Arsenal in both PL and CL) — keyed by `api_team_id`,
+   so tracking flags apply everywhere automatically.
+5. **Upsert fixtures** by `external_id` (set `competition_code`, `season_id`, `stage` from the
+   response):
    - Compute `is_tracked` = (home or away `api_team_id` has `teams.is_tracked=1`).
    - **New fixture** → insert all fields; `tickets_status='unknown'`.
    - **Existing fixture**:
@@ -209,9 +248,10 @@ existing routers are mounted). All endpoints session-protected like the rest of 
 
 | Method & path | Purpose | Notes |
 |---|---|---|
-| `GET /api/fixtures` | List fixtures with filters | Query params: `month=YYYY-MM`, `matchday`, `team=<api_team_id>`, `homeAway=home|away|all`, `tracked=1`, `season_id`. Returns each fixture **plus** `kickoff_local` (Europe/London, formatted `"Sat, 21/08/2026, 20:00"` to match the project's datetime style) and the home/away `crest_url`, `tla` joined from `teams`. |
-| `GET /api/fixtures/meta` | Filter metadata | Returns `{ teams: [...with crest + fixture counts], months: [...], matchdays: [...], last_synced_at }` for building filter controls. Counts power the "Arsenal (38)" labels. |
-| `POST /api/fixtures/sync` | Manual "sync now" | Calls `syncFixtures()`, returns the summary. |
+| `GET /api/competitions` | League tabs | Returns the active competitions from `seasons`: `[{ competition_code, name, hebrew_label, is_default, sort_order, last_synced_at, fixture_count }]`. Drives the tab bar. |
+| `GET /api/fixtures` | List fixtures with filters | Query params: `competition=PL` (**required**, defaults to the `is_default` competition), `month=YYYY-MM`, `matchday`, `team=<api_team_id>`, `homeAway=home\|away\|all`, `tracked=1`, `season_id`. Returns each fixture **plus** `kickoff_local` (Europe/London, formatted `"Sat, 21/08/2026, 20:00"` to match the project's datetime style) and the home/away `crest_url`, `tla` joined from `teams`. |
+| `GET /api/fixtures/meta` | Filter metadata | Param `competition=PL`. Returns `{ teams: [...with crest + fixture counts], months: [...], matchdays: [...], last_synced_at }` **scoped to that competition** (so "Arsenal (38)" counts and the team list reflect the active tab). |
+| `POST /api/fixtures/sync` | Manual "sync now" | Optional body `{ competition_code }` → sync just that league (current tab); omit → sync all 7. Returns the summary. |
 | `PUT /api/fixtures/:id` | Manual edit of one fixture | Editable: `kickoff_utc` (or local→UTC), `tickets_onsale_at`, `tickets_status`, `tickets_info`. Sets `manually_overridden=1`, `tickets_source='manual'`. Logs to `audit_log` (existing table) like other manual changes. |
 | `GET /api/fixtures/teams` | List teams + flags | For a "manage tracked teams" UI. |
 | `POST /api/fixtures/teams` | Update tracking flags | Body: `{ api_team_id, is_tracked, is_primary }`. After change, recompute `is_tracked` on affected fixtures. |
@@ -240,10 +280,23 @@ New page `frontend/src/pages/SeasonFixtures.jsx`, route `/fixtures`, sidebar ite
 **"Season"** (or existing "Analytics") section. Wrap in `<div className="page">`. Reuse existing
 CSS variables and classes (`.card`, `.btn`, `.badge*`, `ModalShell`) — **no hardcoded hex**.
 
+### 8.0 League tabs (top of page)
+A horizontal tab bar above everything, one tab per competition from `GET /api/competitions`,
+in `sort_order`. **Premier League is the default and is emphasized** — it is selected on first
+load and styled more prominently than the others (e.g. it sits first, slightly larger, with the
+active accent; the others are calmer secondary tabs). Optionally show a small competition crest /
+flag per tab. Switching a tab reloads fixtures + meta for that `competition_code` and resets the
+filter bar (team list is competition-specific). The active tab is reflected in the URL
+(`/fixtures?competition=PL`) so it survives refresh and is bookmarkable.
+
+Tabs (order): **אנגלית ⭐** · ספרדית · איטלקית · צ'מפיונס · הולנדית · גרמנית · צרפתית.
+
 ### 8.1 Page header
-- Title: **"לוח עונה"** + subtitle "Premier League 2026/27".
-- Right side: **"סנכרן עכשיו"** button (`.btn .btn-primary`) + muted text "עודכן לאחרונה: …"
-  (from `meta.last_synced_at`). While syncing → spinner + disabled.
+- Title: **"לוח עונה"** + subtitle = active competition name + season (e.g. "Premier League
+  2026/27"), updates with the tab.
+- Right side: **"סנכרן עכשיו"** button (`.btn .btn-primary`) — syncs the **current tab's** league
+  (`POST /api/fixtures/sync` with its `competition_code`) + muted text "עודכן לאחרונה: …"
+  (per-competition `last_synced_at`). While syncing → spinner + disabled.
 
 ### 8.2 Filter bar (combinable — all filters AND together)
 A sticky row of controls beneath the header:
@@ -351,6 +404,12 @@ first sync and log any name that didn't match so the list can be corrected.)
 Arsenal (primary), Chelsea, Newcastle United, Liverpool, Manchester City, Manchester United,
 Fulham, Brentford, Crystal Palace, Everton. (Omri can add/remove later via the teams endpoint.)
 
+These are English clubs — they're tracked across **all** competitions, so they light up in the
+Champions League tab too (e.g. Arsenal's CL fixtures show as tracked automatically). The other
+league tabs (La Liga, Serie A, etc.) start with **no tracked teams** — every fixture renders as
+non-tracked until Omri flags clubs there. That's expected; the tabs are still fully usable for
+browsing, filtering, and calendar reminders.
+
 ---
 
 ## 11. Future phases (not now — recorded so the model fits them)
@@ -360,8 +419,9 @@ Fulham, Brentford, Crystal Palace, Everton. (Omri can add/remove later via the t
 - **Phase 3 — Inventory linking + onsale scanner:** join fixtures to `games`/`inventory`/`orders`
   (each card shows "you hold N tickets, €X"); an automatic scanner fills `tickets_onsale_at`/
   `tickets_status` (`tickets_source='scanner'`), respecting `manually_overridden`.
-- **Phase 4 — Multi-league + full automation:** add competitions (CL `CL`, La Liga `PD`, etc.)
-  via the same `competition_code`-parameterized fetcher; richer auto-scraping.
+- **Phase 4 — Full automation + more competitions:** the 7 league tabs already ship in Phase 1;
+  Phase 4 adds competitions beyond football-data's free set (e.g. FA Cup via a paid source or
+  scraping) and richer auto-scraping/onsale automation.
 
 ---
 
@@ -377,7 +437,9 @@ Fulham, Brentford, Crystal Palace, Everton. (Omri can add/remove later via the t
 ## 13. Acceptance criteria (Phase 1 done when…)
 
 - `seasons`, `teams`, `fixtures` tables exist; weekly cron + `POST /api/fixtures/sync` populate
-  all PL 2026/27 fixtures with crests, matchday, UK-local kickoff.
+  all 7 competitions' 2026/27 fixtures with crests, matchday/stage, UK-local kickoff.
+- `/fixtures` shows **league tabs** (Premier League default + emphasized; La Liga, Serie A,
+  Champions League, Eredivisie, Bundesliga, Ligue 1) — switching a tab reloads that league.
 - `/fixtures` shows a monthly calendar by default and a matchweek list via toggle.
 - Filters by team, month, and home/away work and combine (verified: "Arsenal + December + home").
 - Tracked teams and Arsenal are visually emphasized; home/away tags render; crests are prominent.
