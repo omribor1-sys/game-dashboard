@@ -16,6 +16,9 @@ const TICKET_BADGE = {
   closed: 'badge-gray',
 };
 
+const HOT_TIER_LABEL = { elite: 'Elite', high: 'High', notable: 'Notable' };
+const HOT_TIER_CLASS = { elite: 'hot-elite', high: 'hot-high', notable: 'hot-notable' };
+
 function Crest({ url, tla }) {
   if (url) {
     return (
@@ -36,6 +39,7 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
   const homeTracked = trackedTeamIds.has(fx.home_team_id);
   const awayTracked = trackedTeamIds.has(fx.away_team_id);
   const isTracked = homeTracked || awayTracked;
+  const isDimmed = !isTracked && !fx.is_hot;
   const isPrimaryHome = !!fx.home_primary;
 
   const matchTitle = `${fx.home_team} vs ${fx.away_team}`;
@@ -59,7 +63,7 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
 
   const cardClasses = [
     'fixture-card card',
-    isTracked ? 'tracked' : 'dim',
+    isDimmed ? 'dim' : 'tracked',
     isPrimaryHome ? 'primary-home' : '',
   ].filter(Boolean).join(' ');
 
@@ -103,6 +107,13 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
           )}
         </div>
 
+        {/* Hot game tier badge */}
+        {fx.is_hot ? (
+          <span className={`hot-badge ${HOT_TIER_CLASS[fx.hot_tier] || 'hot-notable'}`} title={fx.hot_reason || ''}>
+            🔥 {HOT_TIER_LABEL[fx.hot_tier] || 'Hot'}
+          </span>
+        ) : null}
+
         {/* Competition + matchday */}
         <div className="fc-meta">
           {fx.competition_code}
@@ -110,6 +121,11 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
           {fx.stage ? ` · ${fx.stage}` : ''}
         </div>
       </div>
+
+      {/* Hot reason line */}
+      {fx.is_hot && fx.hot_reason ? (
+        <div className="fc-hot-reason">🔥 {fx.hot_reason}</div>
+      ) : null}
 
       {/* Bottom row: ticket strip + actions */}
       <div className="fc-row-bottom">

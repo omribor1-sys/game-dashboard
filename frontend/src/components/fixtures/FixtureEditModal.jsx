@@ -8,6 +8,12 @@ const STATUSES = [
   ['closed', 'Closed'],
 ];
 
+const HOT_TIERS = [
+  ['elite', 'Elite'],
+  ['high', 'High'],
+  ['notable', 'Notable'],
+];
+
 // datetime-local <-> ISO helpers
 // Input shows local wall-clock; we store ISO UTC.
 // For simplicity: treat the datetime-local value as if it were UTC
@@ -42,6 +48,9 @@ export default function FixtureEditModal({ fixture, onClose, onSaved }) {
   const [onsale, setOnsale] = useState(isoToLocalInput(fixture.tickets_onsale_at));
   const [status, setStatus] = useState(fixture.tickets_status || 'unknown');
   const [info, setInfo] = useState(fixture.tickets_info || '');
+  const [isHot, setIsHot] = useState(!!fixture.is_hot);
+  const [hotTier, setHotTier] = useState(fixture.hot_tier || 'notable');
+  const [hotReason, setHotReason] = useState(fixture.hot_reason || '');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
 
@@ -58,6 +67,9 @@ export default function FixtureEditModal({ fixture, onClose, onSaved }) {
           tickets_onsale_at: localInputToIso(onsale),
           tickets_status: status,
           tickets_info: info,
+          is_hot: isHot ? 1 : 0,
+          hot_tier: isHot ? hotTier : null,
+          hot_reason: isHot ? hotReason : null,
         }),
       });
       const data = await res.json();
@@ -111,6 +123,41 @@ export default function FixtureEditModal({ fixture, onClose, onSaved }) {
             style={{ resize: 'vertical' }}
           />
         </label>
+
+        <label className="hot-check-label">
+          <span className="hot-check-row">
+            <input
+              type="checkbox"
+              checked={isHot}
+              onChange={e => setIsHot(e.target.checked)}
+            />
+            🔥 Hot game
+          </span>
+        </label>
+
+        {isHot && (
+          <>
+            <label>
+              Hot tier
+              <select value={hotTier} onChange={e => setHotTier(e.target.value)}>
+                {HOT_TIERS.map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Why it's hot
+              <textarea
+                value={hotReason}
+                onChange={e => setHotReason(e.target.value)}
+                rows={2}
+                placeholder="e.g. Title-deciding fixture, rivalry derby, first game back for injured star…"
+                style={{ resize: 'vertical' }}
+              />
+            </label>
+          </>
+        )}
 
         {err && <div className="error-box">{err}</div>}
 
