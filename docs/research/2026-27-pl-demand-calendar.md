@@ -53,6 +53,29 @@ Crystal Palace, Everton.
 
 ---
 
+## Schedule breaks — NO PL round (prepare ahead)
+
+These are the gaps in the 2026/27 fixture list — weekends/periods with **no Premier League games**
+(international breaks, FA Cup rounds). No sales in these windows; use them to prepare inventory for
+the round that follows. (Break reasons follow the standard PL/FIFA/FA calendar; exact dates of the
+surrounding rounds can shift with TV picks.)
+
+| No-PL window | After → before | Reason | Note |
+|---|---|---|---|
+| **~21 Sep → 9 Oct 2026** | MW5 → MW6 | October international break | ~2–3 weeks, two empty weekends. Long dry spell early-season. |
+| **~9 Nov → 20 Nov 2026** | MW10 → MW11 | November international break | Empty weekend ~14–15 Nov. |
+| **~7 Jan → 15 Jan 2027** | MW20 → MW21 | FA Cup Third Round | Empty PL weekend ~9–10 Jan. |
+| **~11 Feb → 19 Feb 2027** | MW25 → MW26 | FA Cup Fifth Round / mid-Feb | Empty weekend ~13–14 Feb (overlaps Feb half-term travel — cup, not PL). |
+| **~21 Mar → 9 Apr 2027** | MW30 → MW31 | March international break + FA Cup QF | **~3 weeks. Easter (26–29 Mar) falls entirely inside — NO PL Easter round.** Longest in-season gap. |
+
+**Midweek (congested) rounds** — extra supply, quick turnaround, often lower per-game demand:
+MW13 (Wed 2 Dec 2026), MW20 (Wed 6 Jan 2027), MW25 (Wed 10 Feb 2027), MW28 (Wed 3 Mar 2027).
+
+**Fixed anchor points:** season opener **Fri 21 Aug 2026** · Boxing Day **Sat 26 Dec 2026** ·
+festive block **26 Dec → 2 Jan** · final day (all 10 games together) **Sun 30 May 2027**.
+
+---
+
 ## The Demand Board — ranked by window
 
 Tiers: 🔴 **Elite** (chase these) · 🟠 **High** · 🟡 **Notable**. ⭐ = tracked-team home game.
