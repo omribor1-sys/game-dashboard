@@ -22,6 +22,10 @@ try { db.exec("ALTER TABLE orders ADD COLUMN row_seat TEXT"); } catch (_) {}
 try { db.exec("ALTER TABLE orders ADD COLUMN game_datetime TEXT"); } catch (_) {}
 try { db.exec("ALTER TABLE orders ADD COLUMN deleted_at DATETIME"); } catch (_) {}
 try { db.exec("ALTER TABLE games ADD COLUMN completed INTEGER DEFAULT 0"); } catch (_) {}
+// Hot Games (curated high-demand fixtures) — persist across syncs; sync never touches these.
+try { db.exec("ALTER TABLE fixtures ADD COLUMN is_hot INTEGER DEFAULT 0"); } catch (_) {}
+try { db.exec("ALTER TABLE fixtures ADD COLUMN hot_reason TEXT"); } catch (_) {}
+try { db.exec("ALTER TABLE fixtures ADD COLUMN hot_tier TEXT"); } catch (_) {}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS games (
