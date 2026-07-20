@@ -19,18 +19,29 @@ export default function SeasonFixtures() {
   const [error, setError] = useState(null);
   const [editing, setEditing] = useState(null);
 
+  const isHot = competition === 'HOT';
+
   const loadMeta = useCallback(() => {
-    Promise.all([
-      fetch('/api/fixtures/competitions', { credentials: 'include' }).then(r => r.json()),
-      fetch(`/api/fixtures/meta?competition=${competition}`, { credentials: 'include' }).then(r => r.json()),
-    ]).then(([comps, m]) => {
+    const calls = [fetch('/api/fixtures/competitions', { credentials: 'include' }).then(r => r.json())];
+    if (!isHot) {
+      calls.push(fetch(`/api/fixtures/meta?competition=${competition}`, { credentials: 'include' }).then(r => r.json()));
+    }
+    Promise.all(calls).then(([comps, m]) => {
       setCompetitions(Array.isArray(comps) ? comps : []);
       setMeta(m && m.teams ? m : { teams: [], months: [], matchdays: [], last_synced_at: null });
     }).catch(e => setError(e.message));
-  }, [competition]);
+  }, [competition, isHot]);
 
   const loadFixtures = useCallback(() => {
     setLoading(true);
+    if (isHot) {
+      fetch('/api/fixtures/hot', { credentials: 'include' })
+        .then(r => r.json())
+        .then(data => setFixtures(Array.isArray(data) ? data : []))
+        .catch(e => setError(e.message))
+        .finally(() => setLoading(false));
+      return;
+    }
     const q = new URLSearchParams({ competition });
     if (filters.team) q.set('team', filters.team);
     if (filters.month) q.set('month', filters.month);
@@ -41,7 +52,7 @@ export default function SeasonFixtures() {
       .then(data => setFixtures(Array.isArray(data) ? data : []))
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [competition, filters]);
+  }, [competition, filters, isHot]);
 
   useEffect(loadMeta, [loadMeta]);
   useEffect(loadFixtures, [loadFixtures]);
@@ -96,7 +107,7 @@ export default function SeasonFixtures() {
     return [...m.entries()].sort((a, b) => (a[0] === '—' ? 1 : b[0] === '—' ? -1 : a[0] - b[0]));
   }
 
-  const groups = view === 'calendar' ? groupByDate(fixtures) : groupByMatchday(fixtures);
+  const groups = isHot || view === 'calendar' ? groupByDate(fixtures) : groupByMatchday(fixtures);
 
   const clearFilters = () => setFilters({ team: '', month: '', homeAway: 'all', tracked: false });
 

@@ -43,6 +43,12 @@ router.get('/competitions', (req, res) => {
   res.json(out);
 });
 
+// GET /api/fixtures/hot  → HOT GAMES tab, all competitions
+router.get('/hot', (req, res) => {
+  const rows = db.prepare('SELECT * FROM fixtures WHERE is_hot=1 ORDER BY kickoff_utc').all();
+  res.json(rows.map(enrich));
+});
+
 // GET /api/fixtures/meta?competition=PL  → filter metadata scoped to a competition
 router.get('/meta', (req, res) => {
   const code = req.query.competition || defaultCompetition();
@@ -93,16 +99,21 @@ router.put('/:id', (req, res) => {
   const fx = db.prepare('SELECT * FROM fixtures WHERE id=?').get(id);
   if (!fx) return res.status(404).json({ error: 'not found' });
 
-  const { kickoff_utc, tickets_onsale_at, tickets_status, tickets_info } = req.body || {};
+  const { kickoff_utc, tickets_onsale_at, tickets_status, tickets_info, is_hot, hot_tier, hot_reason } = req.body || {};
   const next = {
     kickoff_utc: kickoff_utc ?? fx.kickoff_utc,
     tickets_onsale_at: tickets_onsale_at ?? fx.tickets_onsale_at,
     tickets_status: tickets_status ?? fx.tickets_status,
     tickets_info: tickets_info ?? fx.tickets_info,
+    is_hot: is_hot ?? fx.is_hot,
+    hot_tier: hot_tier ?? fx.hot_tier,
+    hot_reason: hot_reason ?? fx.hot_reason,
   };
   db.prepare(`UPDATE fixtures SET kickoff_utc=?, tickets_onsale_at=?, tickets_status=?, tickets_info=?,
+              is_hot=?, hot_tier=?, hot_reason=?,
               tickets_source='manual', manually_overridden=1 WHERE id=?`)
-    .run(next.kickoff_utc, next.tickets_onsale_at, next.tickets_status, next.tickets_info, id);
+    .run(next.kickoff_utc, next.tickets_onsale_at, next.tickets_status, next.tickets_info,
+         next.is_hot ? 1 : 0, next.hot_tier, next.hot_reason, id);
 
   // audit (reuse existing audit_log table)
   try {

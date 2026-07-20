@@ -3,6 +3,14 @@ const FLAG = { PL: '🏴', PD: '🇪🇸', SA: '🇮🇹', CL: '🇪🇺', DED: 
 export default function LeagueTabs({ competitions, active, onSelect }) {
   return (
     <div className="league-tabs" role="tablist" aria-label="Leagues">
+      <button
+        role="tab"
+        aria-selected={active === 'HOT'}
+        className={['league-tab', 'hot-tab', active === 'HOT' ? 'active' : ''].filter(Boolean).join(' ')}
+        onClick={() => onSelect('HOT')}
+      >
+        <span className="label">🔥 Hot Games</span>
+      </button>
       {competitions.map(c => (
         <button
           key={c.competition_code}
