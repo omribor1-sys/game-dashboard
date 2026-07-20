@@ -5,6 +5,7 @@ import LeagueTabs from '../components/fixtures/LeagueTabs';
 import FixtureFilters from '../components/fixtures/FixtureFilters';
 import FixtureCard from '../components/fixtures/FixtureCard';
 import FixtureEditModal from '../components/fixtures/FixtureEditModal';
+import KeyDatesPanel from '../components/fixtures/KeyDatesPanel';
 
 export default function SeasonFixtures() {
   const [params, setParams] = useSearchParams();
@@ -133,6 +134,7 @@ export default function SeasonFixtures() {
       </div>
 
       <LeagueTabs competitions={competitions} active={competition} onSelect={setCompetition} />
+      {isHot && <KeyDatesPanel />}
       {!isHot && (
         <FixtureFilters meta={meta} filters={filters} onChange={setFilters} view={view} onView={setView} />
       )}
