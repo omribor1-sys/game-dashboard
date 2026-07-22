@@ -210,8 +210,10 @@
 
 /* ═══ Enhancements for wider screens ═══════════════════════════════════════ */
 
-/* Tablet+: more room, larger crests/names, single-line names with ellipsis (rarely needed). */
+/* Tablet+: more room, larger crests/names, single-line names with ellipsis (rarely needed).
+   Cap the fixtures column so the centered match doesn't float in a huge empty card. */
 @media (min-width: 640px) {
+  .fixtures-calendar, .fixtures-matchweek { max-width: 840px; }
   .fixture-card { padding: 14px 18px; }
   .crest, .crest-fallback { width: 30px; height: 30px; }
   .fc-team .team-name {
@@ -220,6 +222,8 @@
     white-space: nowrap;
     text-overflow: ellipsis;
   }
+  /* Keep the two teams close to the centre time instead of spread to the card edges */
+  .fc-match { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); max-width: 560px; margin: 0 auto; }
   .fc-center { font-size: 15px; min-width: 54px; }
   .league-tabs { flex-wrap: wrap; overflow-x: visible; }
 }
