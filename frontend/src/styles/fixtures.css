@@ -159,6 +159,10 @@
   .crest, .crest-fallback { width: 28px; height: 28px; }
   .fc-side .team { font-size: 15px; white-space: nowrap; }  /* fits on one line on desktop */
   .league-tabs { flex-wrap: wrap; overflow-x: visible; }
+  /* Cluster the row groups together in the centre instead of spreading to the card edges */
+  .fc-main { justify-content: center; gap: 18px; }
+  .fc-teams { flex: 0 1 auto; }
+  .fc-foot { justify-content: center; gap: 18px; }
 }
 
 /* ═══ Phone: stack the row so team names get full width and wrap cleanly ════ */
