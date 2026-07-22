@@ -74,14 +74,14 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
       <div className="fc-head">
         <span className="fc-date">{kickoffDate}</span>
         <div className="fc-tags">
-          {fx.is_hot && (
+          {fx.is_hot ? (
             <span className={`hot-badge ${HOT_TIER_CLASS[fx.hot_tier] || 'hot-notable'}`} title={fx.hot_reason || ''}>
               🔥 {HOT_TIER_LABEL[fx.hot_tier] || 'Hot'}
             </span>
-          )}
-          {fx.last_changed_at && (
+          ) : null}
+          {fx.last_changed_at ? (
             <span className="fc-changed" title={`Moved from ${fx.previous_kickoff_local || '—'} to ${fx.kickoff_local || '—'}`}>⚠️</span>
-          )}
+          ) : null}
           <span className="fc-meta">
             {fx.competition_code}
             {fx.matchday ? ` · MW ${fx.matchday}` : ''}
@@ -94,7 +94,7 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
       <div className="fc-match">
         <div className={`fc-team home ${homeTracked ? 'is-tracked' : ''}`}>
           <span className="team-name">{fx.home_team || '—'}</span>
-          {homeTracked && <span className="ha-dot home" title="Home game">🏠</span>}
+          {homeTracked ? <span className="ha-dot home" title="Home game">🏠</span> : null}
           <Crest url={fx.home_crest} tla={fx.home_tla} />
         </div>
 
@@ -102,13 +102,13 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
 
         <div className={`fc-team away ${awayTracked ? 'is-tracked' : ''}`}>
           <Crest url={fx.away_crest} tla={fx.away_tla} />
-          {awayTracked && <span className="ha-dot away" title="Away game">✈️</span>}
+          {awayTracked ? <span className="ha-dot away" title="Away game">✈️</span> : null}
           <span className="team-name">{fx.away_team || '—'}</span>
         </div>
       </div>
 
       {/* Hot reason line */}
-      {fx.is_hot && fx.hot_reason && <div className="fc-hot-reason">🔥 {fx.hot_reason}</div>}
+      {fx.is_hot && fx.hot_reason ? <div className="fc-hot-reason">🔥 {fx.hot_reason}</div> : null}
 
       {/* Foot: ticket status + actions */}
       <div className="fc-foot">
