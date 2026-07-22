@@ -70,41 +70,46 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
 
   return (
     <div className={cardClasses}>
-      {/* Head: date on the left, tags on the right (wraps on mobile) */}
-      <div className="fc-head">
-        <span className="fc-date">{kickoffDate}</span>
+      {/* Main row: date/time | teams (inline) | badges | meta. Horizontal on desktop, wraps on mobile. */}
+      <div className="fc-main">
+        <div className="fc-when">
+          <span className="fc-date">{kickoffDate}</span>
+          {kickoffTime && <span className="fc-time">{kickoffTime}</span>}
+        </div>
+
+        <div className="fc-teams">
+          <span className="fc-side home">
+            <Crest url={fx.home_crest} tla={fx.home_tla} />
+            <span className={homeTracked ? 'team on' : 'team'}>{fx.home_team || '—'}</span>
+          </span>
+          <span className="fc-vs">VS</span>
+          <span className="fc-side away">
+            <span className={awayTracked ? 'team on' : 'team'}>{fx.away_team || '—'}</span>
+            <Crest url={fx.away_crest} tla={fx.away_tla} />
+          </span>
+        </div>
+
         <div className="fc-tags">
-          {fx.is_hot ? (
-            <span className={`hot-badge ${HOT_TIER_CLASS[fx.hot_tier] || 'hot-notable'}`} title={fx.hot_reason || ''}>
-              🔥 {HOT_TIER_LABEL[fx.hot_tier] || 'Hot'}
+          {isTracked ? (
+            <span className={`badge ${homeTracked ? 'badge-green' : 'badge-gray'}`}>
+              {homeTracked ? '🏠 Home' : '✈️ Away'}
             </span>
           ) : null}
           {fx.last_changed_at ? (
             <span className="fc-changed" title={`Moved from ${fx.previous_kickoff_local || '—'} to ${fx.kickoff_local || '—'}`}>⚠️</span>
           ) : null}
-          <span className="fc-meta">
-            {fx.competition_code}
-            {fx.matchday ? ` · MW ${fx.matchday}` : ''}
-            {fx.stage && fx.stage !== 'REGULAR_SEASON' ? ` · ${fx.stage.replace(/_/g, ' ')}` : ''}
-          </span>
-        </div>
-      </div>
-
-      {/* Match: 3-zone horizontal row — home | time | away. Names wrap, never truncate to nothing. */}
-      <div className="fc-match">
-        <div className={`fc-team home ${homeTracked ? 'is-tracked' : ''}`}>
-          <span className="team-name">{fx.home_team || '—'}</span>
-          {homeTracked ? <span className="ha-dot home" title="Home game">🏠</span> : null}
-          <Crest url={fx.home_crest} tla={fx.home_tla} />
+          {fx.is_hot ? (
+            <span className={`hot-badge ${HOT_TIER_CLASS[fx.hot_tier] || 'hot-notable'}`} title={fx.hot_reason || ''}>
+              🔥 {HOT_TIER_LABEL[fx.hot_tier] || 'Hot'}
+            </span>
+          ) : null}
         </div>
 
-        <div className="fc-center">{kickoffTime || 'vs'}</div>
-
-        <div className={`fc-team away ${awayTracked ? 'is-tracked' : ''}`}>
-          <Crest url={fx.away_crest} tla={fx.away_tla} />
-          {awayTracked ? <span className="ha-dot away" title="Away game">✈️</span> : null}
-          <span className="team-name">{fx.away_team || '—'}</span>
-        </div>
+        <span className="fc-meta">
+          {fx.competition_code}
+          {fx.matchday ? ` · MW ${fx.matchday}` : ''}
+          {fx.stage && fx.stage !== 'REGULAR_SEASON' ? ` · ${fx.stage.replace(/_/g, ' ')}` : ''}
+        </span>
       </div>
 
       {/* Hot reason line */}

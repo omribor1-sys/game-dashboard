@@ -1,7 +1,7 @@
 /* ── Season Fixtures Board — fixtures.css ───────────────────────────────────
-   MOBILE-FIRST. Base styles target phones; min-width media queries enhance for
-   larger screens. Uses ONLY CSS variables from index.css. LTR (page uses dir="ltr").
-   Team names NEVER truncate — the two teams stack, each on its own full-width row.
+   Horizontal fixture row (date | teams inline | badges | meta) on desktop — the
+   layout Omri prefers. RESPONSIVE: on phones the row wraps and team names WRAP
+   (never truncate to a letter). Uses ONLY CSS variables from index.css. LTR.
    ─────────────────────────────────────────────────────────────────────────── */
 
 .loading { padding: 40px; text-align: center; color: var(--text-muted); font-size: 14px; }
@@ -12,36 +12,19 @@
 .fixtures-page .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .fixtures-page .muted { color: var(--text-muted); font-size: 12px; }
 
-/* ── League Tabs (horizontal scroll on mobile, wrap on desktop) ──────────── */
+/* ── League Tabs (scroll on mobile, wrap on desktop) ─────────────────────── */
 .league-tabs {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 14px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid var(--border);
-  direction: ltr;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
+  display: flex; gap: 6px; margin-bottom: 14px; padding-bottom: 10px;
+  border-bottom: 2px solid var(--border); direction: ltr;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin;
 }
 .league-tabs::-webkit-scrollbar { height: 4px; }
 .league-tabs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
 .league-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 8px 14px;
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  background: var(--card-bg);
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-  flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: 5px; padding: 8px 14px;
+  border: 1px solid var(--border); border-radius: 20px; background: var(--card-bg);
+  color: var(--text-muted); font-size: 13px; font-weight: 500; cursor: pointer;
+  transition: all 0.15s; white-space: nowrap; flex-shrink: 0;
 }
 .league-tab:hover { background: var(--bg); color: var(--text); border-color: var(--green); }
 .league-tab.active { background: var(--green); color: #fff; border-color: var(--green); font-weight: 700; }
@@ -61,14 +44,12 @@
   flex: 1 1 140px; min-width: 130px; transition: border-color 0.15s;
 }
 .fixture-filters select:focus { outline: none; border-color: var(--green); }
-
 .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--card-bg); }
 .seg button { padding: 9px 14px; background: transparent; border: none; border-right: 1px solid var(--border); color: var(--text-muted); font-size: 13px; cursor: pointer; transition: all 0.12s; white-space: nowrap; min-height: 38px; }
 .seg button:last-child { border-right: none; }
 .seg button:hover { background: var(--bg); color: var(--text); }
 .seg button.on { background: var(--green); color: #fff; font-weight: 600; }
 .seg.disabled { opacity: 0.45; pointer-events: none; }
-
 .track-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text); cursor: pointer; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--card-bg); transition: border-color 0.15s; white-space: nowrap; min-height: 38px; }
 .track-toggle:hover { border-color: var(--green); }
 .track-toggle input[type="checkbox"] { accent-color: var(--green); width: 16px; height: 16px; }
@@ -82,87 +63,53 @@
 }
 .fx-group-title::before { content: ''; display: inline-block; width: 3px; height: 14px; background: var(--green); border-radius: 2px; flex-shrink: 0; }
 
-/* ── Fixture Card — mobile-first, stacked teams ──────────────────────────── */
+/* ── Fixture Card ─────────────────────────────────────────────────────────── */
 .fixture-card {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px 14px;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  margin-bottom: 8px;
-  transition: box-shadow 0.15s, border-color 0.15s;
-  direction: ltr;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px 16px; background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 8px;
+  transition: box-shadow 0.15s, border-color 0.15s; direction: ltr;
 }
 .fixture-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-color: #cbd5e0; }
 .fixture-card.tracked { border-left: 3px solid var(--green); }
 .fixture-card.primary-home { border-left: 4px solid var(--green); background: #fafffe; }
-.fixture-card.dim { opacity: 0.6; }
+.fixture-card.dim { opacity: 0.62; }
 .fixture-card.dim:hover { opacity: 0.9; }
 
-/* Head: date/time + tags */
-.fc-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-.fc-when { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
-.fc-date { font-size: 13px; font-weight: 700; color: var(--text); }
+/* Main row: date | teams | badges | meta */
+.fc-main { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+.fc-when { display: flex; flex-direction: column; flex-shrink: 0; min-width: 84px; }
+.fc-date { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.25; }
 .fc-time { font-size: 15px; font-weight: 800; color: var(--green); }
-.fc-tags { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.fc-meta { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
-.fc-changed { font-size: 15px; color: var(--amber); cursor: help; }
 
-/* Match: 3-zone horizontal row — home | time | away. Center is the only fixed column;
-   both team columns are flexible with min-width:0 so names shrink/wrap instead of pushing out. */
-.fc-match {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
+/* Teams cluster — grows to fill, centred. Names wrap, never truncate. */
+.fc-teams { flex: 1 1 260px; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.fc-side { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.fc-side .team {
+  min-width: 0; font-size: 14px; font-weight: 600; color: var(--text);
+  line-height: 1.2; white-space: normal; overflow-wrap: anywhere;
 }
-.fc-team { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.fc-team.home { justify-content: flex-end; text-align: right; }
-.fc-team.away { justify-content: flex-start; text-align: left; }
+.fc-side .team.on { font-weight: 800; }
+.fc-vs { flex-shrink: 0; font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.05em; }
 
-.fc-team .team-name {
-  min-width: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-  line-height: 1.2;
-  overflow-wrap: break-word;
-  /* wrap to at most 2 lines on mobile; ellipsis only as a last resort */
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.fc-team.is-tracked .team-name { font-weight: 800; }
-
-.fc-center {
-  flex-shrink: 0;
-  min-width: 46px;
-  text-align: center;
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--green);
-}
-
-.ha-dot { flex-shrink: 0; font-size: 12px; line-height: 1; }
-
-/* Crests — prominent */
-.crest { width: 28px; height: 28px; object-fit: contain; border-radius: 3px; flex-shrink: 0; }
+.crest { width: 26px; height: 26px; object-fit: contain; border-radius: 3px; flex-shrink: 0; }
 .crest-fallback {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px; background: var(--bg); border: 1px solid var(--border);
-  border-radius: 4px; font-size: 10px; font-weight: 700; color: var(--text-muted); flex-shrink: 0;
+  width: 26px; height: 26px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; font-size: 9px; font-weight: 700; color: var(--text-muted); flex-shrink: 0;
 }
+
+.fc-tags { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; flex-shrink: 0; }
+.fc-changed { font-size: 15px; color: var(--amber); cursor: help; }
+.fc-meta { font-size: 11px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
 
 /* Hot badge + reason */
 .hot-badge { display: inline-flex; align-items: center; gap: 3px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
 .hot-badge.hot-elite { background: var(--red-light); color: var(--red); border: 1px solid var(--red); }
 .hot-badge.hot-high { background: var(--amber-light); color: var(--amber); border: 1px solid var(--amber); }
 .hot-badge.hot-notable { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
-.fc-hot-reason { font-size: 12.5px; color: var(--text-muted); font-style: italic; line-height: 1.3; }
+.fc-hot-reason { font-size: 12.5px; color: var(--text-muted); font-style: italic; line-height: 1.3; padding-left: 2px; }
 
 /* Foot: ticket status + actions */
 .fc-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid var(--border); }
@@ -170,7 +117,6 @@
 .fc-ticket-date { font-size: 12px; color: var(--text-muted); }
 .fc-edited { font-size: 11px; color: var(--text-muted); font-style: italic; }
 .fc-actions { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-/* Comfortable tap targets on touch devices */
 .fc-actions .btn-sm { min-height: 36px; }
 
 /* ── Empty state ─────────────────────────────────────────────────────────── */
@@ -208,31 +154,24 @@
 /* ── Error box ───────────────────────────────────────────────────────────── */
 .error-box { background: var(--red-light); color: var(--red); border: 1px solid var(--red); border-radius: 8px; padding: 12px 16px; font-size: 13px; margin-bottom: 16px; }
 
-/* ═══ Enhancements for wider screens ═══════════════════════════════════════ */
-
-/* Tablet+: more room, larger crests/names, single-line names with ellipsis (rarely needed).
-   Cap the fixtures column so the centered match doesn't float in a huge empty card. */
+/* ═══ Desktop / tablet enhancements ════════════════════════════════════════ */
 @media (min-width: 640px) {
-  .fixtures-calendar, .fixtures-matchweek { max-width: 840px; }
-  .fixture-card { padding: 14px 18px; }
-  .crest, .crest-fallback { width: 30px; height: 30px; }
-  .fc-team .team-name {
-    font-size: 15.5px;
-    -webkit-line-clamp: 1;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-  /* Keep the two teams close to the centre time instead of spread to the card edges */
-  .fc-match { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); max-width: 560px; margin: 0 auto; }
-  .fc-center { font-size: 15px; min-width: 54px; }
+  .crest, .crest-fallback { width: 28px; height: 28px; }
+  .fc-side .team { font-size: 15px; white-space: nowrap; }  /* fits on one line on desktop */
   .league-tabs { flex-wrap: wrap; overflow-x: visible; }
 }
 
-/* Very small phones: tighten spacing, keep everything readable */
+/* ═══ Phone: stack the row so team names get full width and wrap cleanly ════ */
+@media (max-width: 639px) {
+  .fixtures-page { padding: 14px; }
+  .fc-main { gap: 8px; }
+  .fc-when { flex-direction: row; align-items: baseline; gap: 8px; min-width: 0; flex-basis: 100%; }
+  .fc-teams { flex-basis: 100%; justify-content: flex-start; }
+  .fc-tags { flex-basis: 100%; }
+  .fc-meta { flex-basis: 100%; }
+}
 @media (max-width: 380px) {
   .fixtures-page { padding: 12px; }
-  .fc-team .team-name { font-size: 13.5px; }
   .fc-actions .btn-sm { padding: 6px 8px; font-size: 12px; }
-  .fc-date { font-size: 12.5px; }
   .crest, .crest-fallback { width: 24px; height: 24px; }
 }
