@@ -28,6 +28,7 @@ function Crest({ url, tla }) {
         alt={tla || ''}
         width="26"
         height="26"
+        loading="lazy"
         onError={e => { e.target.style.display = 'none'; }}
       />
     );
@@ -44,7 +45,7 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
 
   const matchTitle = `${fx.home_team} vs ${fx.away_team}`;
 
-  // Split kickoff_local: "Fri, 21/08/2026, 20:00"
+  // Split kickoff_local: "Fri, 21/08/2026, 20:00" → date "Fri, 21/08/2026" + time "20:00"
   const kickoffParts = (fx.kickoff_local || '').split(',').map(s => s.trim());
   const kickoffDate = kickoffParts.slice(0, 2).join(', ') || '—';
   const kickoffTime = kickoffParts[2] || '';
@@ -69,103 +70,62 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
 
   return (
     <div className={cardClasses}>
-      {/* Main row: when + teams + meta */}
-      <div className="fc-row-main">
-        {/* Date / time */}
-        <div className="fc-when">
-          <div className="fc-date">{kickoffDate}</div>
-          {kickoffTime && <div className="fc-time">{kickoffTime}</div>}
-        </div>
-
-        {/* Teams */}
-        <div className="fc-teams" style={{ flex: 1 }}>
-          <span className="fc-side">
-            <Crest url={fx.home_crest} tla={fx.home_tla} />
-            <span className={homeTracked ? 'team on' : 'team'}>{fx.home_team || '—'}</span>
-          </span>
-          <span className="fc-vs">VS</span>
-          <span className="fc-side">
-            <span className={awayTracked ? 'team on' : 'team'}>{fx.away_team || '—'}</span>
-            <Crest url={fx.away_crest} tla={fx.away_tla} />
-          </span>
-
-          {/* Home/away badge for tracked teams */}
-          {isTracked && (
-            <span className={`badge ${homeTracked ? 'badge-green' : 'badge-gray'}`}>
-              {homeTracked ? '🏠 Home' : '✈️ Away'}
+      {/* Head: date on the left, tags on the right (wraps on mobile) */}
+      <div className="fc-head">
+        <span className="fc-date">{kickoffDate}</span>
+        <div className="fc-tags">
+          {fx.is_hot && (
+            <span className={`hot-badge ${HOT_TIER_CLASS[fx.hot_tier] || 'hot-notable'}`} title={fx.hot_reason || ''}>
+              🔥 {HOT_TIER_LABEL[fx.hot_tier] || 'Hot'}
             </span>
           )}
-
-          {/* Reschedule warning */}
           {fx.last_changed_at && (
-            <span
-              className="fc-changed"
-              title={`Moved from ${fx.previous_kickoff_local || '—'} to ${fx.kickoff_local || '—'}`}
-            >
-              ⚠️
-            </span>
+            <span className="fc-changed" title={`Moved from ${fx.previous_kickoff_local || '—'} to ${fx.kickoff_local || '—'}`}>⚠️</span>
           )}
+          <span className="fc-meta">
+            {fx.competition_code}
+            {fx.matchday ? ` · MW ${fx.matchday}` : ''}
+            {fx.stage && fx.stage !== 'REGULAR_SEASON' ? ` · ${fx.stage.replace(/_/g, ' ')}` : ''}
+          </span>
+        </div>
+      </div>
+
+      {/* Match: 3-zone horizontal row — home | time | away. Names wrap, never truncate to nothing. */}
+      <div className="fc-match">
+        <div className={`fc-team home ${homeTracked ? 'is-tracked' : ''}`}>
+          <span className="team-name">{fx.home_team || '—'}</span>
+          {homeTracked && <span className="ha-dot home" title="Home game">🏠</span>}
+          <Crest url={fx.home_crest} tla={fx.home_tla} />
         </div>
 
-        {/* Hot game tier badge */}
-        {fx.is_hot ? (
-          <span className={`hot-badge ${HOT_TIER_CLASS[fx.hot_tier] || 'hot-notable'}`} title={fx.hot_reason || ''}>
-            🔥 {HOT_TIER_LABEL[fx.hot_tier] || 'Hot'}
-          </span>
-        ) : null}
+        <div className="fc-center">{kickoffTime || 'vs'}</div>
 
-        {/* Competition + matchday */}
-        <div className="fc-meta">
-          {fx.competition_code}
-          {fx.matchday ? ` · MW ${fx.matchday}` : ''}
-          {fx.stage ? ` · ${fx.stage}` : ''}
+        <div className={`fc-team away ${awayTracked ? 'is-tracked' : ''}`}>
+          <Crest url={fx.away_crest} tla={fx.away_tla} />
+          {awayTracked && <span className="ha-dot away" title="Away game">✈️</span>}
+          <span className="team-name">{fx.away_team || '—'}</span>
         </div>
       </div>
 
       {/* Hot reason line */}
-      {fx.is_hot && fx.hot_reason ? (
-        <div className="fc-hot-reason">🔥 {fx.hot_reason}</div>
-      ) : null}
+      {fx.is_hot && fx.hot_reason && <div className="fc-hot-reason">🔥 {fx.hot_reason}</div>}
 
-      {/* Bottom row: ticket strip + actions */}
-      <div className="fc-row-bottom">
+      {/* Foot: ticket status + actions */}
+      <div className="fc-foot">
         <div className="fc-tickets">
           <span className={`badge ${TICKET_BADGE[fx.tickets_status] || 'badge-gray'}`}>
             🎟️ {TICKET_LABEL[fx.tickets_status] || '—'}
           </span>
-          {fx.tickets_onsale_local && (
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>· {fx.tickets_onsale_local}</span>
-          )}
-          {fx.manually_overridden ? (
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>manually edited</span>
-          ) : null}
+          {fx.tickets_onsale_local && <span className="fc-ticket-date">· {fx.tickets_onsale_local}</span>}
+          {fx.manually_overridden ? <span className="fc-edited">edited</span> : null}
         </div>
 
         <div className="fc-actions">
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => openCalendar('match')}
-            title="Add match reminder to calendar"
-            disabled={!fx.kickoff_utc}
-          >
-            📅 Match
-          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => openCalendar('match')} title="Add match reminder to calendar" disabled={!fx.kickoff_utc}>📅 Match</button>
           {fx.tickets_onsale_at && (
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => openCalendar('tickets')}
-              title="Add ticket purchase reminder to calendar"
-            >
-              🎟️ Tickets
-            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => openCalendar('tickets')} title="Add ticket purchase reminder to calendar">🎟️ Tickets</button>
           )}
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => onEdit(fx)}
-            title="Edit fixture"
-          >
-            ✎ Edit
-          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => onEdit(fx)} title="Edit fixture">✎ Edit</button>
         </div>
       </div>
     </div>
