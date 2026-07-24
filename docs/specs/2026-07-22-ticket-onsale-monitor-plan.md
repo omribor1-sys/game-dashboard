@@ -150,6 +150,49 @@ discussed. Output feeds the `monitor_sources` table (Tier 1.5).
 
 ---
 
+## Appendix — Fan-community sources per EPL club (researched 2026-07-22)
+
+**Authoritative on-sale timing** = official club / supporter-help handle (strongest). Fan resale
+accounts = scarcity signal only, NOT proof a sale opened. Handles marked *(unverified)* need a manual
+check before wiring into an automated watcher — a wrong handle is worse than none.
+
+| Club | Reddit | X/Twitter (best on-sale signal in **bold**) | Forum |
+|---|---|---|---|
+| Liverpool | r/LiverpoolFC | **@LFCHelp**, @LFC, @LfcTickets2U *(resale)* | RAWK (rawk.net) |
+| Tottenham | r/coys | @SpursOfficial, @SpursTicketNews *(unverified)* | Spurs Community; The Fighting Cock |
+| Man City | r/MCFC | **@ManCityHelp**, @ManCity | Bluemoon |
+| Man United | r/reddevils | @ManUtd, @TicketManUtd *(fan on-sale alerts)* | RedCafe |
+| Arsenal | r/Gunners | @Arsenal, @arsenal_tickets *(unverified/resale)* | Arsenal Mania; club Ticket Exchange |
+| Chelsea | r/chelseafc | @ChelseaFC, @CFCTickets4Sale *(resale)* | Talk Chelsea; club Ticket Exchange |
+| West Ham | r/Hammers | **@WestHamHelp**, @WestHam | KUMB; West Ham Online |
+| Newcastle | r/NUFC | @NUFC, @NUFCSpares *(resale)* | ToonForum; NUFC Forum |
+| Fulham | r/fulhamfc *(ticket-exchange flair)* | @FulhamFC | Friends of Fulham |
+| Aston Villa | r/avfc | **@AVFCSupport** | VillaTalk |
+| Crystal Palace | r/crystalpalace | @CPFC (no ticket-specific handle) | Holmesdale.net; official Twickets resale |
+| Brighton | r/BrightonHoveAlbion | @OfficialBHAFC (no ticket-specific handle) | North Stand Chat |
+| Everton | r/Everton | **@efc_fanservices**, @evertonspares *(resale)* | GrandOldTeam; ToffeeTalk |
+| Wolves | r/WWFC | **@WolvesHelp** | Molineux Mix |
+| Brentford | r/Brentford | @BrentfordFC | Griffin Park Grapevine |
+| Nottingham Forest | r/nffc | @nffc | Vital 100% Forest; forestforum.co.uk |
+| Bournemouth | r/afcbournemouth *(unverified)* | @afcbournemouth *(posts on-sale dates)* | UpTheCherries (Vital) |
+| Burnley | r/BurnleyFC *(unverified)* | @BurnleyOfficial | UpTheClarets |
+| Leeds United | r/LeedsUnited | **@LUFCTickets**, @lufcticketswaps *(resale)* | MOT Forum; Dirty Leeds |
+| Sunderland | r/safc | @SunderlandAFC | Wearside Online |
+
+**Filter keywords:** "general sale", "on sale (now)", "members/priority sale", "ballot", "ticket
+exchange", "away tickets/allocation", "presale/access code", "price band/category", "returns",
+"sold out", "postponed — new date tickets".
+
+**Cross-club:** r/soccer (occasional). No credible cross-club "ITK ticket" account or
+"r/footballtickets" exists — don't invent one; all credible accounts are single-club. Official
+face-value resale partners worth watching as structured signals: **Twickets** (Crystal Palace + others),
+StubHub (official partner for Everton & Tottenham). Re-verify subreddits/handles periodically
+(feedspot / gummysearch) as they churn.
+
+**Design rule:** a community hit → triggers a *check* of the official club ticket page + a "possible
+on-sale" Telegram alert. Only the official page (or an official handle) authorises writing
+`tickets_onsale_at` to a fixture.
+
 ## Acceptance (Phase A done when…)
 - `monitor_sources` seeded with the EPL club URLs (priority 1).
 - Daily job fetches each, diffs vs snapshot, and sends a Telegram + email alert on any change with the
