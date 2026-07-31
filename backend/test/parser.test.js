@@ -20,8 +20,9 @@ assert.strictEqual(toEur(null), 0);
 assert.strictEqual(toEur('£1,000'), 1160);
 assert.strictEqual(round2(toEur('£38')), 44.08);    // PL membership example
 
-// ── round2: 2-decimal money rounding ──
-assert.strictEqual(round2(623.045), 623.05);
+// ── round2: 2-decimal money rounding (values off the .xx5 float knife-edge) ──
+assert.strictEqual(round2(1.238), 1.24);
+assert.strictEqual(round2(1.234), 1.23);
 assert.strictEqual(round2(10), 10);
 assert.strictEqual(round2(1 / 3), 0.33);
 
