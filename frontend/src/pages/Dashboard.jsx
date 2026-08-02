@@ -213,7 +213,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── Missing costs warning ─────────────────────────────────────── */}
-      {missingCosts.length > 0 && (
+      {seasonMissing.length > 0 && (
         <div style={{
           background: '#fffbeb', border: '1.5px solid #fcd34d', borderRadius: 10,
           padding: '14px 18px', marginBottom: 20,
@@ -222,10 +222,10 @@ export default function Dashboard() {
           <span style={{ fontSize: 20, flexShrink: 0 }}>⚠️</span>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, color: '#92400e', fontSize: 14, marginBottom: 4 }}>
-              נתוני עלויות חסרים — {missingCosts.length} משחק/ים
+              נתוני עלויות חסרים — {seasonMissing.length} משחק/ים
             </div>
             <div style={{ fontSize: 13, color: '#78350f' }}>
-              {missingCosts.map((g, i) => (
+              {seasonMissing.map((g, i) => (
                 <span key={i} style={{ marginRight: 12 }}>
                   <strong>{g.game_name}</strong> — €{Number(g.total_revenue).toLocaleString('en-US', { minimumFractionDigits: 2 })} הכנסות, {g.order_count} הזמנות
                 </span>
