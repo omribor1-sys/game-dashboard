@@ -9,6 +9,9 @@ assert.strictEqual(seasonStartYear('09/08/2026'), 2026); // Aug 2026 (DD/MM/YYYY
 assert.strictEqual(seasonStartYear('Sun, 06/09/2026, 16:30'), 2026); // StubHub datetime
 assert.strictEqual(seasonStartYear(null), null);
 assert.strictEqual(seasonStartYear('no date here'), null);
+// legacy long format must bucket the same as the standard format
+assert.strictEqual(seasonStartYear('Sunday 24 May 2026, 16:00'), 2025);
+assert.strictEqual(seasonStartYear('Wednesday 17 Jun 2026, 17:00'), 2025);
 
 // ── labels ──
 assert.strictEqual(seasonLabel(2026), '2026/27');

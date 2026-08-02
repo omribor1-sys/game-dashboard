@@ -12,6 +12,13 @@ function toDate(v) {
   // YYYY-MM-DD — games.date / inventory.game_date
   m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
   if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+  // "DD Mon YYYY" / "Sunday 24 May 2026, 16:00" — legacy long format (defensive)
+  m = s.match(/(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})/);
+  if (m) {
+    const MON = { jan:0, feb:1, mar:2, apr:3, may:4, jun:5, jul:6, aug:7, sep:8, oct:9, nov:10, dec:11 };
+    const mo = MON[m[2].slice(0, 3).toLowerCase()];
+    if (mo != null) return new Date(+m[3], mo, +m[1]);
+  }
   return null;
 }
 

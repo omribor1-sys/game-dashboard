@@ -791,7 +791,7 @@ ordersRouter.put('/:id', (req, res) => {
     const existing = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Order not found' });
 
-    const { buyer_name, buyer_email, buyer_phone, status, notes, game_id, game_name, order_number, sales_channel, total_amount, ticket_quantity, category, row_seat } = req.body;
+    const { buyer_name, buyer_email, buyer_phone, status, notes, game_id, game_name, order_number, sales_channel, total_amount, ticket_quantity, category, row_seat, game_datetime } = req.body;
 
     if (status && !VALID_ORDER_STATUSES.includes(status)) {
       return res.status(400).json({ error: 'Invalid order status' });
@@ -816,7 +816,8 @@ ordersRouter.put('/:id', (req, res) => {
         sales_channel   = ?,
         ticket_quantity = ?,
         category        = ?,
-        row_seat        = ?
+        row_seat        = ?,
+        game_datetime   = ?
       WHERE id = ?
     `).run(
       buyer_name      !== undefined ? (buyer_name      || null) : existing.buyer_name,
@@ -832,6 +833,7 @@ ordersRouter.put('/:id', (req, res) => {
       ticket_quantity !== undefined ? (parseInt(ticket_quantity) || 1) : existing.ticket_quantity,
       category        !== undefined ? (category        || null) : existing.category,
       row_seat        !== undefined ? (row_seat        || null) : existing.row_seat,
+      game_datetime   !== undefined ? (game_datetime   || null) : existing.game_datetime,
       req.params.id,
     );
 
