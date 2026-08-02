@@ -322,6 +322,56 @@ app.post('/api/admin/normalize-all-order-names', (req, res) => {
   }
 });
 
+// POST /api/admin/normalize-datetimes — convert every order game_datetime to the ONE
+// canonical format "Ddd, DD/MM/YYYY, HH:MM". Idempotent, audit-logged, snapshot-first.
+// Structural only — never touches money. Re-runnable anytime (guards against format drift).
+app.post('/api/admin/normalize-datetimes', (req, res) => {
+  try {
+    const db = require('./database');
+    const { logUpdate } = require('./services/audit');
+    try { require('./services/snapshot').createSnapshot('pre-datetime-normalize'); } catch (_) {}
+    const MON = { jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12' };
+    const STD = /^\w{3}, \d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}$/;
+    const toStd = (s) => {
+      const m = String(s).match(/^([A-Za-z]+)\s+(\d{1,2})\s+([A-Za-z]{3})[a-z]*\s+(\d{4}),\s*(\d{2}:\d{2})$/);
+      if (!m) return null;
+      const mo = MON[m[3].toLowerCase()];
+      return mo ? `${m[1].slice(0,3)}, ${String(m[2]).padStart(2,'0')}/${mo}/${m[4]}, ${m[5]}` : null;
+    };
+    const rows = db.prepare("SELECT id, order_number, game_datetime FROM orders WHERE game_datetime IS NOT NULL AND deleted_at IS NULL").all();
+    const changed = [];
+    for (const r of rows) {
+      if (STD.test(r.game_datetime)) continue;
+      const nd = toStd(r.game_datetime);
+      if (nd && nd !== r.game_datetime) {
+        db.prepare("UPDATE orders SET game_datetime = ? WHERE id = ?").run(nd, r.id);
+        logUpdate('admin-normalize', r.order_number || String(r.id), 'game_datetime', r.game_datetime, nd);
+        changed.push({ id: r.id, from: r.game_datetime, to: nd });
+      }
+    }
+    res.json({ ok: true, changed: changed.length, details: changed });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/rename-orders-scoped — rename game_name for orders matching BOTH an old
+// name AND an exact game_datetime. Scoped (unlike blanket rename-game-in-orders) so it can't
+// touch a same-named game on a different date. Audit-logged, snapshot-first. Money untouched.
+app.post('/api/admin/rename-orders-scoped', (req, res) => {
+  try {
+    const db = require('./database');
+    const { logUpdate } = require('./services/audit');
+    const { from, to, game_datetime } = req.body;
+    if (!from || !to || !game_datetime) return res.status(400).json({ error: 'from, to, game_datetime required' });
+    try { require('./services/snapshot').createSnapshot('pre-scoped-rename'); } catch (_) {}
+    const rows = db.prepare("SELECT id, order_number FROM orders WHERE game_name = ? AND game_datetime = ? AND deleted_at IS NULL").all(from, game_datetime);
+    for (const r of rows) {
+      db.prepare("UPDATE orders SET game_name = ? WHERE id = ?").run(to, r.id);
+      logUpdate('admin-scoped-rename', r.order_number || String(r.id), 'game_name', from, to);
+    }
+    res.json({ ok: true, renamed: rows.length, ids: rows.map(r => r.id) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Missing-costs check ────────────────────────────────────────────────────
 // Returns games that have orders/revenue but no ticket cost data entered
 app.get('/api/admin/missing-costs', (req, res) => {
