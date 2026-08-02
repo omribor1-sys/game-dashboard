@@ -27,8 +27,9 @@ assert.strictEqual(inSeason('2026-08-09', 2026, now), true);
 assert.strictEqual(inSeason('2026-05-24', 2026, now), false); // old game NOT in new season
 assert.strictEqual(inSeason('2026-05-24', 2025, now), true);
 assert.strictEqual(inSeason('2026-05-24', 'all', now), true);
-assert.strictEqual(inSeason(null, 2026, now), true);  // undated → current season
-assert.strictEqual(inSeason(null, 2025, now), false); // undated NOT in an old season
+assert.strictEqual(inSeason(null, 2026), false); // undated belongs to NO specific season
+assert.strictEqual(inSeason(null, 2025), false);
+assert.strictEqual(inSeason(null, 'all'), true); // ...only "All seasons" shows it
 
 // ── seasonsPresent: distinct, newest first, always includes current ──
 const items = [{ d: '2026-05-24' }, { d: '2024-11-01' }, { d: '2026-08-09' }];

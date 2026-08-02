@@ -174,8 +174,22 @@ router.get('/', (req, res) => {
       channelMap[row.game_name][row.sales_channel] = { count: row.cnt, revenue: row.rev };
     }
 
-    // Add source flag + channels to games-table entries
-    const gamesWithSource = gamesFromTable.map(g => ({ ...g, source: 'games', channels: channelMap[g.name] || {} }));
+    // Derived date from orders — fallback when a games-table row has no date of its own,
+    // so season bucketing never falls back to "no date" for a game that clearly has one.
+    const orderDateRows = db.prepare(`
+      SELECT game_name, MAX(game_datetime) AS dt
+      FROM orders
+      WHERE deleted_at IS NULL AND game_datetime IS NOT NULL AND game_name IS NOT NULL
+      GROUP BY game_name
+    `).all();
+    const orderDateMap = {};
+    for (const r of orderDateRows) {
+      const m = String(r.dt).match(/(\d{2})\/(\d{2})\/(\d{4})/);
+      if (m) orderDateMap[r.game_name] = `${m[3]}-${m[2]}-${m[1]}`;
+    }
+
+    // Add source flag + channels to games-table entries; fill a missing date from orders.
+    const gamesWithSource = gamesFromTable.map(g => ({ ...g, date: g.date || orderDateMap[g.name] || null, source: 'games', channels: channelMap[g.name] || {} }));
 
     // Get names of games already in the games table (for deduplication)
     const gamesTableNames = new Set(gamesFromTable.map(g => g.name));

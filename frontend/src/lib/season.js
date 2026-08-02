@@ -54,10 +54,11 @@ export function seasonsPresent(items, getDate, now = new Date()) {
 
 // Does a date-ish value belong to the selected season?
 //  selected === 'all' → always true.
-//  Undated items appear in the CURRENT season only (never silently hidden).
-export function inSeason(dateLike, selected, now = new Date()) {
+//  Undated items belong to NO specific season — they show only under "All seasons",
+//  so a dateless old game never pollutes the current-season view.
+export function inSeason(dateLike, selected) {
   if (selected === 'all') return true;
   const y = seasonStartYear(dateLike);
-  if (y == null) return selected === currentSeasonStart(now);
+  if (y == null) return false;
   return y === selected;
 }
