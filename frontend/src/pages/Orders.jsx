@@ -975,8 +975,10 @@ export default function Orders() {
   if (loading) return <div className="loading">Loading orders…</div>;
 
   // Season filter (default = current season). All metrics/lists below use the season set.
-  const seasons = seasonsPresent(orders, o => o.game_datetime);
-  const seasonOrders = orders.filter(o => inSeason(o.game_datetime, season));
+  // Manual orders may have no game_datetime — fall back to a date embedded in game_name.
+  const orderDate = o => o.game_datetime || o.game_name;
+  const seasons = seasonsPresent(orders, orderDate);
+  const seasonOrders = orders.filter(o => inSeason(orderDate(o), season));
 
   const totalRevenue = seasonOrders.reduce((s, o) => s + (o.total_amount || 0), 0);
   const activeOrders = seasonOrders.filter(o => !['Cancelled', 'Delivered'].includes(o.status));
@@ -984,10 +986,12 @@ export default function Orders() {
   // Unique game names for autocomplete suggestions
   const allGameNames = [...new Set(seasonOrders.map(o => o.game_name || '').filter(Boolean))];
 
-  // Fuzzy filter: matches game name (fuzzy) OR order number / buyer name (exact-ish)
+  // Fuzzy filter: matches game name (fuzzy) OR order number / buyer name (exact-ish).
+  // Search spans ALL seasons (not just the selected one) so an existing order is never
+  // hidden by the season filter — critical for the "check before manual insert" workflow.
   const q = search.trim();
   const filteredOrders = q
-    ? seasonOrders.filter(o =>
+    ? orders.filter(o =>
         fuzzyMatch(o.game_name, q) ||
         (o.order_number || '').toLowerCase().includes(q.toLowerCase()) ||
         (o.buyer_name  || '').toLowerCase().includes(q.toLowerCase())
@@ -1073,7 +1077,7 @@ export default function Orders() {
           <div style={{ marginBottom: 20 }}>Create your first order to start managing sales</div>
           <button className="btn btn-primary" onClick={() => setModal('new')}>+ New Order</button>
         </div>
-      ) : seasonOrders.length === 0 ? (
+      ) : (seasonOrders.length === 0 && !q) ? (
         <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-muted)' }}>
           <div style={{ fontSize: 32, marginBottom: 10 }}>🗓️</div>
           <div style={{ fontSize: 15, fontWeight: 600 }}>No orders in this season</div>

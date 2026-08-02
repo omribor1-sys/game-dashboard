@@ -186,7 +186,8 @@ export default function Dashboard() {
 
   const completedGames = games.filter(g => g.completed);
 
-  const invGames = games.filter(g => g.source === 'inventory').map(g => g.name.toLowerCase());
+  // Duplicate detection compares across ALL seasons (a dup can straddle season buckets).
+  const invGames = allGames.filter(g => g.source === 'inventory').map(g => g.name.toLowerCase());
   const dupWarnings = new Set(
     games
       .filter(g => g.source !== 'inventory' && !dismissedDups.includes(g.id))
@@ -256,7 +257,7 @@ export default function Dashboard() {
         <div style={{ textAlign: 'center', padding: '64px 0', color: 'var(--text-muted)' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📊</div>
           <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
-            {allGames.length === 0 ? 'No games yet' : 'No completed games in this season yet'}
+            {allGames.length === 0 ? 'No games yet' : 'No games in this season yet'}
           </div>
           {allGames.length > 0 && season !== 'all' && (
             <div style={{ marginBottom: 20, fontSize: 13 }}>Switch the season selector to see earlier games.</div>
@@ -326,7 +327,7 @@ export default function Dashboard() {
                                 <div style={{ display: 'flex', gap: 8 }}>
                                   <button
                                     onClick={async () => {
-                                      const invGame = games.find(ig => ig.source === 'inventory' &&
+                                      const invGame = allGames.find(ig => ig.source === 'inventory' &&
                                         (ig.name.toLowerCase().includes(g.name.toLowerCase().substring(0, 15)) ||
                                          g.name.toLowerCase().includes(ig.name.toLowerCase().substring(0, 15))));
                                       if (invGame) {
