@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import SeasonSelect from '../components/SeasonSelect';
+import { currentSeasonStart, seasonsPresent, inSeason } from '../lib/season.js';
 
 const ORDER_STATUSES = ['Pending', 'Confirmed', 'Paid', 'Delivered', 'Cancelled'];
 
@@ -893,6 +895,7 @@ export default function Orders() {
   const [error, setError]     = useState('');
   const [modal, setModal]     = useState(null); // 'new' | { type: 'edit'|'addTicket', order }
   const [search, setSearch]   = useState('');
+  const [season, setSeason]   = useState(() => currentSeasonStart());
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -971,21 +974,25 @@ export default function Orders() {
 
   if (loading) return <div className="loading">Loading orders…</div>;
 
-  const totalRevenue = orders.reduce((s, o) => s + (o.total_amount || 0), 0);
-  const activeOrders = orders.filter(o => !['Cancelled', 'Delivered'].includes(o.status));
+  // Season filter (default = current season). All metrics/lists below use the season set.
+  const seasons = seasonsPresent(orders, o => o.game_datetime);
+  const seasonOrders = orders.filter(o => inSeason(o.game_datetime, season));
+
+  const totalRevenue = seasonOrders.reduce((s, o) => s + (o.total_amount || 0), 0);
+  const activeOrders = seasonOrders.filter(o => !['Cancelled', 'Delivered'].includes(o.status));
 
   // Unique game names for autocomplete suggestions
-  const allGameNames = [...new Set(orders.map(o => o.game_name || '').filter(Boolean))];
+  const allGameNames = [...new Set(seasonOrders.map(o => o.game_name || '').filter(Boolean))];
 
   // Fuzzy filter: matches game name (fuzzy) OR order number / buyer name (exact-ish)
   const q = search.trim();
   const filteredOrders = q
-    ? orders.filter(o =>
+    ? seasonOrders.filter(o =>
         fuzzyMatch(o.game_name, q) ||
         (o.order_number || '').toLowerCase().includes(q.toLowerCase()) ||
         (o.buyer_name  || '').toLowerCase().includes(q.toLowerCase())
       )
-    : orders;
+    : seasonOrders;
 
   return (
     <div className="page">
@@ -1014,9 +1021,10 @@ export default function Orders() {
       <div className="page-header">
         <div>
           <div className="page-title">Orders</div>
-          <div className="page-subtitle">{orders.length} order{orders.length !== 1 ? 's' : ''} · {activeOrders.length} active</div>
+          <div className="page-subtitle">{seasonOrders.length} order{seasonOrders.length !== 1 ? 's' : ''} · {activeOrders.length} active</div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <SeasonSelect seasons={seasons} value={season} onChange={setSeason} />
           {/* Smart search with fuzzy autocomplete */}
           <GameSearch
             value={search}
@@ -1042,7 +1050,7 @@ export default function Orders() {
       <div className="metrics-grid" style={{ marginBottom: 24 }}>
         <div className="metric-card">
           <div className="label">Total Orders</div>
-          <div className="value">{orders.length}</div>
+          <div className="value">{seasonOrders.length}</div>
         </div>
         <div className="metric-card">
           <div className="label">Active</div>
@@ -1050,7 +1058,7 @@ export default function Orders() {
         </div>
         <div className="metric-card">
           <div className="label">Paid / Delivered</div>
-          <div className="value green">{orders.filter(o => o.status === 'Paid' || o.status === 'Delivered').length}</div>
+          <div className="value green">{seasonOrders.filter(o => o.status === 'Paid' || o.status === 'Delivered').length}</div>
         </div>
         <div className="metric-card">
           <div className="label">Total Revenue</div>
@@ -1064,6 +1072,12 @@ export default function Orders() {
           <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>No orders yet</div>
           <div style={{ marginBottom: 20 }}>Create your first order to start managing sales</div>
           <button className="btn btn-primary" onClick={() => setModal('new')}>+ New Order</button>
+        </div>
+      ) : seasonOrders.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-muted)' }}>
+          <div style={{ fontSize: 32, marginBottom: 10 }}>🗓️</div>
+          <div style={{ fontSize: 15, fontWeight: 600 }}>No orders in this season</div>
+          <div style={{ marginTop: 6, fontSize: 13 }}>Use the season selector above to view earlier seasons.</div>
         </div>
       ) : filteredOrders.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-muted)' }}>

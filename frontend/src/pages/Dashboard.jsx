@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MetricCard from '../components/MetricCard';
 import GamePerformancePanel from '../components/GamePerformancePanel';
+import SeasonSelect from '../components/SeasonSelect';
+import { currentSeasonStart, seasonsPresent, inSeason } from '../lib/season.js';
 
 function fmtDate(d) {
   if (!d) return '—';
@@ -52,6 +54,7 @@ export default function Dashboard() {
   const [closeRevenue, setCloseRevenue] = useState('');
   const [closeDate, setCloseDate] = useState('');
   const [closeSaving, setCloseSaving] = useState(false);
+  const [season, setSeason] = useState(() => currentSeasonStart());
   const navigate = useNavigate();
 
   const load = () => {
@@ -171,11 +174,17 @@ export default function Dashboard() {
   if (loading) return <div className="loading">Loading dashboard…</div>;
   if (error)   return <div className="page"><div className="error-box">Error: {error}</div></div>;
 
-  const { games = [], summary = {} } = data;
+  const { games: allGames = [] } = data;
+
+  // Season filter (default = current season). Everything below renders the filtered set.
+  const seasons = seasonsPresent(allGames, g => g.date);
+  const games = allGames.filter(g => inSeason(g.date, season));
+  const summary = recalcSummary(games);
+
+  // Missing-costs banner comes from an all-seasons API — keep it consistent with the selector.
+  const seasonMissing = missingCosts.filter(m => inSeason(m.game_date_iso || m.game_datetime, season));
 
   const completedGames = games.filter(g => g.completed);
-  const activeGames = games.filter(g => !g.completed);
-
 
   const invGames = games.filter(g => g.source === 'inventory').map(g => g.name.toLowerCase());
   const dupWarnings = new Set(
@@ -192,12 +201,15 @@ export default function Dashboard() {
           <div className="page-title">Game Profitability Dashboard</div>
           <div className="page-subtitle">All amounts in € · {games.length} game{games.length !== 1 ? 's' : ''} tracked</div>
         </div>
-        <button className="btn btn-primary" onClick={() => navigate('/upload')}>
-          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          Add Game
-        </button>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <SeasonSelect seasons={seasons} value={season} onChange={setSeason} />
+          <button className="btn btn-primary" onClick={() => navigate('/upload')}>
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add Game
+          </button>
+        </div>
       </div>
 
       {/* ── Missing costs warning ─────────────────────────────────────── */}
@@ -243,7 +255,12 @@ export default function Dashboard() {
       {games.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '64px 0', color: 'var(--text-muted)' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📊</div>
-          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>No games yet</div>
+          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+            {allGames.length === 0 ? 'No games yet' : 'No completed games in this season yet'}
+          </div>
+          {allGames.length > 0 && season !== 'all' && (
+            <div style={{ marginBottom: 20, fontSize: 13 }}>Switch the season selector to see earlier games.</div>
+          )}
           <button className="btn btn-primary" onClick={() => navigate('/upload')}>+ Add First Game</button>
         </div>
       ) : (
