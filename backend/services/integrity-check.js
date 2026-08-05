@@ -1,6 +1,7 @@
 'use strict';
 
 const db = require('../database');
+const { sharesTeam } = require('../utils/normalize');
 
 /**
  * Run all data integrity checks.
@@ -60,7 +61,10 @@ function runIntegrityCheck() {
     issues.push(`נמכרו יותר כרטיסים ממה שיש: ${row.game_name} — SQ=${row.sq} > BQ=${row.bq}`);
   }
 
-  // ── 4. Same game_datetime under different game names (duplicate game) ───────
+  // ── 4. Same game_datetime AND a shared team = the same game under two names ──
+  // Same kickoff alone is not a duplicate: on a final matchday every fixture starts
+  // at once. Only a shared team proves it is one physical game (same rule as
+  // normalizeGameName step 2.5).
   const dupDatetimes = db.prepare(`
     SELECT game_datetime, COUNT(DISTINCT game_name) AS name_count,
            GROUP_CONCAT(DISTINCT game_name) AS names
@@ -74,7 +78,11 @@ function runIntegrityCheck() {
     LIMIT 20
   `).all();
   for (const row of dupDatetimes) {
-    issues.push(`אותו מועד משחק עם שמות שונים — ${row.game_datetime}: ${row.names}`);
+    const names = String(row.names ?? '').split(',').map(s => s.trim()).filter(Boolean);
+    const clashes = names.filter((n, i) => names.some((m, j) => i !== j && sharesTeam(n, m)));
+    if (clashes.length > 1) {
+      issues.push(`אותו מועד משחק עם שמות שונים — ${row.game_datetime}: ${clashes.join(', ')}`);
+    }
   }
 
   // ── 5. Orders whose game_name not in inventory (warning) ─────────────────

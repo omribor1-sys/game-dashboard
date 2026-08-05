@@ -48,15 +48,42 @@ const GAME_NAME_MAP = {
   'tottenham hotspur vs leeds united': 'Tottenham vs Leeds United',
 };
 
+const TEAM_SPLIT = /\s+(?:vs\.?|v)\s+/i;
+
+/**
+ * Split a game name into its team phrases, stripped of corporate suffixes only.
+ * "Manchester City" and "Manchester United" MUST stay distinct — do not strip
+ * City/United/Hotspur here, or the two Manchester clubs collapse into one.
+ * A name with no "vs" (e.g. "Community Shield") yields a single phrase.
+ */
+function teamPhrases(gameName) {
+  return String(gameName ?? '')
+    .split(TEAM_SPLIT)
+    .map(t => t.replace(/\b(FC|AFC)\b/gi, ' ').replace(/\s+/g, ' ').trim().toLowerCase())
+    .filter(t => t.length > 2);
+}
+
+/**
+ * True when two game names refer to the same physical fixture, i.e. they share a
+ * team. Containment is checked both ways so "Tottenham" matches "Tottenham
+ * Hotspur" and "Leeds United" matches "Leeds United - FA Cup - Semi-final".
+ *
+ * This is the ONLY safe merge rule: a shared kickoff time is not enough, because
+ * every game of a Premier League final matchday kicks off simultaneously.
+ */
+function sharesTeam(nameA, nameB) {
+  const a = teamPhrases(nameA);
+  const b = teamPhrases(nameB);
+  return a.some(x => b.some(y => x === y || x.includes(y) || y.includes(x)));
+}
+
 /**
  * Normalize a raw game name (from StubHub or FTN email) to the canonical DB name.
  * Steps:
  *   1. Strip date/time suffix " | Day, DD/MM/YYYY, HH:MM" (but save it for step 2.5)
  *   2. Check hardcoded GAME_NAME_MAP (fastest, most reliable)
- *   2.5 ⭐ datetime-based dedup — if another game already exists at the EXACT same
- *       game_datetime, use that game's name. This prevents the same physical game from
- *       appearing twice in the dashboard under different names (e.g. different StubHub
- *       label vs normalised name).
+ *   2.5 ⭐ dedup on datetime AND a shared team — same kickoff alone is NOT enough
+ *       (final matchday: all 10 PL games kick off at once).
  *   3. Fuzzy-match against existing canonical names in DB orders table
  *
  * @param {string} rawName - raw game name, possibly with date suffix and FC/AFC suffixes
@@ -75,39 +102,32 @@ function normalizeGameName(rawName, db) {
   if (mapped) return mapped;
 
   if (db) {
-    // Step 2.5: datetime-based dedup ⭐
-    // Rule: a team cannot play two games at the same date+time.
-    // If we already have orders at this EXACT datetime, use THAT game's name,
-    // regardless of the name in the new email.
-    // Also: if any TEAM from the new game appears in an existing game at the same datetime,
-    // it's the same physical game — use the existing name.
+    // Step 2.5: dedup on datetime + shared team ⭐
+    // Rule: a team cannot play two games at the same date+time. So if an existing
+    // order sits at this EXACT datetime AND shares a team with the incoming name,
+    // it is the same physical game — adopt the existing name.
+    //
+    // Matching on datetime ALONE is wrong and corrupts revenue: on a Premier League
+    // final matchday all 10 fixtures kick off simultaneously, so every new game
+    // would be silently renamed to whichever one landed in the DB first.
     if (datetime) {
-      // 2.5a — exact datetime match (catches most cases)
-      const dtRow = db.prepare(
-        `SELECT game_name FROM orders WHERE game_datetime = ? AND deleted_at IS NULL LIMIT 1`
-      ).get(datetime);
-      if (dtRow) {
-        console.log(`[normalize] datetime dedup: "${name}" → "${dtRow.game_name}" (same datetime: ${datetime})`);
-        return dtRow.game_name;
+      const sameSlot = db.prepare(
+        `SELECT DISTINCT game_name FROM orders WHERE game_datetime = ? AND deleted_at IS NULL`
+      ).all(datetime);
+
+      const twin = sameSlot.find(r => sharesTeam(name, r.game_name));
+      if (twin) {
+        if (twin.game_name !== name) {
+          console.log(`[normalize] datetime+team dedup: "${name}" → "${twin.game_name}" (${datetime})`);
+        }
+        return twin.game_name;
       }
 
-      // 2.5b — team-name + datetime conflict detection (WARNING only — no auto-merge)
-      // A team cannot play two games at the same time. If we detect a conflict,
-      // log it loudly so the integrity check picks it up — but do NOT auto-merge,
-      // because the existing name in DB might itself be the wrong one.
-      // A human must decide which name is correct via rename-game-in-orders.
-      const vsParts = name.split(/\s+vs\.?\s+/i);
-      if (vsParts.length >= 2) {
-        const teams = vsParts.map(t => t.replace(/\s*(FC|AFC|United|City|Hotspur)\s*$/i, '').trim()).filter(t => t.length > 2);
-        for (const team of teams) {
-          const teamRow = db.prepare(
-            `SELECT game_name FROM orders WHERE game_datetime = ? AND game_name LIKE ? AND deleted_at IS NULL LIMIT 1`
-          ).get(datetime, `%${team}%`);
-          if (teamRow && teamRow.game_name !== name) {
-            console.warn(`[normalize] ⚠️  DUPLICATE GAME DETECTED: "${name}" conflicts with "${teamRow.game_name}" (team "${team}" at ${datetime}). Manual merge required via /api/admin/rename-game-in-orders`);
-            // DO NOT auto-merge — wrong direction would corrupt data
-          }
-        }
+      if (sameSlot.length > 0) {
+        // Concurrent but different fixture (normal on a final matchday), or a game
+        // labelled so differently that no team matches — which needs a human and a
+        // GAME_NAME_MAP entry. Either way: never auto-merge.
+        console.log(`[normalize] "${name}" shares ${datetime} with ${sameSlot.length} other game(s) but no team — keeping separate`);
       }
     }
 
@@ -125,4 +145,4 @@ function normalizeGameName(rawName, db) {
   return name;
 }
 
-module.exports = { normalizeGameName, GAME_NAME_MAP };
+module.exports = { normalizeGameName, GAME_NAME_MAP, sharesTeam, teamPhrases };

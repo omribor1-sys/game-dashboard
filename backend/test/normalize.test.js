@@ -1,29 +1,24 @@
 const assert = require('node:assert');
-const { normalizeGameName, GAME_NAME_MAP } = require('../utils/normalize');
+const { normalizeGameName, GAME_NAME_MAP, sharesTeam } = require('../utils/normalize');
 
 // Fake DB that models the exact queries normalizeGameName issues against `orders`:
-//   2.5a  WHERE game_datetime = ?
-//   2.5b  WHERE game_datetime = ? AND game_name LIKE ?
-//   3     WHERE game_name LIKE ? AND game_name LIKE ?
+//   2.5  SELECT DISTINCT game_name WHERE game_datetime = ?      -> .all()
+//   3    WHERE game_name LIKE ? AND game_name LIKE ?            -> .get()
 function makeDb(rows) {
   const like = (val, pat) =>
     String(val).toLowerCase().includes(pat.replace(/%/g, '').toLowerCase());
   return {
     prepare(sql) {
       const hasDt = sql.includes('game_datetime = ?');
-      const likeCount = (sql.match(/game_name LIKE \?/g) || []).length;
       return {
+        all(...params) {
+          if (!hasDt) return [];
+          const [dt] = params;
+          const names = rows.filter(r => r.game_datetime === dt).map(r => r.game_name);
+          return [...new Set(names)].map(game_name => ({ game_name }));
+        },
         get(...params) {
-          let found;
-          if (hasDt && likeCount === 1) {
-            const [dt, pat] = params;
-            found = rows.find(r => r.game_datetime === dt && like(r.game_name, pat));
-          } else if (hasDt) {
-            const [dt] = params;
-            found = rows.find(r => r.game_datetime === dt);
-          } else {
-            found = rows.find(r => params.every(p => like(r.game_name, p)));
-          }
+          const found = rows.find(r => params.every(p => like(r.game_name, p)));
           return found ? { game_name: found.game_name } : undefined;
         },
       };
@@ -50,8 +45,8 @@ assert.strictEqual(normalizeGameName(undefined), undefined);
 // ── no map, no db -> returns cleaned name unchanged ──
 assert.strictEqual(normalizeGameName('Foo Town vs Bar City'), 'Foo Town vs Bar City');
 
-// ── Step 2.5a: datetime dedup — same physical game, different label -> reuse existing name ──
-// Raw label is NOT in the map, but an order already exists at that exact datetime.
+// ── Step 2.5: datetime + SHARED TEAM dedup ──
+// Same physical game, different label -> reuse existing name (shares "Chelsea").
 const dbDt = makeDb([
   { game_name: 'Chelsea vs Manchester City', game_datetime: 'Sat, 16/05/2026, 17:00' },
 ]);
@@ -64,6 +59,35 @@ assert.strictEqual(
   normalizeGameName('Chelsea FC vs Brand New Label | Sun, 17/05/2026, 17:00', dbDt),
   'Chelsea FC vs Brand New Label'
 );
+
+// ⚠️ REGRESSION GUARD — final matchday: every PL fixture kicks off at the same time.
+// Same datetime with NO shared team must NOT merge, or revenue lands on the wrong game.
+const dbFinalDay = makeDb([
+  { game_name: 'Tottenham vs Everton',           game_datetime: 'Sun, 24/05/2026, 16:00' },
+  { game_name: 'Manchester City vs Aston Villa', game_datetime: 'Sun, 24/05/2026, 16:00' },
+]);
+assert.strictEqual(
+  normalizeGameName('Brentford vs Crystal Palace | Sun, 24/05/2026, 16:00', dbFinalDay),
+  'Brentford vs Crystal Palace'
+);
+// ...and the two Manchester clubs must never collapse into each other.
+assert.strictEqual(
+  normalizeGameName('Manchester United vs Wolves | Sun, 24/05/2026, 16:00', dbFinalDay),
+  'Manchester United vs Wolves'
+);
+// A genuine twin at that slot still merges (shares "Tottenham").
+assert.strictEqual(
+  normalizeGameName('Tottenham Hotspur FC vs Everton FC | Sun, 24/05/2026, 16:00', dbFinalDay),
+  'Tottenham vs Everton'
+);
+
+// ── sharesTeam unit checks ──
+assert.ok(sharesTeam('Tottenham vs Everton', 'Tottenham Hotspur vs Everton FC'));
+assert.ok(sharesTeam('Chelsea vs Leeds United - FA Cup - Semi-final', 'Chelsea vs Manchester City'));
+assert.ok(sharesTeam('Community Shield', 'Community Shield'));
+assert.ok(!sharesTeam('Manchester City vs Aston Villa', 'Manchester United vs Wolves'));
+assert.ok(!sharesTeam('Brentford vs Crystal Palace', 'Tottenham vs Everton'));
+assert.ok(!sharesTeam('Community Shield', 'Arsenal vs Chelsea'));
 
 // ── Step 3: fuzzy match on first two significant words (>3 chars, not vs/FC/City/United) ──
 const dbFuzzy = makeDb([
