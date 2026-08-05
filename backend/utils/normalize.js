@@ -46,6 +46,11 @@ const GAME_NAME_MAP = {
   // Tottenham vs Leeds United
   'tottenham hotspur fc vs leeds united fc': 'Tottenham vs Leeds United',
   'tottenham hotspur vs leeds united': 'Tottenham vs Leeds United',
+  // Two separate Bruno Mars shows, different dates AND different stands. Self-mapped so
+  // step 3 (fuzzy on the first two long words — "Bruno" + "Mars") can't collapse them
+  // into one game and merge their revenue.
+  'bruno mars london tickets': 'Bruno Mars London Tickets',
+  'bruno mars wembley 28/07/2026': 'Bruno Mars Wembley 28/07/2026',
 };
 
 const TEAM_SPLIT = /\s+(?:vs\.?|v)\s+/i;
