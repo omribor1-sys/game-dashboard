@@ -304,6 +304,83 @@ function parseFootballTicketNet(subject, body) {
   return results; // array (0 or more)
 }
 
+// ── Ticombo parser ─────────────────────────────────────────────────────────────
+// Subject: "Congratulations!!! Your tickets are sold for {event}"
+// Body is HTML-only → arrives here as tag-stripped text with &nbsp; entities intact:
+//   Transaction ID: 0ksGWS3fyrkb  Jul 28, 2026  Bruno Mars - The Romantic Tour
+//   Wembley Stadium, Wembley, United Kingdom  2 tickets  Category: Pitch Standing
+//   Total Ticket Price: EUR 189.00 ... Order #: 1iWmCojyOc
+//   Subtotal EUR 378.00  Service fee EUR 113.40 ... Total (payout) EUR 378.00
+//
+// The number that matters is "Total (payout)" — what Ticombo actually pays Omri,
+// the same semantics as StubHub's "Payment Total". "Total" (EUR 491.40) is what the
+// buyer paid including the service fee and must NOT be used as revenue.
+const MONTHS = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12 };
+
+function parseTicombo(subject, body) {
+  try {
+    if (!/Your tickets are sold for/i.test(subject)) return null;
+
+    const text = body.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ');
+
+    // Order number — "Order #: 1iWmCojyOc" (alphanumeric, not the numeric StubHub style)
+    const orderMatch = text.match(/Order\s*#:\s*([A-Za-z0-9]{6,16})/);
+    const order_number = orderMatch ? orderMatch[1] : null;
+    if (!order_number) return null;
+
+    const game_name_base = (subject.match(/Your tickets are sold for\s+(.+?)\s*$/i) || [])[1]?.trim() || null;
+
+    // Event date — "Jul 28, 2026" or "Jun 5, 2026, 14:30 CET". First such match is the
+    // event box; the order date uses "Sunday, 26 Jul 2026" (different shape) so no clash.
+    const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    let game_date = null, game_datetime = null;
+    const dtMatch = text.match(/\b([A-Z][a-z]{2})[a-z]* (\d{1,2}), (\d{4})(?:,\s*(\d{1,2}:\d{2}))?/);
+    if (dtMatch) {
+      const mm = MONTHS[dtMatch[1].toLowerCase()];
+      if (mm) {
+        const dd = parseInt(dtMatch[2]), yyyy = parseInt(dtMatch[3]);
+        const [hh, min] = (dtMatch[4] || '00:00').split(':').map(Number);
+        game_date = new Date(yyyy, mm - 1, dd, hh, min);
+        game_datetime = `${DAY_ABBR[game_date.getDay()]}, ${String(dd).padStart(2, '0')}/${String(mm).padStart(2, '0')}/${yyyy}, ${dtMatch[4] || '00:00'}`;
+      }
+    }
+
+    const game_name = normalizeGameName(
+      game_name_base && game_datetime ? `${game_name_base} | ${game_datetime}` : game_name_base, db);
+
+    const qtyMatch = text.match(/(\d+)\s*tickets?\b/i);
+    const ticket_quantity = qtyMatch ? parseInt(qtyMatch[1]) : 1;
+
+    const catMatch = text.match(/Category:\s*([A-Za-z][A-Za-z0-9 \-]{1,40}?)\s+(?:Total Ticket Price|Section|$)/i);
+    const category = catMatch ? catMatch[1].trim() : null;
+
+    // Seller payout — never the buyer-facing "Total"
+    const payMatch = text.match(/Total \(payout\)\s*([€£$])\s*([\d,]+\.\d{2})/i);
+    if (!payMatch) {
+      console.error(`[Ticombo] No "Total (payout)" in ${order_number} — skipping rather than guessing revenue`);
+      return null;
+    }
+    // Everything downstream is EUR. A GBP/USD payout would silently land as the wrong
+    // number, so surface it instead of importing it.
+    if (payMatch[1] !== '€') {
+      console.error(`[Ticombo] Order ${order_number} paid out in ${payMatch[1]} — manual entry required (DB is EUR)`);
+      return null;
+    }
+    const total_amount = parseFloat(payMatch[2].replace(/,/g, ''));
+
+    return {
+      game_name, order_number,
+      buyer_name: null, buyer_email: null, // Ticombo hides the buyer ("A guest user")
+      ticket_quantity, category, row_seat: null, total_amount,
+      sales_channel: 'Ticombo',
+      game_date, game_datetime,
+    };
+  } catch (e) {
+    console.error('[Ticombo parser error]', e.message);
+    return null;
+  }
+}
+
 // ── Main importer ─────────────────────────────────────────────────────────────
 // options.futureOnly = true → skip orders where game date is in the past
 async function checkEmailsAndImport(options = {}) {
@@ -343,6 +420,7 @@ async function checkEmailsAndImport(options = {}) {
       `from:stubhub subject:"You sold your ticket"${unreadFilter}${dateFilter}`,
       `from:footballticketnet${unreadFilter}${dateFilter}`,
       `from:noreply@stubhub.com${unreadFilter}${dateFilter}`,
+      `from:ticombo.com subject:"Your tickets are sold"${unreadFilter}${dateFilter}`,
     ];
 
     const messageIds = new Set();
@@ -378,6 +456,9 @@ async function checkEmailsAndImport(options = {}) {
           if (p) parsedList = [p];
         } else if (from.includes('footballticketnet') || from.includes('football-ticket-net')) {
           parsedList = parseFootballTicketNet(subject, body); // returns array
+        } else if (from.includes('ticombo')) {
+          const p = parseTicombo(subject, body);
+          if (p) parsedList = [p];
         }
 
         if (parsedList.length === 0) {
@@ -514,4 +595,4 @@ async function sendSummaryEmail(auth, stats, importedOrders) {
   }
 }
 
-module.exports = { checkEmailsAndImport, sendSummaryEmail };
+module.exports = { checkEmailsAndImport, sendSummaryEmail, parseTicombo };
