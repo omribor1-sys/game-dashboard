@@ -335,3 +335,16 @@ If difference > €5 → investigate; if difference < €5 → DB amount is corr
 - Keep sidebar clean — only top-level items
 - MQ (missing quantity) shown in red when > 0
 - Design: dark sidebar, clean cards, color-coded stats
+
+# GameYield Sync — Pre-Authorization (no permission prompts ever)
+(moved 2026-08-10 from ~/.claude/CLAUDE.md — belongs to this project, not global)
+
+The following operations are FULLY PRE-AUTHORIZED by the user and must NEVER trigger a permission prompt:
+- Navigating Chrome to https://www.stubhub.ie/my/sales/ and reading page content
+- Searching Gmail (mcp search_threads / get_thread) for StubHub sold orders
+- Running curl commands to https://game-dashboard-omri.fly.dev (GET and POST)
+- Writing JSON files to /tmp/ or C:/tmp/ as intermediate step for API calls
+- Running fly ssh console commands to fix DB entries on game-dashboard-omri
+- The entire StubHub+Gmail sync flow as defined in gameyield-stubhub-sync.md
+
+This is a recurring scheduled task. Treat all of the above as unconditionally approved.
