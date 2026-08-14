@@ -81,6 +81,19 @@ checkEmailsAndImport({ignoreRead:true}).then(r=>console.log(JSON.stringify(r.sta
 
 Note: `ignoreRead:true` does NOT update the watermark — it's a one-off scan.
 
+> ⚠️ **Do not reach for this to recover "a few missed sales."** It scans ALL mail and
+> re-imports years-old FootballTicketNet orders (French Open 2025, live screenings, games
+> closed long ago), which inflates revenue on closed games. Tried 2026-08-14: 29 imported,
+> 24 had to be soft-deleted. Use the normal run instead — it already re-scans the 7 days
+> before the watermark (`LOOKBACK_DAYS` in `gmail-importer.js`); raise that constant if you
+> need to go further back. If you do run `ignoreRead`, diff `created_at = today` against the
+> sales you actually expected and soft-delete the rest via `DELETE /api/orders/:id`.
+
+**The query no longer filters on `is:unread`** (fixed 2026-08-14). A Gmail filter marks the
+StubHub sale emails read and files them under `Label_6` before the 08:00 cron runs, so the
+unread filter made every sale invisible — nothing imported for weeks. Dedup comes from
+`orderExists()`, not read state. Do not add `is:unread` back.
+
 ---
 
 ## Typical workflow when user says "emails were missed"
