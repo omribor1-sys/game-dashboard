@@ -218,25 +218,30 @@ function parseFootballTicketNet(subject, body) {
     //   Extra Information  Block: 9 - Row: LOWROW; Seats: 193|
     //   Price Per Ticket GBP 88.00
     //   Total Price      GBP 176.00
-    const saleMatch = subject.match(/Order\s+(\d{5,10})\s+-\s+(.+)$/i);
+    // FTN order IDs gained a "TK-" prefix in Aug 2026 ("Order TK-811201938 - ...").
+    // The same redesign also dropped the whitespace between a table label and its value
+    // ("Order IDTK-811201938Event Name…"), so every label regex below tolerates \s*.
+    const saleMatch = subject.match(/Order\s+((?:TK-)?\d{5,10})\s+-\s+(.+)$/i);
     if (saleMatch) {
       const order_number  = saleMatch[1];
       const game_name_raw = saleMatch[2].trim();
 
       // Event Date: "Event Date  04/04/2026 12:45"
-      const dtM = body.match(/Event Date\s+(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/i)
+      const dtM = body.match(/Event Date\s*(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/i)
         || body.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
       const { game_date, game_datetime } = dtM
         ? parseFtnDate(dtM[1], dtM[2], dtM[3], dtM[4], dtM[5])
         : { game_date: null, game_datetime: null };
 
       // Ticket Quantity: "Ticket Quantity  2"
-      const qtyM = body.match(/Ticket Quantity\s+(\d+)/i)
-        || body.match(/Quantity[:\s]+(\d+)/i);
+      const qtyM = body.match(/Ticket Quantity\s*(\d+)/i)
+        || body.match(/Quantity[:\s]*(\d+)/i);
       const ticket_quantity = qtyM ? parseInt(qtyM[1]) : 1;
 
       // Category: "Category  Longside Lower Level  Split Type..."
-      const catM = body.match(/\bCategory\s+([A-Za-z][A-Za-z\s0-9]+?)(?=\s+(?:Split|Shipping|Fan Side|Extra|Price|$))/i)
+      // No \b before "Category": the redesigned table glues it to the previous value
+      // ("Ticket Quantity2Category…"), and digit→C is not a word boundary.
+      const catM = body.match(/Category\s*([A-Za-z][A-Za-z\s0-9]+?)(?=\s*(?:Split|Shipping|Fan Side|Extra|Price|$))/i)
         || body.match(/([A-Za-z][A-Za-z\s0-9]*?(?:Level|Lower|Upper|Longside|Shortside|Side|Stand|Block|Tier)[A-Za-z\s0-9]*)/i);
       const category = catM ? catM[1].trim() : null;
 
@@ -247,7 +252,7 @@ function parseFootballTicketNet(subject, body) {
         : null;
 
       // Total Price: "Total Price  GBP 176.00" (GBP before the number)
-      const totalM = body.match(/Total Price\s+(?:GBP|EUR|€|£)\s*([\d,]+\.?\d{0,2})/i)
+      const totalM = body.match(/Total Price\s*(?:GBP|EUR|€|£)\s*([\d,]+\.?\d{0,2})/i)
         || body.match(/(?:GBP|EUR|€|£)\s*([\d,]+\.?\d{0,2})/i);
       const total_amount = totalM ? parseFloat(totalM[1].replace(/,/g, '')) : 0;
 
@@ -599,4 +604,4 @@ async function sendSummaryEmail(auth, stats, importedOrders) {
   }
 }
 
-module.exports = { checkEmailsAndImport, sendSummaryEmail, parseTicombo };
+module.exports = { checkEmailsAndImport, sendSummaryEmail, parseTicombo, parseFootballTicketNet };
