@@ -4,6 +4,10 @@ const { google } = require('googleapis');
 const db = require('../database');
 const { normalizeGameName } = require('../utils/normalize');
 
+// How many days before the watermark to re-scan on every run. Covers cron misses,
+// late-arriving mail, and anything the previous run's query didn't see.
+const LOOKBACK_DAYS = 7;
+
 // ── OAuth2 client ─────────────────────────────────────────────────────────────
 function getOAuth2Client() {
   const client = new google.auth.OAuth2(
@@ -386,10 +390,10 @@ function parseTicombo(subject, body) {
 async function checkEmailsAndImport(options = {}) {
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_REFRESH_TOKEN) {
     console.log('[Gmail] Skipping — GOOGLE credentials not configured');
-    return { checked: 0, imported: 0, skipped: 0, errors: [] };
+    return { stats: { checked: 0, imported: 0, skipped: 0, errors: ['GOOGLE credentials not configured'] }, importedOrders: [] };
   }
   const futureOnly  = !!options.futureOnly;
-  const ignoreRead  = !!options.ignoreRead; // when true, search all mail not just unread
+  const ignoreRead  = !!options.ignoreRead; // when true, ignore the watermark and search ALL mail
   const today = new Date(); today.setHours(0, 0, 0, 0);
 
   const auth   = getOAuth2Client();
@@ -404,23 +408,23 @@ async function checkEmailsAndImport(options = {}) {
     let afterDate = null;
     if (!ignoreRead) {
       const wmRow = db.prepare("SELECT value FROM settings WHERE key='gmail_last_checked_at'").get();
-      if (wmRow && wmRow.value) {
-        afterDate = wmRow.value; // e.g. "2026/05/30"
-        console.log(`[Gmail] Using watermark: after:${afterDate}`);
-      } else {
-        // First run — fall back to yesterday
-        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        afterDate = `${yesterday.getFullYear()}/${String(yesterday.getMonth()+1).padStart(2,'0')}/${String(yesterday.getDate()).padStart(2,'0')}`;
-        console.log(`[Gmail] No watermark found, using yesterday: after:${afterDate}`);
-      }
+      // Overlap window: the watermark is only a floor for how far back to look, never a
+      // promise that everything before it was imported. Re-scanning a few days costs one
+      // extra API page and orderExists() drops the duplicates.
+      const base = wmRow && wmRow.value ? new Date(wmRow.value) : new Date();
+      const from = new Date((isNaN(base) ? Date.now() : base.getTime()) - LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+      afterDate = `${from.getFullYear()}/${String(from.getMonth()+1).padStart(2,'0')}/${String(from.getDate()).padStart(2,'0')}`;
+      console.log(`[Gmail] Watermark ${wmRow?.value || '(none)'} → scanning after:${afterDate}`);
     }
-    const unreadFilter = ignoreRead ? '' : ' is:unread';
+    // NOTE: deliberately NOT filtering on is:unread. Omri (and Gmail filters) read/archive
+    // these emails on the phone long before the 08:00 cron runs, and an unread filter made
+    // every such sale invisible to the importer forever. orderExists() is the dedup guard.
     const dateFilter = (ignoreRead || !afterDate) ? '' : ` after:${afterDate}`;
     const queries = [
-      `from:stubhub subject:"You sold your ticket"${unreadFilter}${dateFilter}`,
-      `from:footballticketnet${unreadFilter}${dateFilter}`,
-      `from:noreply@stubhub.com${unreadFilter}${dateFilter}`,
-      `from:ticombo.com subject:"Your tickets are sold"${unreadFilter}${dateFilter}`,
+      `from:stubhub subject:"You sold your ticket"${dateFilter}`,
+      `from:footballticketnet${dateFilter}`,
+      `from:noreply@stubhub.com${dateFilter}`,
+      `from:ticombo.com subject:"Your tickets are sold"${dateFilter}`,
     ];
 
     const messageIds = new Set();

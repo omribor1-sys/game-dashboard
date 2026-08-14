@@ -27,6 +27,8 @@ const GAME_NAME_MAP = {
   'arsenal fc vs bayer leverkusen': 'Arsenal vs Bayer Leverkusen',
   'arsenal fc vs bayer 04 leverkusen': 'Arsenal vs Bayer Leverkusen',
   'arsenal fc vs fulham fc': 'Arsenal vs Fulham',
+  'arsenal fc vs como 1907': 'Arsenal vs Como',
+  'arsenal vs como 1907': 'Arsenal vs Como',
   'brentford fc vs west ham united fc': 'Brentford vs West Ham',
   'brentford fc vs crystal palace fc': 'Brentford vs Crystal Palace',
   'tottenham hotspur vs nottingham forest fc': 'Tottenham Hotspur vs Nottingham Forest FC',
