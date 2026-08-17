@@ -520,8 +520,9 @@ cron.schedule('0 8 * * *', async () => {
     const { sendWhatsAppSummary } = require('./services/whatsapp-notifier');
     const { google } = require('googleapis');
 
-    // Daily cron: import only future-game orders (futureOnly=true)
-    const { stats, importedOrders } = await checkEmailsAndImport({ futureOnly: true });
+    // Import ALL sold orders, past games included: sales that land on match day would
+    // otherwise never be imported (by 08:00 the next morning the game is already past).
+    const { stats, importedOrders } = await checkEmailsAndImport();
 
     // Send notifications if there are new orders or no-date orders
     const hasNewOrNoDate = stats.imported > 0 || (importedOrders && importedOrders.some(o => !o.game_date));
