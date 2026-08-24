@@ -19,6 +19,7 @@ export default function SeasonFixtures() {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [showPast, setShowPast] = useState(false);
 
   const isHot = competition === 'HOT';
 
@@ -108,7 +109,15 @@ export default function SeasonFixtures() {
     return [...m.entries()].sort((a, b) => (a[0] === '—' ? 1 : b[0] === '—' ? -1 : a[0] - b[0]));
   }
 
-  const groups = isHot || view === 'calendar' ? groupByDate(fixtures) : groupByMatchday(fixtures);
+  // ── Past vs upcoming ────────────────────────────────────────────────────────
+  const now = Date.now();
+  const isPast = f => f.kickoff_utc && Date.parse(f.kickoff_utc) < now;
+  const pastFixtures = fixtures.filter(isPast);
+  const upcomingFixtures = fixtures.filter(f => !isPast(f));
+  const visible = showPast ? [...pastFixtures].reverse() : upcomingFixtures;   // past: newest first
+  const pastProfit = pastFixtures.reduce((s, f) => s + (f.pnl ? f.pnl.net_profit || 0 : 0), 0);
+
+  const groups = isHot || view === 'calendar' ? groupByDate(visible) : groupByMatchday(visible);
 
   const clearFilters = () => setFilters({ team: '', month: '', homeAway: 'all', tracked: false });
 
@@ -121,17 +130,33 @@ export default function SeasonFixtures() {
             {isHot ? '🔥 Curated hot games across all competitions' : (activeComp ? activeComp.name : 'Premier League 2026/27')}
           </p>
         </div>
-        {!isHot && (
-          <div className="header-actions">
-            <button className="btn btn-primary" disabled={syncing} onClick={syncNow}>
-              {syncing ? 'Syncing…' : 'Sync now'}
-            </button>
-            {meta.last_synced_at && (
-              <span className="muted">Updated: {meta.last_synced_at.slice(0, 16).replace('T', ' ')}</span>
-            )}
-          </div>
-        )}
+        <div className="header-actions">
+          <button
+            className={`btn btn-sm ${showPast ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setShowPast(p => !p)}
+            title={showPast ? 'Back to upcoming fixtures' : 'Show games that already happened'}
+          >
+            {showPast ? '← Upcoming' : `⏮ Past games (${pastFixtures.length})`}
+          </button>
+          {!isHot && (
+            <>
+              <button className="btn btn-primary" disabled={syncing} onClick={syncNow}>
+                {syncing ? 'Syncing…' : 'Sync now'}
+              </button>
+              {meta.last_synced_at && (
+                <span className="muted">Updated: {meta.last_synced_at.slice(0, 16).replace('T', ' ')}</span>
+              )}
+            </>
+          )}
+        </div>
       </div>
+
+      {showPast && pastFixtures.some(f => f.pnl) && (
+        <div className={`fx-past-total ${pastProfit >= 0 ? 'pos' : 'neg'}`}>
+          Closed games P&amp;L: {pastProfit >= 0 ? '+' : '−'}€{Math.abs(pastProfit).toLocaleString('en-IE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <span className="muted"> · {pastFixtures.filter(f => f.pnl).length} of {pastFixtures.length} games have cost data</span>
+        </div>
+      )}
 
       <LeagueTabs competitions={competitions} active={competition} onSelect={setCompetition} />
       {isHot && <KeyDatesPanel />}
@@ -143,11 +168,11 @@ export default function SeasonFixtures() {
 
       {loading ? (
         <div className="loading">Loading…</div>
-      ) : fixtures.length === 0 ? (
+      ) : visible.length === 0 ? (
         <div className="fx-empty">
-          <div className="fx-empty-icon">{isHot ? '🔥' : '📅'}</div>
-          <p>{isHot ? 'No hot games marked yet' : 'No fixtures match the filters'}</p>
-          {!isHot && (
+          <div className="fx-empty-icon">{showPast ? '⏮' : isHot ? '🔥' : '📅'}</div>
+          <p>{showPast ? 'No past games here yet' : isHot ? 'No hot games marked yet' : 'No fixtures match the filters'}</p>
+          {!isHot && !showPast && (
             <button className="btn btn-ghost btn-sm" onClick={clearFilters}>Clear filters</button>
           )}
         </div>

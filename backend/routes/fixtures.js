@@ -9,7 +9,44 @@ const router = express.Router();
 
 // helper: enrich a fixture row with local time + crests
 const crestFor = db.prepare('SELECT crest_url, tla FROM teams WHERE api_team_id=?');
-function enrich(row) {
+
+// ── closed-game P&L lookup ──────────────────────────────────────────────────
+// games.name is free text ("Manchester City FC vs AFC Bournemouth"), fixtures carry
+// the two team names separately. Normalise both sides and match on name, falling
+// back to same-day + both teams present.
+function norm(s) {
+  return String(s || '').toLowerCase().replace(/\b(fc|afc)\b/g, '').replace(/[^a-z0-9]/g, '');
+}
+function profitIndex() {
+  return db.prepare(`
+    SELECT name, date, total_revenue, total_all_costs, net_profit, margin_percent, tickets_sold
+    FROM games WHERE completed = 1
+  `).all().map(g => ({ ...g, key: norm(g.name) }));
+}
+// fixtures use short labels ("Man City"), games use full ones ("Manchester City FC").
+// On a same-day match, accept when at least one 3+ char token of each side appears.
+function sideMatches(team, key) {
+  return String(team || '').toLowerCase().split(/[^a-z0-9]+/)
+    .some(t => t.length >= 3 && key.includes(t));
+}
+function profitFor(row, idx) {
+  if (!idx || !idx.length) return null;
+  const key = norm(`${row.home_team} vs ${row.away_team}`);
+  const day = (row.kickoff_utc || '').slice(0, 10);
+  const g = idx.find(x => x.key === key)
+    || idx.find(x => x.date === day && sideMatches(row.home_team, x.key) && sideMatches(row.away_team, x.key));
+  if (!g) return null;
+  return {
+    game_name: g.name,
+    revenue: g.total_revenue,
+    cost: g.total_all_costs,
+    net_profit: g.net_profit,
+    margin_percent: g.margin_percent,
+    tickets_sold: g.tickets_sold,
+  };
+}
+
+function enrich(row, idx) {
   const home = crestFor.get(row.home_team_id) || {};
   const away = crestFor.get(row.away_team_id) || {};
   return {
@@ -19,6 +56,7 @@ function enrich(row) {
     tickets_onsale_local: toUkLocalString(row.tickets_onsale_at),
     home_crest: home.crest_url || null, home_tla: home.tla || null,
     away_crest: away.crest_url || null, away_tla: away.tla || null,
+    pnl: profitFor(row, idx),
   };
 }
 
@@ -46,7 +84,8 @@ router.get('/competitions', (req, res) => {
 // GET /api/fixtures/hot  → HOT GAMES tab, all competitions
 router.get('/hot', (req, res) => {
   const rows = db.prepare('SELECT * FROM fixtures WHERE is_hot=1 ORDER BY kickoff_utc').all();
-  res.json(rows.map(enrich));
+  const idx = profitIndex();
+  res.json(rows.map(r => enrich(r, idx)));
 });
 
 // GET /api/fixtures/meta?competition=PL  → filter metadata scoped to a competition
@@ -82,7 +121,8 @@ router.get('/', (req, res) => {
   }
 
   const rows = db.prepare(`SELECT * FROM fixtures WHERE ${where.join(' AND ')} ORDER BY kickoff_utc`).all(...params);
-  res.json(rows.map(enrich));
+  const idx = profitIndex();
+  res.json(rows.map(r => enrich(r, idx)));
 });
 
 // POST /api/fixtures/sync   body: { competition_code? }
@@ -121,7 +161,7 @@ router.put('/:id', (req, res) => {
                 VALUES ('fixtures-manual-edit','UPDATE','fixtures',?,?)`).run(String(id), JSON.stringify(req.body || {}));
   } catch (_) {}
 
-  res.json(enrich(db.prepare('SELECT * FROM fixtures WHERE id=?').get(id)));
+  res.json(enrich(db.prepare('SELECT * FROM fixtures WHERE id=?').get(id), profitIndex()));
 });
 
 // GET /api/fixtures/teams  → manage tracked teams

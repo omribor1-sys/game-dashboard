@@ -19,6 +19,12 @@ const TICKET_BADGE = {
 const HOT_TIER_LABEL = { elite: 'Elite', high: 'High', notable: 'Notable' };
 const HOT_TIER_CLASS = { elite: 'hot-elite', high: 'hot-high', notable: 'hot-notable' };
 
+function eur(n, signed = false) {
+  const v = Number(n) || 0;
+  const s = Math.abs(v).toLocaleString('en-IE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${signed ? (v >= 0 ? '+' : '−') : ''}€${s}`;
+}
+
 function Crest({ url, tla }) {
   if (url) {
     return (
@@ -114,6 +120,20 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
 
       {/* Hot reason line */}
       {fx.is_hot && fx.hot_reason ? <div className="fc-hot-reason">🔥 {fx.hot_reason}</div> : null}
+
+      {/* Closed-game P&L (only present once the game has been closed with costs) */}
+      {fx.pnl ? (
+        <div className={`fc-pnl ${fx.pnl.net_profit >= 0 ? 'pos' : 'neg'}`} title={fx.pnl.game_name}>
+          <span className="fc-pnl-main">
+            {fx.pnl.net_profit >= 0 ? '📈' : '📉'} {eur(fx.pnl.net_profit, true)}
+          </span>
+          <span className="fc-pnl-sub">
+            Revenue {eur(fx.pnl.revenue)} · Cost {eur(fx.pnl.cost)}
+            {fx.pnl.margin_percent != null ? ` · ${fx.pnl.margin_percent}%` : ''}
+            {fx.pnl.tickets_sold != null ? ` · ${fx.pnl.tickets_sold} tickets` : ''}
+          </span>
+        </div>
+      ) : null}
 
       {/* Foot: ticket status + actions */}
       <div className="fc-foot">

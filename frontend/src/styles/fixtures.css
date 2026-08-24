@@ -179,3 +179,23 @@
   .fc-actions .btn-sm { padding: 6px 8px; font-size: 12px; }
   .crest, .crest-fallback { width: 24px; height: 24px; }
 }
+
+/* ── Closed-game P&L (past games) ────────────────────────────────────────── */
+.fc-pnl { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); }
+.fc-pnl.pos { background: var(--green-light); border-color: var(--green); }
+.fc-pnl.neg { background: var(--red-light); border-color: var(--red); }
+.fc-pnl-main { font-weight: 700; font-size: 15px; }
+.fc-pnl.pos .fc-pnl-main { color: var(--green); }
+.fc-pnl.neg .fc-pnl-main { color: var(--red); }
+.fc-pnl-sub { font-size: 12.5px; color: var(--text-muted); }
+
+.fx-past-total { margin: 12px 0; padding: 10px 14px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--card-bg); font-weight: 700; }
+.fx-past-total.pos { color: var(--green); border-color: var(--green); }
+.fx-past-total.neg { color: var(--red); border-color: var(--red); }
+.fx-past-total .muted { font-weight: 400; color: var(--text-muted); font-size: 12.5px; }
+
+/* past cards stay readable even when the teams aren't tracked */
+.fixtures-calendar .fixture-card.dim .fc-pnl,
+.fixtures-matchweek .fixture-card.dim .fc-pnl { opacity: 1; }
