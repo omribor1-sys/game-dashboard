@@ -132,7 +132,7 @@ export default function SeasonFixtures() {
         </div>
         <div className="header-actions">
           <button
-            className={`btn btn-sm ${showPast ? 'btn-primary' : 'btn-ghost'}`}
+            className={`btn ${showPast ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setShowPast(p => !p)}
             title={showPast ? 'Back to upcoming fixtures' : 'Show games that already happened'}
           >
