@@ -159,7 +159,26 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_fixtures_season ON fixtures(season_id);
   CREATE INDEX IF NOT EXISTS idx_fixtures_kickoff ON fixtures(kickoff_utc);
   CREATE INDEX IF NOT EXISTS idx_fixtures_competition ON fixtures(competition_code);
+
+  CREATE TABLE IF NOT EXISTS standings (
+    competition_code TEXT NOT NULL,
+    group_name TEXT NOT NULL DEFAULT '',
+    position INTEGER NOT NULL,
+    team_id INTEGER,
+    team_name TEXT,
+    crest_url TEXT,
+    played INTEGER, won INTEGER, draw INTEGER, lost INTEGER,
+    goals_for INTEGER, goals_against INTEGER, goal_difference INTEGER,
+    points INTEGER, form TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (competition_code, group_name, position)
+  );
 `);
+
+// Final scores for played fixtures (added 2026-08-24)
+try { db.exec('ALTER TABLE fixtures ADD COLUMN home_score INTEGER'); } catch (_) {}
+try { db.exec('ALTER TABLE fixtures ADD COLUMN away_score INTEGER'); } catch (_) {}
+try { db.exec('ALTER TABLE fixtures ADD COLUMN winner TEXT'); } catch (_) {}
 
 // Seed default watermark on first deploy (set to today so only future emails are checked)
 try {

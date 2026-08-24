@@ -50,6 +50,12 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
   const isPrimaryHome = !!fx.home_primary;
 
   const matchTitle = `${fx.home_team} vs ${fx.away_team}`;
+  const hasScore = Number.isInteger(fx.home_score) && Number.isInteger(fx.away_score);
+  // bold the winning side once a result is in
+  const teamCls = (tracked, side) => [
+    'team', tracked ? 'on' : '',
+    hasScore && fx.winner === `${side}_TEAM` ? 'won' : '',
+  ].filter(Boolean).join(' ');
 
   // Split kickoff_local: "Fri, 21/08/2026, 20:00" → date "Fri, 21/08/2026" + time "20:00"
   const kickoffParts = (fx.kickoff_local || '').split(',').map(s => s.trim());
@@ -86,11 +92,17 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
         <div className="fc-teams">
           <span className="fc-side home">
             <Crest url={fx.home_crest} tla={fx.home_tla} />
-            <span className={homeTracked ? 'team on' : 'team'}>{fx.home_team || '—'}</span>
+            <span className={teamCls(homeTracked, 'HOME')}>{fx.home_team || '—'}</span>
           </span>
-          <span className="fc-vs">VS</span>
+          {hasScore ? (
+            <span className="fc-score" title={fx.status === 'FINISHED' ? 'Full time' : fx.status}>
+              {fx.home_score}<span className="fc-score-dash">–</span>{fx.away_score}
+            </span>
+          ) : (
+            <span className="fc-vs">VS</span>
+          )}
           <span className="fc-side away">
-            <span className={awayTracked ? 'team on' : 'team'}>{fx.away_team || '—'}</span>
+            <span className={teamCls(awayTracked, 'AWAY')}>{fx.away_team || '—'}</span>
             <Crest url={fx.away_crest} tla={fx.away_tla} />
           </span>
         </div>

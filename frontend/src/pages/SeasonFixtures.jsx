@@ -6,6 +6,7 @@ import FixtureFilters from '../components/fixtures/FixtureFilters';
 import FixtureCard from '../components/fixtures/FixtureCard';
 import FixtureEditModal from '../components/fixtures/FixtureEditModal';
 import KeyDatesPanel from '../components/fixtures/KeyDatesPanel';
+import StandingsTable from '../components/fixtures/StandingsTable';
 
 export default function SeasonFixtures() {
   const [params, setParams] = useSearchParams();
@@ -19,7 +20,7 @@ export default function SeasonFixtures() {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
   const [editing, setEditing] = useState(null);
-  const [showPast, setShowPast] = useState(false);
+  const [mode, setMode] = useState('upcoming');   // 'upcoming' | 'past' | 'table'
 
   const isHot = competition === 'HOT';
 
@@ -114,6 +115,8 @@ export default function SeasonFixtures() {
   const isPast = f => f.kickoff_utc && Date.parse(f.kickoff_utc) < now;
   const pastFixtures = fixtures.filter(isPast);
   const upcomingFixtures = fixtures.filter(f => !isPast(f));
+  const showPast = mode === 'past';
+  const showTable = mode === 'table';
   const visible = showPast ? [...pastFixtures].reverse() : upcomingFixtures;   // past: newest first
   const pastProfit = pastFixtures.reduce((s, f) => s + (f.pnl ? f.pnl.net_profit || 0 : 0), 0);
 
@@ -133,11 +136,20 @@ export default function SeasonFixtures() {
         <div className="header-actions">
           <button
             className={`btn ${showPast ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setShowPast(p => !p)}
-            title={showPast ? 'Back to upcoming fixtures' : 'Show games that already happened'}
+            onClick={() => setMode(m => (m === 'past' ? 'upcoming' : 'past'))}
+            title={showPast ? 'Back to upcoming fixtures' : 'Show games that already happened, with result and P&L'}
           >
             {showPast ? '← Upcoming' : `⏮ Past games (${pastFixtures.length})`}
           </button>
+          {!isHot && (
+            <button
+              className={`btn ${showTable ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setMode(m => (m === 'table' ? 'upcoming' : 'table'))}
+              title="Current league table"
+            >
+              {showTable ? '← Fixtures' : '🏆 League table'}
+            </button>
+          )}
           {!isHot && (
             <>
               <button className="btn btn-primary" disabled={syncing} onClick={syncNow}>
@@ -159,14 +171,16 @@ export default function SeasonFixtures() {
       )}
 
       <LeagueTabs competitions={competitions} active={competition} onSelect={setCompetition} />
-      {isHot && <KeyDatesPanel />}
-      {!isHot && (
+      {isHot && !showTable && <KeyDatesPanel />}
+      {!isHot && !showTable && (
         <FixtureFilters meta={meta} filters={filters} onChange={setFilters} view={view} onView={setView} />
       )}
 
       {error && <div className="error-box">{error}</div>}
 
-      {loading ? (
+      {showTable ? (
+        <StandingsTable competition={competition} />
+      ) : loading ? (
         <div className="loading">Loading…</div>
       ) : visible.length === 0 ? (
         <div className="fx-empty">

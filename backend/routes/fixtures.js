@@ -104,6 +104,24 @@ router.get('/meta', (req, res) => {
   res.json({ teams, months, matchdays, last_synced_at: last });
 });
 
+// GET /api/fixtures/standings?competition=PL  → current league table
+router.get('/standings', (req, res) => {
+  const code = req.query.competition || defaultCompetition();
+  const rows = db.prepare(`
+    SELECT * FROM standings WHERE competition_code=? ORDER BY group_name, position
+  `).all(code);
+  const tracked = new Set(db.prepare('SELECT api_team_id FROM teams WHERE is_tracked=1').all().map(t => t.api_team_id));
+  // group into [{ group, rows }] so cup competitions render one table per group
+  const groups = [];
+  for (const r of rows) {
+    const row = { ...r, is_tracked: tracked.has(r.team_id) ? 1 : 0 };
+    const last = groups[groups.length - 1];
+    if (last && last.group === r.group_name) last.rows.push(row);
+    else groups.push({ group: r.group_name, rows: [row] });
+  }
+  res.json({ competition_code: code, updated_at: rows.length ? rows[0].updated_at : null, groups });
+});
+
 // GET /api/fixtures?competition=PL&month=2026-12&team=57&homeAway=home&tracked=1&matchday=5
 router.get('/', (req, res) => {
   const code = req.query.competition || defaultCompetition();
