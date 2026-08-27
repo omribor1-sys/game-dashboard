@@ -138,14 +138,23 @@ function normalizeGameName(rawName, db) {
       }
     }
 
-    // Step 3: fuzzy-match against existing canonical names in DB
+    // Step 3: fuzzy-match against existing canonical names in DB.
+    //
+    // ⚠️ Scoped to the SAME game_datetime when we know it. Two words are a weak signal:
+    // "Newcastle United FC vs West Bromwich Albion FC" takes its first two words as
+    // "Newcastle" + "West", which LIKE-matches an unrelated "Newcastle vs West Ham"
+    // from another date and silently merges two different fixtures' revenue
+    // (happened 2026-08-25). A team cannot play twice at the same kickoff, so
+    // restricting the fuzzy match to that slot keeps the convenience without the
+    // cross-date merge. No datetime → no fuzzy match; a new group is safer than a
+    // wrong merge, and step 2.5 catches the real duplicates anyway.
     const words = name.split(/\s+/).filter(w => w.length > 3 && !/^(vs|vs\.|AFC|FC|United|City)$/i.test(w));
-    if (words.length >= 2) {
+    if (words.length >= 2 && datetime) {
       const likeClause = words.slice(0, 2).map(() => 'game_name LIKE ?').join(' AND ');
       const params = words.slice(0, 2).map(w => `%${w}%`);
       const match = db.prepare(
-        `SELECT game_name FROM orders WHERE ${likeClause} AND deleted_at IS NULL LIMIT 1`
-      ).get(...params);
+        `SELECT game_name FROM orders WHERE ${likeClause} AND game_datetime = ? AND deleted_at IS NULL LIMIT 1`
+      ).get(...params, datetime);
       if (match) return match.game_name;
     }
   }
