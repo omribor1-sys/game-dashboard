@@ -7,6 +7,8 @@ const { normalizeGameName } = require('../utils/normalize');
 // How many days before the watermark to re-scan on every run. Covers cron misses,
 // late-arriving mail, and anything the previous run's query didn't see.
 const LOOKBACK_DAYS = 7;
+// 100 messages/page — a backstop against a runaway loop, not an expected limit.
+const MAX_PAGES_PER_QUERY = 10;
 
 // ── OAuth2 client ─────────────────────────────────────────────────────────────
 function getOAuth2Client() {
@@ -434,13 +436,27 @@ async function checkEmailsAndImport(options = {}) {
 
     const messageIds = new Set();
 
+    // Paginate. A single page was capped at 50 messages with no nextPageToken follow-up:
+    // Gmail returns newest-first, so once a lookback window held more than 50 matches the
+    // OLDEST sales were dropped — and because the watermark still advanced to today, they
+    // were never scanned again. StubHub sends each "You sold" email twice, and a 7-day
+    // window routinely holds 40+ of them, so this was live. Ceiling is loud, not silent.
     for (const q of queries) {
-      const r = await gmail.users.messages.list({
-        userId: 'me', q, maxResults: 50,
-      });
-      for (const m of (r.data.messages || [])) {
-        messageIds.add(m.id);
-      }
+      let pageToken;
+      let pages = 0;
+      do {
+        const r = await gmail.users.messages.list({ userId: 'me', q, maxResults: 100, pageToken });
+        for (const m of (r.data.messages || [])) {
+          messageIds.add(m.id);
+        }
+        pageToken = r.data.nextPageToken;
+        pages++;
+        if (pageToken && pages >= MAX_PAGES_PER_QUERY) {
+          console.warn(`[Gmail] ⚠️ hit the ${MAX_PAGES_PER_QUERY}-page ceiling on "${q}" — more mail matched than was scanned`);
+          stats.errors.push(`page ceiling reached for query: ${q}`);
+          break;
+        }
+      } while (pageToken);
     }
 
     console.log(`[Gmail] Found ${messageIds.size} candidate emails`);
