@@ -1,4 +1,4 @@
-const FLAG = { PL: '🏴', PD: '🇪🇸', SA: '🇮🇹', CL: '🇪🇺', DED: '🇳🇱', BL1: '🇩🇪', FL1: '🇫🇷' };
+const FLAG = { PL: '🏴', PD: '🇪🇸', SA: '🇮🇹', CL: '🇪🇺', DED: '🇳🇱', BL1: '🇩🇪', FL1: '🇫🇷', EFL: '🏆', UEL: '🇪🇺' };
 
 export default function LeagueTabs({ competitions, active, onSelect }) {
   return (

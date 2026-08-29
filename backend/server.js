@@ -644,6 +644,28 @@ cron.schedule('0 9 * * 0', async () => {
 // football-data hasn't ingested for 2026/27 yet (PL/PD/CL/BL1 at launch) auto-appear the moment
 // they land, and (2) date/time reschedules are detected within a day — important for a reseller.
 // Cost is trivial (7 throttled requests/day).
+// TheSportsDB competitions (Carabao Cup, Europa League) — 06:50 UTC, after football-data.
+// Walks a 14-day window per competition because the free tier truncates season queries.
+cron.schedule('50 6 * * *', async () => {
+  try {
+    const { syncSportsDb } = require('./services/sportsdb-sync');
+    const r = await syncSportsDb();
+    console.log('[cron] cups sync:', JSON.stringify(r.totals));
+    // Unmatched team names mean cup fixtures exist that Omri's team filter cannot reach.
+    // That is exactly the kind of gap that stays invisible unless it shouts.
+    if (r.totals.unmatched > 0) {
+      try {
+        const { sendWhatsApp } = require('./services/whatsapp-notifier');
+        await sendWhatsApp(`⚠️ סנכרון גביעים: ${r.totals.unmatched} משחקים עם קבוצה לא מזוהה — לא יופיעו בסינון לפי קבוצה.
+${r.errors.slice(0, 5).join('
+')}`);
+      } catch (_) {}
+    }
+  } catch (e) {
+    console.error('[cron] cups sync failed:', e.message);
+  }
+}, { timezone: 'UTC' });
+
 cron.schedule('30 6 * * *', async () => {
   try {
     const db = require('./database');

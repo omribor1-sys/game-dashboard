@@ -8,9 +8,11 @@ const { kickoffChanged } = require('../utils/fixtures-format');
 const INTER_COMPETITION_DELAY_MS = 7000;
 
 // ── prepared statements ──────────────────────────────────────────────────────
+// Only competitions football-data actually serves. The cups live on TheSportsDB and are
+// handled by sportsdb-sync; asking football-data for them just burns the rate limit on 403s.
 const getSeasons = (code) => code
-  ? db.prepare('SELECT * FROM seasons WHERE active=1 AND competition_code=?').all(code)
-  : db.prepare('SELECT * FROM seasons WHERE active=1 ORDER BY sort_order').all();
+  ? db.prepare("SELECT * FROM seasons WHERE active=1 AND competition_code=? AND COALESCE(source,'football-data')='football-data'").all(code)
+  : db.prepare("SELECT * FROM seasons WHERE active=1 AND COALESCE(source,'football-data')='football-data' ORDER BY sort_order").all();
 
 const upsertTeam = db.prepare(`
   INSERT INTO teams (api_team_id, name, full_name, tla, crest_url, is_tracked, is_primary)

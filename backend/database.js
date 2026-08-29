@@ -175,6 +175,11 @@ db.exec(`
   );
 `);
 
+// Which provider feeds each competition. football-data cannot serve the English cups or
+// the Europa League on our plan, so those rows are fed by TheSportsDB and each sync must
+// only walk its own competitions (added 2026-08-29).
+try { db.exec("ALTER TABLE seasons ADD COLUMN source TEXT DEFAULT 'football-data'"); } catch (_) {}
+
 // Final scores for played fixtures (added 2026-08-24)
 try { db.exec('ALTER TABLE fixtures ADD COLUMN home_score INTEGER'); } catch (_) {}
 try { db.exec('ALTER TABLE fixtures ADD COLUMN away_score INTEGER'); } catch (_) {}
@@ -196,12 +201,18 @@ const COMPETITIONS = [
   ['Eredivisie 2026/27',     'DED', '2026', null, null, 0, 4],
   ['Bundesliga 2026/27',     'BL1', '2026', null, null, 0, 5],
   ['Ligue 1 2026/27',        'FL1', '2026', null, null, 0, 6],
+  // Served by TheSportsDB, not football-data — the free football-data plan has neither.
+  ['Carabao Cup 2026/27',    'EFL', '2026', null, null, 0, 7],
+  ['Europa League 2026/27',  'UEL', '2026', null, null, 0, 8],
 ];
 const _seedSeason = db.prepare(
   `INSERT OR IGNORE INTO seasons (name, competition_code, source_season, start_date, end_date, is_default, sort_order)
    VALUES (?, ?, ?, ?, ?, ?, ?)`
 );
 for (const c of COMPETITIONS) { try { _seedSeason.run(...c); } catch (_) {} }
+try {
+  db.exec("UPDATE seasons SET source='thesportsdb' WHERE competition_code IN ('EFL','UEL')");
+} catch (_) {}
 
 // Tracked teams Omri works with — football-data team ids are stable.
 // First sync fills crest_url/full_name; here we ensure the row exists with the tracking flag.

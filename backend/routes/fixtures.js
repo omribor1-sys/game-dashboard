@@ -121,7 +121,7 @@ router.get('/probe-matches', async (req, res) => {
 
 // GET /api/fixtures/competitions  → league tabs
 router.get('/competitions', (req, res) => {
-  const LABELS = { PL:'Premier League', PD:'La Liga', SA:'Serie A', CL:'Champions League', DED:'Eredivisie', BL1:'Bundesliga', FL1:'Ligue 1' };
+  const LABELS = { PL:'Premier League', PD:'La Liga', SA:'Serie A', CL:'Champions League', DED:'Eredivisie', BL1:'Bundesliga', FL1:'Ligue 1', EFL:'Carabao Cup', UEL:'Europa League' };
   const rows = db.prepare('SELECT * FROM seasons WHERE active=1 ORDER BY sort_order').all();
   const out = rows.map(s => ({
     competition_code: s.competition_code,
@@ -207,6 +207,14 @@ router.get('/', (req, res) => {
   ).all(...params);
   const idx = profitIndex();
   res.json(rows.map(r => enrich(r, idx)));
+});
+
+// POST /api/fixtures/sync-cups  → TheSportsDB competitions (Carabao Cup, Europa League)
+router.post('/sync-cups', async (req, res) => {
+  try {
+    const { syncSportsDb } = require('../services/sportsdb-sync');
+    res.json(await syncSportsDb());
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // POST /api/fixtures/sync   body: { competition_code? }
