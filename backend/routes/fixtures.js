@@ -98,6 +98,27 @@ router.get('/probe', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /api/fixtures/probe-matches?from=YYYY-MM-DD&to=YYYY-MM-DD
+// The cross-competition /v4/matches feed. Worth probing separately: it can surface
+// competitions that /v4/competitions does not list for our plan.
+router.get('/probe-matches', async (req, res) => {
+  const clean = (v) => String(v || '').replace(/[^0-9-]/g, '');
+  const from = clean(req.query.from), to = clean(req.query.to);
+  try {
+    const { apiGet } = require('../services/football-data-client');
+    const qs = from && to ? `?dateFrom=${from}&dateTo=${to}` : '';
+    const data = await apiGet(`/matches${qs}`, 'matches feed');
+    const byComp = {};
+    for (const m of (data.matches || [])) {
+      const c = m.competition || {};
+      const k = `${c.code || '??'} — ${c.name || '?'}`;
+      (byComp[k] = byComp[k] || { count: 0, sample: null }).count++;
+      if (!byComp[k].sample) byComp[k].sample = `${m.utcDate?.slice(0, 10)} ${m.homeTeam?.name} vs ${m.awayTeam?.name}`;
+    }
+    res.json({ range: { from: from || null, to: to || null }, total: (data.matches || []).length, byComp });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET /api/fixtures/competitions  → league tabs
 router.get('/competitions', (req, res) => {
   const LABELS = { PL:'Premier League', PD:'La Liga', SA:'Serie A', CL:'Champions League', DED:'Eredivisie', BL1:'Bundesliga', FL1:'Ligue 1' };
