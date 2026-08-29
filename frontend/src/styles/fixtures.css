@@ -13,28 +13,6 @@
 .fixtures-page .muted { color: var(--text-muted); font-size: 12px; }
 
 /* ── League Tabs (scroll on mobile, wrap on desktop) ─────────────────────── */
-.league-tabs {
-  display: flex; gap: 6px; margin-bottom: 14px; padding-bottom: 10px;
-  border-bottom: 2px solid var(--border); direction: ltr;
-  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin;
-}
-.league-tabs::-webkit-scrollbar { height: 4px; }
-.league-tabs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-.league-tab {
-  display: inline-flex; align-items: center; gap: 5px; padding: 8px 14px;
-  border: 1px solid var(--border); border-radius: 20px; background: var(--card-bg);
-  color: var(--text-muted); font-size: 13px; font-weight: 500; cursor: pointer;
-  transition: all 0.15s; white-space: nowrap; flex-shrink: 0;
-}
-.league-tab:hover { background: var(--bg); color: var(--text); border-color: var(--green); }
-.league-tab.active { background: var(--green); color: #fff; border-color: var(--green); font-weight: 700; }
-.league-tab.primary { font-size: 14px; font-weight: 600; padding: 9px 18px; border-width: 2px; }
-.league-tab.primary.active { box-shadow: 0 2px 8px rgba(29, 158, 117, 0.35); }
-.league-tab.primary:not(.active) { border-color: var(--green); color: var(--green); }
-.league-tab .flag { font-size: 14px; line-height: 1; }
-.league-tab.hot-tab { font-weight: 700; border-color: var(--red); color: var(--red); }
-.league-tab.hot-tab:hover { background: var(--red-light); border-color: var(--red); color: var(--red); }
-.league-tab.hot-tab.active { background: var(--red); border-color: var(--red); color: #fff; box-shadow: 0 2px 8px rgba(216, 90, 48, 0.35); }
 
 /* ── Filter Bar ──────────────────────────────────────────────────────────── */
 .fixture-filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 0; margin-bottom: 14px; direction: ltr; }
@@ -158,7 +136,6 @@
 @media (min-width: 640px) {
   .crest, .crest-fallback { width: 28px; height: 28px; }
   .fc-side .team { font-size: 15px; white-space: nowrap; }  /* fits on one line on desktop */
-  .league-tabs { flex-wrap: wrap; overflow-x: visible; }
   /* Cluster the row groups together in the centre instead of spreading to the card edges */
   .fc-main { justify-content: center; gap: 18px; }
   .fc-teams { flex: 0 1 auto; }
@@ -231,3 +208,63 @@
 .st-form-dot.st-d { background: var(--text-muted); }
 .st-form-dot.st-l { background: var(--red); }
 @media (max-width: 700px) { .st-hide-sm { display: none; } }
+
+/* ── Competition tabs ─────────────────────────────────────────────────────────
+   Behaviour borrowed from 21st.dev "Animated Tabs" (educalvolpz) — roving
+   tabindex, arrow/Home/End navigation, a sliding indicator, reduced-motion
+   respect — reimplemented on this project's CSS variables. The original is
+   Tailwind + Radix + motion/react; installing that stack for one tab bar would
+   have dragged in three dependencies and a second styling system. */
+.lt-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; }
+
+.lt-list { position: relative; display: flex; align-items: center; gap: 4px;
+  overflow-x: auto; scrollbar-width: none; padding: 3px; flex: 1;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 14px; }
+.lt-list::-webkit-scrollbar { display: none; }
+
+.lt-indicator { position: absolute; left: 0; top: 3px; bottom: 3px; z-index: 0;
+  background: var(--green); border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(29,158,117,.35);
+  transition: transform .22s cubic-bezier(.32,.72,0,1), width .22s cubic-bezier(.32,.72,0,1); }
+.lt-indicator.hot { background: var(--red); box-shadow: 0 1px 3px rgba(216,90,48,.35); }
+
+.lt-tab { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 7px;
+  white-space: nowrap; cursor: pointer; min-height: 38px; padding: 0 13px;
+  border: 1px solid transparent; border-radius: 10px; background: transparent;
+  font: inherit; font-size: 14px; font-weight: 500; color: var(--text-muted);
+  transition: color .18s ease, background .18s ease; }
+.lt-tab:hover { color: var(--text); background: var(--card-bg); }
+.lt-tab:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.lt-tab[aria-selected="true"] { color: #fff; font-weight: 600; background: transparent; }
+.lt-tab[aria-selected="true"]:hover { background: transparent; }
+
+.lt-ic { width: 16px; height: 16px; flex: none; }
+/* tabular figures so the bar does not twitch as counts change */
+.lt-count { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums;
+  padding: 1px 6px; border-radius: 99px; background: var(--border); color: var(--text-muted); }
+.lt-tab[aria-selected="true"] .lt-count { background: rgba(255,255,255,.24); color: #fff; }
+
+.lt-abbr { display: none; }
+
+.lt-more { position: relative; flex: none; }
+.lt-more-btn { border-color: var(--border); background: var(--card-bg); }
+.lt-more-btn:hover { border-color: var(--green); color: var(--text); }
+.lt-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 220px;
+  padding: 6px; background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 12px; box-shadow: 0 8px 24px rgba(15,23,42,.14); }
+.lt-menu-item { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; min-height: 38px; padding: 0 10px; cursor: pointer;
+  border: 0; border-radius: 9px; background: transparent;
+  font: inherit; font-size: 14px; color: var(--text); text-align: left;
+  transition: background .15s ease; }
+.lt-menu-item:hover { background: var(--bg); }
+.lt-menu-item:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
+
+@media (max-width: 640px) {
+  .lt-full { display: none; }
+  .lt-abbr { display: inline; }
+  .lt-tab { padding: 0 11px; min-height: 40px; }   /* stays a 44px target with the 3px rail padding */
+}
+@media (prefers-reduced-motion: reduce) {
+  .lt-indicator { transition: none; }
+}
