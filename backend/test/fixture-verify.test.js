@@ -20,3 +20,14 @@ assert.ok(!sameTie({ home: 'Crystal Palace', away: 'Manchester City' },
 assert.ok(!sameTie({ home: 'Arsenal', away: '' }, { home: 'Arsenal', away: 'Chelsea' }));
 
 console.log('fixture-verify: all assertions passed');
+
+// Regression: the DB row shape (home_team/away_team) must compare equal to the provider
+// shape (home/away). Reading only .home/.away made every comparison undefined-vs-undefined
+// and declared all 40 fixtures missing on the first live run.
+assert.ok(sameTie({ home_team: 'Bournemouth', away_team: 'Everton' },
+                  { home: 'Bournemouth',      away: 'Everton' }));
+assert.ok(sameTie({ home_team: 'Liverpool', away_team: 'Nottingham' },
+                  { home: 'Liverpool',      away: 'Nottingham Forest' }));
+assert.ok(!sameTie({ home_team: 'Liverpool', away_team: 'Everton' },
+                   { home: 'Liverpool',      away: 'Nottingham Forest' }));
+console.log('fixture-verify: db-row shape assertions passed');

@@ -76,9 +76,16 @@ async function externalDay(check, ymd) {
 
 // Two fixtures are the same tie when BOTH sides match. One shared team is not enough —
 // that is precisely the assumption that merged Newcastle/West Brom into Newcastle/West Ham.
+//
+// Accepts either shape: our DB rows use home_team/away_team, provider rows use home/away.
+// Reading only .home/.away silently compared undefined to undefined and declared all 40
+// fixtures missing — the verifier's own first bug, and the same silent-failure shape it
+// was written to catch.
+const sideOf = (o, which) => (which === 'home' ? (o.home ?? o.home_team) : (o.away ?? o.away_team));
+
 function sameTie(a, b) {
-  const ah = normTeam(a.home), aa = normTeam(a.away);
-  const bh = normTeam(b.home), ba = normTeam(b.away);
+  const ah = normTeam(sideOf(a, 'home')), aa = normTeam(sideOf(a, 'away'));
+  const bh = normTeam(sideOf(b, 'home')), ba = normTeam(sideOf(b, 'away'));
   if (!ah || !aa || !bh || !ba) return false;
   const near = (x, y) => x === y || (x.length >= 5 && y.length >= 5 && (x.startsWith(y) || y.startsWith(x)));
   return near(ah, bh) && near(aa, ba);
