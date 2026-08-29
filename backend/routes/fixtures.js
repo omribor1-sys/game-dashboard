@@ -79,6 +79,25 @@ router.get('/available', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /api/fixtures/probe?competition=CL&season=2026  → what the provider returns for a
+// season we do not hold yet, without writing anything. Answers "is the new draw published?"
+router.get('/probe', async (req, res) => {
+  const code = String(req.query.competition || 'CL').replace(/[^A-Z0-9]/gi, '');
+  const season = String(req.query.season || '').replace(/[^0-9]/g, '');
+  try {
+    const { apiGet } = require('../services/football-data-client');
+    const data = await apiGet(`/competitions/${code}/matches${season ? `?season=${season}` : ''}`, `${code} probe`);
+    const ms = data.matches || [];
+    res.json({
+      code, season_requested: season || null,
+      filters: data.filters, resultSet: data.resultSet,
+      count: ms.length,
+      first: ms[0] ? { date: ms[0].utcDate, home: ms[0].homeTeam?.name, away: ms[0].awayTeam?.name, stage: ms[0].stage } : null,
+      last: ms.length ? { date: ms[ms.length - 1].utcDate } : null,
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET /api/fixtures/competitions  → league tabs
 router.get('/competitions', (req, res) => {
   const LABELS = { PL:'Premier League', PD:'La Liga', SA:'Serie A', CL:'Champions League', DED:'Eredivisie', BL1:'Bundesliga', FL1:'Ligue 1' };
