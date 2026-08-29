@@ -656,9 +656,10 @@ cron.schedule('50 6 * * *', async () => {
     if (r.totals.unmatched > 0) {
       try {
         const { sendWhatsApp } = require('./services/whatsapp-notifier');
-        await sendWhatsApp(`⚠️ סנכרון גביעים: ${r.totals.unmatched} משחקים עם קבוצה לא מזוהה — לא יופיעו בסינון לפי קבוצה.
-${r.errors.slice(0, 5).join('
-')}`);
+        const detail = r.errors.slice(0, 5).join(' | ');
+        await sendWhatsApp(
+          `⚠️ סנכרון גביעים: ${r.totals.unmatched} משחקים עם קבוצה לא מזוהה — לא יופיעו בסינון לפי קבוצה. ${detail}`
+        );
       } catch (_) {}
     }
   } catch (e) {
