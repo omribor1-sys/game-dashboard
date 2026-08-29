@@ -180,6 +180,14 @@ db.exec(`
 // only walk its own competitions (added 2026-08-29).
 try { db.exec("ALTER TABLE seasons ADD COLUMN source TEXT DEFAULT 'football-data'"); } catch (_) {}
 
+// Where a hot flag came from, and the score behind it. Manual curation must survive the
+// automatic pass, and the score is stored so the heuristic can be argued with against real
+// sales instead of trusted on faith (added 2026-08-29).
+try { db.exec("ALTER TABLE fixtures ADD COLUMN hot_source TEXT"); } catch (_) {}
+try { db.exec("ALTER TABLE fixtures ADD COLUMN hot_score REAL"); } catch (_) {}
+// Anything already hot before this column existed was marked by hand.
+try { db.exec("UPDATE fixtures SET hot_source='manual' WHERE is_hot=1 AND hot_source IS NULL"); } catch (_) {}
+
 // Final scores for played fixtures (added 2026-08-24)
 try { db.exec('ALTER TABLE fixtures ADD COLUMN home_score INTEGER'); } catch (_) {}
 try { db.exec('ALTER TABLE fixtures ADD COLUMN away_score INTEGER'); } catch (_) {}

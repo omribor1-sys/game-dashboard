@@ -646,6 +646,17 @@ cron.schedule('0 9 * * 0', async () => {
 // Cost is trivial (7 throttled requests/day).
 // TheSportsDB competitions (Carabao Cup, Europa League) — 06:50 UTC, after football-data.
 // Walks a 14-day window per competition because the free tier truncates season queries.
+// Hot-game detection from bookmaker odds — 07:20 UTC, after fixtures are current.
+cron.schedule('20 7 * * *', async () => {
+  try {
+    const { detectHotGames } = require('./services/hot-detect');
+    const r = await detectHotGames();
+    console.log('[cron] hot detect:', JSON.stringify(r.skipped ? r : { marked: r.marked, cleared: r.cleared, quota_left: r.remaining }));
+  } catch (e) {
+    console.error('[cron] hot detect failed:', e.message);
+  }
+}, { timezone: 'UTC' });
+
 // Cross-source verification — 07:10 UTC, after every sync has written. Reports only;
 // it must never repair, or a bad source gets laundered into the DB by the very job
 // meant to catch it.

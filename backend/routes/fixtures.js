@@ -247,6 +247,14 @@ router.post('/verify/notify', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// POST /api/fixtures/detect-hot  → refresh odds-derived hot flags
+router.post('/detect-hot', async (req, res) => {
+  try {
+    const { detectHotGames } = require('../services/hot-detect');
+    res.json(await detectHotGames());
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // POST /api/fixtures/sync   body: { competition_code? }
 router.post('/sync', async (req, res) => {
   try {
@@ -273,9 +281,11 @@ router.put('/:id', (req, res) => {
   };
   db.prepare(`UPDATE fixtures SET kickoff_utc=?, tickets_onsale_at=?, tickets_status=?, tickets_info=?,
               is_hot=?, hot_tier=?, hot_reason=?,
-              tickets_source='manual', manually_overridden=1 WHERE id=?`)
+              tickets_source='manual', manually_overridden=1,
+              hot_source=CASE WHEN ? THEN 'manual' ELSE hot_source END WHERE id=?`)
     .run(next.kickoff_utc, next.tickets_onsale_at, next.tickets_status, next.tickets_info,
-         next.is_hot ? 1 : 0, next.hot_tier, next.hot_reason, id);
+         next.is_hot ? 1 : 0, next.hot_tier, next.hot_reason,
+         is_hot !== undefined ? 1 : 0, id);
 
   // audit (reuse existing audit_log table)
   try {
