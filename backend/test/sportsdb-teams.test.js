@@ -4,7 +4,9 @@ const { normTeam } = require('../utils/team-match');
 // normTeam strips only corporate noise — it must never collapse two different clubs.
 assert.strictEqual(normTeam('Newcastle United FC'), 'newcastleunited');
 assert.strictEqual(normTeam('Brighton & Hove Albion'), 'brightonandhovealbion');
-assert.strictEqual(normTeam('Man Utd'), 'manutd');
+// 'Utd' is expanded so provider spellings converge (verifier false-positive fix)
+assert.strictEqual(normTeam('Man Utd'), normTeam('Man United'));
+assert.strictEqual(normTeam('Newcastle Utd'), normTeam('Newcastle United'));
 assert.strictEqual(normTeam('  Arsenal  FC '), 'arsenal');
 
 // The two Manchester clubs must stay distinct after normalisation.

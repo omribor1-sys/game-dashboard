@@ -204,6 +204,7 @@ const COMPETITIONS = [
   // Served by TheSportsDB, not football-data — the free football-data plan has neither.
   ['Carabao Cup 2026/27',    'EFL', '2026', null, null, 0, 7],
   ['Europa League 2026/27',  'UEL', '2026', null, null, 0, 8],
+  ['FA Cup 2026/27',         'FAC', '2026', null, null, 0, 9],
 ];
 const _seedSeason = db.prepare(
   `INSERT OR IGNORE INTO seasons (name, competition_code, source_season, start_date, end_date, is_default, sort_order)
@@ -211,7 +212,8 @@ const _seedSeason = db.prepare(
 );
 for (const c of COMPETITIONS) { try { _seedSeason.run(...c); } catch (_) {} }
 try {
-  db.exec("UPDATE seasons SET source='thesportsdb' WHERE competition_code IN ('EFL','UEL')");
+  db.exec("UPDATE seasons SET source='thesportsdb' WHERE competition_code IN ('EFL','FAC')");
+  db.exec("UPDATE seasons SET source='uefa' WHERE competition_code IN ('CL','UEL')");
 } catch (_) {}
 
 // Tracked teams Omri works with — football-data team ids are stable.

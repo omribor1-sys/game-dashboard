@@ -20,16 +20,18 @@ const db = require('../database');
 function normTeam(s) {
   return String(s || '')
     .toLowerCase()
+    .replace(/&/g, ' and ')
+    // Expand the one abbreviation providers genuinely disagree on, before stripping.
+    // Without this "Newcastle Utd" and "Newcastle United" normalise to different keys and
+    // the cross-source verifier reports a false mismatch on every Newcastle fixture.
+    .replace(/\butd\b/g, 'united')
     .replace(/\b(fc|afc|cf|sk|sc|ac|club|the)\b/g, ' ')
-    .replace(/&/g, 'and')
     .replace(/[^a-z0-9]/g, '');
 }
 
 // provider spelling (normalised) → our spelling (normalised)
 const ALIASES = {
   // UEFA abbreviates
-  manutd: 'manunited',
-  manchesterutd: 'manunited',
   mancity: 'manchestercity',
   spurs: 'tottenham',
   // TheSportsDB spells them out

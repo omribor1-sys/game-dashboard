@@ -24,6 +24,9 @@ const ID_OFFSET = 2_000_000_000;
 
 const COMPETITIONS = [
   { code: 'EFL', sportsdb_id: 4570, name: 'Carabao Cup 2026/27',   label: 'Carabao Cup' },
+  // The FA Cup proper starts in November; until then the day walk simply finds nothing,
+  // so it switches itself on when the first round is scheduled — no dated code change.
+  { code: 'FAC', sportsdb_id: 4482, name: 'FA Cup 2026/27',        label: 'FA Cup' },
   // Europa League moved to uefa-sync — the organiser's own feed beats a mirror.
 ];
 

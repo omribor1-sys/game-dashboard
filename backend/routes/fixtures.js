@@ -121,7 +121,7 @@ router.get('/probe-matches', async (req, res) => {
 
 // GET /api/fixtures/competitions  → league tabs
 router.get('/competitions', (req, res) => {
-  const LABELS = { PL:'Premier League', PD:'La Liga', SA:'Serie A', CL:'Champions League', DED:'Eredivisie', BL1:'Bundesliga', FL1:'Ligue 1', EFL:'Carabao Cup', UEL:'Europa League' };
+  const LABELS = { PL:'Premier League', PD:'La Liga', SA:'Serie A', CL:'Champions League', DED:'Eredivisie', BL1:'Bundesliga', FL1:'Ligue 1', EFL:'Carabao Cup', UEL:'Europa League', FAC:'FA Cup' };
   const rows = db.prepare('SELECT * FROM seasons WHERE active=1 ORDER BY sort_order').all();
   const out = rows.map(s => ({
     competition_code: s.competition_code,
@@ -222,6 +222,28 @@ router.post('/sync-uefa', async (req, res) => {
   try {
     const { syncUefa } = require('../services/uefa-sync');
     res.json(await syncUefa());
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/fixtures/verify  → cross-source check. Read-only: it reports, never repairs.
+router.get('/verify', async (req, res) => {
+  try {
+    const { verifyFixtures } = require('../services/fixture-verify');
+    res.json(await verifyFixtures());
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/fixtures/verify/notify  → run the check and WhatsApp only if it disagrees
+router.post('/verify/notify', async (req, res) => {
+  try {
+    const { verifyFixtures, formatAlert } = require('../services/fixture-verify');
+    const report = await verifyFixtures();
+    const msg = formatAlert(report);
+    if (msg) {
+      const { sendWhatsApp } = require('../services/whatsapp-notifier');
+      await sendWhatsApp(msg);
+    }
+    res.json({ notified: !!msg, checked: report.checked, mismatches: report.mismatches.length });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

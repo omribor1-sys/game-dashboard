@@ -646,6 +646,24 @@ cron.schedule('0 9 * * 0', async () => {
 // Cost is trivial (7 throttled requests/day).
 // TheSportsDB competitions (Carabao Cup, Europa League) — 06:50 UTC, after football-data.
 // Walks a 14-day window per competition because the free tier truncates season queries.
+// Cross-source verification — 07:10 UTC, after every sync has written. Reports only;
+// it must never repair, or a bad source gets laundered into the DB by the very job
+// meant to catch it.
+cron.schedule('10 7 * * *', async () => {
+  try {
+    const { verifyFixtures, formatAlert } = require('./services/fixture-verify');
+    const report = await verifyFixtures();
+    console.log('[cron] fixture verify:', report.checked, 'checked,', report.mismatches.length, 'mismatches');
+    const msg = formatAlert(report);
+    if (msg) {
+      const { sendWhatsApp } = require('./services/whatsapp-notifier');
+      await sendWhatsApp(msg);
+    }
+  } catch (e) {
+    console.error('[cron] fixture verify failed:', e.message);
+  }
+}, { timezone: 'UTC' });
+
 // UEFA competitions — 06:40 UTC. The organiser's own feed; free, no key.
 cron.schedule('40 6 * * *', async () => {
   try {

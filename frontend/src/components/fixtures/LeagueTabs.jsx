@@ -3,11 +3,11 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 // Competitions Omri actually trades stay on the bar; the rest fold into "More leagues".
 // Eleven equal pills gave every competition the same weight — 306 Eredivisie fixtures took
 // the same room as 380 Premier League ones. Order here IS the priority order.
-const PRIMARY = ['PL', 'CL', 'UEL', 'EFL'];
+const PRIMARY = ['PL', 'CL', 'UEL', 'EFL', 'FAC'];
 
 // Shown instead of the full name below 640px, where the full names cannot all fit.
 const ABBR = {
-  PL: 'PL', CL: 'UCL', UEL: 'UEL', EFL: 'EFL',
+  PL: 'PL', CL: 'UCL', UEL: 'UEL', EFL: 'EFL', FAC: 'FA',
   PD: 'LaLiga', SA: 'Serie A', BL1: 'BL', FL1: 'L1', DED: 'ERE',
 };
 
