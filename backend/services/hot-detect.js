@@ -31,12 +31,15 @@ const SPORTS = [
   { key: 'soccer_fa_cup',              competition: 'FAC' },
 ];
 
-// A club is "strong" above this average de-vigged win probability across its upcoming
-// fixtures. 0.45 lands roughly on the clubs that are favourite in most of their games.
-const STRONG_THRESHOLD = 0.45;
-// Both sides strong → hot. hot_score is the weaker side's strength: a fixture is only as
-// big as its smaller half.
-const HOT_SCORE_MIN = 0.42;
+// "Strong" is a RANK, not a fixed probability. An absolute threshold looked reasonable and
+// marked nothing: one run sees 1-2 fixtures per club, so Chelsea came out at 35% purely
+// because it had drawn a hard tie that week. A rank self-calibrates — whatever the odds
+// look like, the top slice of the league is the top slice.
+const STRONG_RANK_FRACTION = 0.30;   // top 30% of ranked clubs
+// Distinct FIXTURES a club must appear in before its average means anything. Below this
+// the number is one opponent's difficulty, not the club's standing. The table converges
+// over a few gameweeks; until then a club simply is not ranked.
+const MIN_SAMPLES = 3;
 
 function hasKey() { return !!process.env.THE_ODDS_API_KEY; }
 
@@ -79,7 +82,45 @@ function impliedProbs(event) {
   return { home: raw.home / overround, away: raw.away / overround, draw: raw.draw / overround };
 }
 
-/** Average de-vigged win probability per club across everything in the feed. */
+// ── rolling strength ─────────────────────────────────────────────────────────
+const upsertObs = db.prepare(`
+  INSERT INTO strength_obs (canon_team, event_id, display_name, prob, updated_at)
+  VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+  ON CONFLICT(canon_team, event_id) DO UPDATE SET
+    prob = excluded.prob, display_name = excluded.display_name, updated_at = CURRENT_TIMESTAMP
+`);
+
+/** Record one observation per (club, fixture). Re-running replaces, never accumulates. */
+function recordObservations(events) {
+  for (const ev of events) {
+    const p = impliedProbs(ev);
+    if (!p || !ev.id) continue;
+    for (const [name, prob] of [[ev.home_team, p.home], [ev.away_team, p.away]]) {
+      const k = canonTeam(name);
+      if (k) upsertObs.run(k, String(ev.id), name, prob);
+    }
+  }
+}
+
+/** Rolling strength for every club we have enough observations for, ranked. */
+function rankedStrength() {
+  const rows = db.prepare(`
+    SELECT canon_team, MAX(display_name) AS display_name,
+           COUNT(*) AS samples, AVG(prob) AS strength
+    FROM strength_obs
+    GROUP BY canon_team
+    HAVING COUNT(*) >= ?
+  `).all(MIN_SAMPLES);
+  const list = rows
+    .map(r => ({ key: r.canon_team, name: r.display_name, strength: r.strength, samples: r.samples }))
+    .sort((a, b) => b.strength - a.strength);
+  const cutoff = Math.max(1, Math.ceil(list.length * STRONG_RANK_FRACTION));
+  const strong = new Map();
+  list.slice(0, cutoff).forEach((t, i) => strong.set(t.key, { ...t, rank: i + 1 }));
+  return { strong, ranked: list };
+}
+
+/** Average de-vigged win probability per club within a single feed (diagnostic only). */
 function teamStrength(events) {
   const acc = new Map();
   for (const ev of events) {
@@ -119,7 +160,13 @@ const clearAuto = db.prepare(`UPDATE fixtures SET is_hot=0, hot_tier=NULL, hot_r
 const setHot = db.prepare(`UPDATE fixtures SET is_hot=1, hot_tier=?, hot_reason=?, hot_score=?, hot_source='odds'
                            WHERE id=?`);
 
-const tierOf = (score) => (score >= 0.50 ? 'elite' : score >= 0.46 ? 'high' : 'notable');
+// Tier from the WEAKER side's rank inside the strong pool, not an absolute probability:
+// the pool's spread differs per competition, and the fixture is only as big as its
+// smaller half.
+const tierOf = (rank, poolSize) => {
+  const p = rank / Math.max(1, poolSize);
+  return p <= 0.34 ? 'elite' : p <= 0.67 ? 'high' : 'notable';
+};
 
 /**
  * Refresh odds-derived hot flags. Manual marks (hot_source NULL or 'manual') are never
@@ -137,31 +184,32 @@ async function detectHotGames() {
   summary.cleared = clearAuto.run(nowIso).changes || 0;
 
   for (const sport of SPORTS) {
-    const res = { sport: sport.key, competition: sport.competition, events: 0, marked: 0, unmatched: 0, error: null };
+    const res = { sport: sport.key, competition: sport.competition, events: 0, marked: 0, unmatched: 0, ranked_pool: 0, error: null };
     try {
       const { events, remaining } = await fetchSport(sport.key);
       if (remaining) summary.remaining = Number(remaining);
       res.events = events.length;
       if (!events.length) { summary.perSport.push(res); continue; }
 
-      const strength = teamStrength(events);
+      recordObservations(events);
+      const { strong } = rankedStrength();
+      res.ranked_pool = strong.size;
 
       for (const ev of events) {
-        const h = strength.get(canonTeam(ev.home_team));
-        const a = strength.get(canonTeam(ev.away_team));
-        if (!h || !a) continue;
-        if (h.strength < STRONG_THRESHOLD || a.strength < STRONG_THRESHOLD) continue;
+        const h = strong.get(canonTeam(ev.home_team));
+        const a = strong.get(canonTeam(ev.away_team));
+        if (!h || !a) continue;   // both sides must be in the top slice
 
         const score = Math.min(h.strength, a.strength);   // as big as its smaller half
-        if (score < HOT_SCORE_MIN) continue;
 
         const fx = findFixture(sport.competition, ev);
         if (!fx) { res.unmatched++; summary.unmatched++; continue; }
         if (fx.hot_source && fx.hot_source !== 'odds') continue;   // hand-marked: leave alone
         if (fx.is_hot && !fx.hot_source) continue;                  // legacy manual mark
 
-        const reason = `שני הצדדים חזקים לפי היחסים — ${h.name} ${(h.strength * 100).toFixed(0)}%, ${a.name} ${(a.strength * 100).toFixed(0)}% ממוצע סיכוי ניצחון`;
-        setHot.run(tierOf(score), reason, Number(score.toFixed(4)), fx.id);
+        const reason = `שני הצדדים בצמרת לפי היחסים — ${h.name} (#${h.rank}, ${(h.strength * 100).toFixed(0)}%), ${a.name} (#${a.rank}, ${(a.strength * 100).toFixed(0)}%)`;
+        const weakerRank = Math.max(h.rank, a.rank);
+        setHot.run(tierOf(weakerRank, strong.size), reason, Number(score.toFixed(4)), fx.id);
         res.marked++; summary.marked++;
       }
     } catch (e) {
@@ -178,4 +226,4 @@ async function detectHotGames() {
   return summary;
 }
 
-module.exports = { detectHotGames, impliedProbs, teamStrength, SPORTS };
+module.exports = { detectHotGames, impliedProbs, teamStrength, rankedStrength, recordObservations, SPORTS };

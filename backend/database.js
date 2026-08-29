@@ -180,6 +180,23 @@ db.exec(`
 // only walk its own competitions (added 2026-08-29).
 try { db.exec("ALTER TABLE seasons ADD COLUMN source TEXT DEFAULT 'football-data'"); } catch (_) {}
 
+// Rolling club strength from bookmaker odds. A single run only sees 1-2 fixtures per club,
+// so one hard away tie makes a good side look weak; accumulating across runs converges on
+// the club's real market standing (added 2026-08-29).
+try {
+  // One row per (club, fixture), not a running sum: re-running the job on the same day
+  // must not count the same fixture twice, and a later run should REPLACE that fixture's
+  // price with the newer market view rather than average the two.
+  db.exec(`CREATE TABLE IF NOT EXISTS strength_obs (
+    canon_team TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    display_name TEXT,
+    prob REAL NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (canon_team, event_id)
+  )`);
+} catch (_) {}
+
 // Where a hot flag came from, and the score behind it. Manual curation must survive the
 // automatic pass, and the score is stored so the heuristic can be argued with against real
 // sales instead of trusted on faith (added 2026-08-29).
