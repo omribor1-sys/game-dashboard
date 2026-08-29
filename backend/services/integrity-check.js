@@ -91,20 +91,38 @@ function runIntegrityCheck() {
   // unrelated sale into it. Both real incidents (Newcastle/West Brom 2026-08-25,
   // Crystal Palace/Man City 2026-08-28) show up here immediately, and neither was
   // visible to any other check — the orders looked perfectly healthy on their own.
-  const multiSlot = db.prepare(`
-    SELECT game_name, COUNT(DISTINCT game_datetime) AS slots,
-           GROUP_CONCAT(DISTINCT game_datetime) AS slot_list
+  // Scoped to a rolling 90-day window (plus anything in the future). Last season's
+  // contamination is closed history Omri will not reopen, and re-reporting it every
+  // morning would train him to ignore this alert — which is how the next live one
+  // gets missed. A window also needs no season table and no yearly edit.
+  const CURRENT_WINDOW_DAYS = 90;
+  const cutoff = Date.now() - CURRENT_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  const slotRows = db.prepare(`
+    SELECT DISTINCT game_name, game_datetime
     FROM orders
     WHERE deleted_at IS NULL
       AND game_name IS NOT NULL AND game_name != ''
       AND game_datetime IS NOT NULL AND game_datetime != ''
-    GROUP BY game_name
-    HAVING slots > 1
-    ORDER BY slots DESC
-    LIMIT 20
   `).all();
-  for (const row of multiSlot) {
-    issues.push(`משחק אחד עם ${row.slots} מועדים שונים — "${row.game_name}": ${row.slot_list}`);
+
+  // "Sat, 28/08/2026, 20:00" → ms. Unparseable rows are skipped, never guessed.
+  const slotMs = (s) => {
+    const m = String(s).match(/(\d{2})\/(\d{2})\/(\d{4}),\s*(\d{2}):(\d{2})/);
+    if (!m) return null;
+    return Date.UTC(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]);
+  };
+
+  const byGame = new Map();
+  for (const r of slotRows) {
+    const ms = slotMs(r.game_datetime);
+    if (ms === null || ms < cutoff) continue;
+    if (!byGame.has(r.game_name)) byGame.set(r.game_name, new Set());
+    byGame.get(r.game_name).add(r.game_datetime);
+  }
+  for (const [game_name, slots] of byGame) {
+    if (slots.size > 1) {
+      issues.push(`משחק אחד עם ${slots.size} מועדים שונים — "${game_name}": ${[...slots].join(', ')}`);
+    }
   }
 
   // ── 5. Orders whose game_name not in inventory (warning) ─────────────────

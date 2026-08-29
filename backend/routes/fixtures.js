@@ -65,6 +65,20 @@ function defaultCompetition() {
   return d ? d.competition_code : 'PL';
 }
 
+// GET /api/fixtures/available  → what football-data actually exposes for our API key.
+// Plan coverage is not documented per-key, so ask the provider instead of guessing
+// which cup competitions we can track.
+router.get('/available', async (req, res) => {
+  try {
+    const { apiGet } = require('../services/football-data-client');
+    const data = await apiGet('/competitions', 'competitions');
+    res.json((data.competitions || []).map(c => ({
+      code: c.code, name: c.name, type: c.type, area: c.area?.name,
+      current_season: c.currentSeason?.startDate ? c.currentSeason.startDate.slice(0, 4) : null,
+    })));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET /api/fixtures/competitions  → league tabs
 router.get('/competitions', (req, res) => {
   const LABELS = { PL:'Premier League', PD:'La Liga', SA:'Serie A', CL:'Champions League', DED:'Eredivisie', BL1:'Bundesliga', FL1:'Ligue 1' };

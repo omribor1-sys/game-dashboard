@@ -52,4 +52,4 @@ async function fetchStandings(competitionCode, sourceSeason) {
   return Array.isArray(data.standings) ? data.standings : [];
 }
 
-module.exports = { hasApiKey, fetchMatches, fetchStandings, sleep };
+module.exports = { hasApiKey, apiGet, fetchMatches, fetchStandings, sleep };
