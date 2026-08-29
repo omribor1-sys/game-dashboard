@@ -247,6 +247,28 @@ router.post('/verify/notify', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /api/fixtures/hot-status  → the rolling strength table behind HOT detection.
+// The model needs a few gameweeks of distinct fixtures per club before it ranks anyone;
+// this makes that warm-up visible instead of leaving "0 marked" looking like a failure.
+router.get('/hot-status', (req, res) => {
+  try {
+    const { rankedStrength } = require('../services/hot-detect');
+    const { strong, ranked } = rankedStrength();
+    const pending = db.prepare(`
+      SELECT canon_team, MAX(display_name) AS name, COUNT(*) AS samples
+      FROM strength_obs GROUP BY canon_team HAVING COUNT(*) < 3 ORDER BY samples DESC
+    `).all();
+    res.json({
+      ranked_clubs: ranked.length,
+      strong_pool: [...strong.values()].map(t => ({ name: t.name, rank: t.rank, strength: Number(t.strength.toFixed(3)), fixtures: t.samples })),
+      ranking: ranked.map(t => ({ name: t.name, strength: Number(t.strength.toFixed(3)), fixtures: t.samples })),
+      warming_up: pending.map(p => ({ name: p.name, fixtures: p.samples, needs: 3 - p.samples })),
+      hot_now: db.prepare(`SELECT competition_code, home_team, away_team, kickoff_utc, hot_tier, hot_score, hot_source
+                           FROM fixtures WHERE is_hot=1 ORDER BY kickoff_utc`).all(),
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // POST /api/fixtures/detect-hot  → refresh odds-derived hot flags
 router.post('/detect-hot', async (req, res) => {
   try {
