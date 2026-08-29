@@ -159,6 +159,10 @@ async function verifyFixtures() {
             fixture: `${f.home_team} vs ${f.away_team}`,
             ours: f.kickoff_utc, theirs: null,
             detail: `not found in ${check.verify_with} on ${ymd}`,
+            // What the other source DID return that day. Without this a "missing" verdict
+            // is unactionable — you cannot tell a real gap from the two sources simply
+            // spelling the clubs differently.
+            remote_sample: remote.slice(0, 4).map(r => `${r.home} vs ${r.away}`),
           });
           continue;
         }
@@ -198,6 +202,8 @@ async function verifyFixtures() {
     // carry this season, an IP being throttled) — not N separate data bugs. Withdraw
     // its findings and say the competition is unverified.
     if (stats.ours > 0 && stats.matched === 0) {
+      report.diagnostics = report.diagnostics || [];
+      report.diagnostics.push(...report.mismatches.filter(m => m.competition === check.code).slice(0, 3));
       report.mismatches = report.mismatches.filter(m => m.competition !== check.code);
       report.unverified.push(
         `${check.code}: could not verify ANY of ${stats.ours} fixtures against ${check.verify_with} — treat the pairing as broken, not the data`
