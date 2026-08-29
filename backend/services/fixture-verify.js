@@ -259,13 +259,26 @@ function formatAlert(report) {
     ? `⚠️ אימות נשבר: ${broke.join(', ')} — אף משחק לא אומת מול המקור החיצוני`
     : '';
   if (!report.mismatches.length) return brokeLine;
-  const head = `🔍 אימות לוח משחקים: ${report.mismatches.length} אי-התאמות מתוך ${report.checked} משחקים שנבדקו`;
-  const lines = report.mismatches.slice(0, 10).map(m => {
-    if (m.severity === 'missing') return `• ${m.competition} ${m.fixture} — לא נמצא במקור השני`;
+  // Severity gate. "missing" is the weakest signal by far: two providers legitimately
+  // carry different subsets of a competition-day, and UEFA abbreviates small continental
+  // clubs ("H. Beer-Sheva" vs "Hapoel Be'er Sheva") in ways no alias table will ever fully
+  // cover. A score or kickoff disagreement is never acceptable. So only those page Omri;
+  // "missing" is a counted footnote he can open the endpoint for.
+  const hard = report.mismatches.filter(m => m.severity !== 'missing');
+  const softCount = report.mismatches.length - hard.length;
+
+  if (!hard.length) {
+    // Nothing actionable. Only speak up if verification itself broke today.
+    return brokeLine;
+  }
+
+  const head = `🔍 אימות לוח משחקים: ${hard.length} אי-התאמות אמיתיות מתוך ${report.checked} משחקים שנבדקו`;
+  const lines = hard.slice(0, 10).map(m => {
     if (m.severity === 'score') return `• ${m.competition} ${m.fixture} — תוצאה: אצלנו ${m.ours}, אצלם ${m.theirs}`;
     return `• ${m.competition} ${m.fixture} — ${m.detail}`;
   });
-  const more = report.mismatches.length > 10 ? `\n(ועוד ${report.mismatches.length - 10})` : '';
+  if (softCount) lines.push(`(ועוד ${softCount} משחקים שלא נמצאו במקור השני — לרוב פער כיסוי, לא באג)`);
+  const more = hard.length > 10 ? `\n(ועוד ${hard.length - 10})` : '';
   return `${head}\n${lines.join('\n')}${more}`;
 }
 
