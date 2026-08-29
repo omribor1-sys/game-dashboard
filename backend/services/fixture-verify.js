@@ -31,7 +31,7 @@ const KICKOFF_TOLERANCE_MIN = 15;
 // How far around today to check. Verifying the whole season every night would burn the
 // quota to re-confirm games nobody can act on any more.
 const DAYS_BACK = 4;
-const DAYS_AHEAD = 14;
+const DAYS_AHEAD = 7;
 
 // Each stored competition is checked against a source that did NOT write it.
 // Verifying a source against itself proves nothing.
@@ -132,6 +132,21 @@ async function verifyFixtures() {
       await sleep(REQUEST_SPACING_MS);
       if (!remote) continue;
 
+      // ⚠️ "The source returned nothing" is NOT "the fixture does not exist".
+      // First run of this checker reported 67/67 fixtures missing, because an empty
+      // response — TheSportsDB answers {"events":null} when it is throttled, and also
+      // when it simply has no 2026/27 Champions League at all — was being counted as 67
+      // disagreements. A verifier that cries wolf every morning is worse than none: it
+      // trains you to ignore the one morning it is right. No data means UNVERIFIED.
+      if (remote.length === 0) {
+        report.unverified.push(
+          `${check.code} ${ymd}: ${check.verify_with} returned no events for a day we hold ${rows.length} fixture(s)`
+        );
+        stats.unverified_days = (stats.unverified_days || 0) + 1;
+        stats.unverified_fixtures = (stats.unverified_fixtures || 0) + rows.length;
+        continue;
+      }
+
       for (const f of rows) {
         report.checked++;
         const twin = remote.find(r => sameTie(f, r));
@@ -178,6 +193,18 @@ async function verifyFixtures() {
       }
     }
 
+    // Second guard, one level up: if a competition produced not a single confirmed
+    // fixture, the pairing itself is broken (wrong league id, a source that does not
+    // carry this season, an IP being throttled) — not N separate data bugs. Withdraw
+    // its findings and say the competition is unverified.
+    if (stats.ours > 0 && stats.matched === 0) {
+      report.mismatches = report.mismatches.filter(m => m.competition !== check.code);
+      report.unverified.push(
+        `${check.code}: could not verify ANY of ${stats.ours} fixtures against ${check.verify_with} — treat the pairing as broken, not the data`
+      );
+      stats.pairing_broken = true;
+    }
+
     report.byCompetition[check.code] = stats;
   }
 
@@ -188,9 +215,37 @@ async function verifyFixtures() {
   return report;
 }
 
+// Which competitions could not be verified last run. A competition that has never been
+// verifiable (TheSportsDB has no 2026/27 Champions League) must not page Omri every
+// morning — but a competition that verified yesterday and does not today is exactly the
+// silent gap this whole checker exists to surface. So: alert on the CHANGE, not the state.
+function unverifiedCodes(report) {
+  return [...new Set(Object.entries(report.byCompetition)
+    .filter(([, s]) => s.pairing_broken)
+    .map(([code]) => code))].sort();
+}
+
+function newlyUnverified(report) {
+  const now = unverifiedCodes(report);
+  let before = [];
+  try {
+    const row = db.prepare("SELECT value FROM settings WHERE key='verify_unverified_codes'").get();
+    if (row && row.value) before = JSON.parse(row.value);
+  } catch (_) {}
+  try {
+    db.prepare(`INSERT OR REPLACE INTO settings (key, value, updated_at)
+                VALUES ('verify_unverified_codes', ?, CURRENT_TIMESTAMP)`).run(JSON.stringify(now));
+  } catch (_) {}
+  return now.filter(c => !before.includes(c));
+}
+
 /** One-line-per-problem Hebrew summary for WhatsApp. Empty string when everything agrees. */
 function formatAlert(report) {
-  if (!report.mismatches.length) return '';
+  const broke = newlyUnverified(report);
+  const brokeLine = broke.length
+    ? `⚠️ אימות נשבר: ${broke.join(', ')} — אף משחק לא אומת מול המקור החיצוני`
+    : '';
+  if (!report.mismatches.length) return brokeLine;
   const head = `🔍 אימות לוח משחקים: ${report.mismatches.length} אי-התאמות מתוך ${report.checked} משחקים שנבדקו`;
   const lines = report.mismatches.slice(0, 10).map(m => {
     if (m.severity === 'missing') return `• ${m.competition} ${m.fixture} — לא נמצא במקור השני`;
@@ -201,4 +256,4 @@ function formatAlert(report) {
   return `${head}\n${lines.join('\n')}${more}`;
 }
 
-module.exports = { verifyFixtures, formatAlert, sameTie, CHECKS };
+module.exports = { verifyFixtures, formatAlert, sameTie, unverifiedCodes, CHECKS };
