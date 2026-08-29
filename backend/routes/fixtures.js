@@ -217,6 +217,14 @@ router.post('/sync-cups', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// POST /api/fixtures/sync-uefa  → Champions League / Europa League from match.uefa.com
+router.post('/sync-uefa', async (req, res) => {
+  try {
+    const { syncUefa } = require('../services/uefa-sync');
+    res.json(await syncUefa());
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // POST /api/fixtures/sync   body: { competition_code? }
 router.post('/sync', async (req, res) => {
   try {

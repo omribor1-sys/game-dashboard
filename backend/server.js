@@ -646,6 +646,17 @@ cron.schedule('0 9 * * 0', async () => {
 // Cost is trivial (7 throttled requests/day).
 // TheSportsDB competitions (Carabao Cup, Europa League) — 06:50 UTC, after football-data.
 // Walks a 14-day window per competition because the free tier truncates season queries.
+// UEFA competitions — 06:40 UTC. The organiser's own feed; free, no key.
+cron.schedule('40 6 * * *', async () => {
+  try {
+    const { syncUefa } = require('./services/uefa-sync');
+    const r = await syncUefa();
+    console.log('[cron] uefa sync:', JSON.stringify(r.totals));
+  } catch (e) {
+    console.error('[cron] uefa sync failed:', e.message);
+  }
+}, { timezone: 'UTC' });
+
 cron.schedule('50 6 * * *', async () => {
   try {
     const { syncSportsDb } = require('./services/sportsdb-sync');

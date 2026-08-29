@@ -24,59 +24,10 @@ const ID_OFFSET = 2_000_000_000;
 
 const COMPETITIONS = [
   { code: 'EFL', sportsdb_id: 4570, name: 'Carabao Cup 2026/27',   label: 'Carabao Cup' },
-  { code: 'UEL', sportsdb_id: 4481, name: 'Europa League 2026/27', label: 'Europa League' },
+  // Europa League moved to uefa-sync — the organiser's own feed beats a mirror.
 ];
 
-// ── team matching ───────────────────────────────────────────────────────────
-// The whole point of these fixtures is that they show up when Omri filters by a club,
-// so a cup game MUST resolve to the same api_team_id football-data uses. Unmatched
-// teams get a null id: the fixture still lists, it just carries no crest and no
-// tracking flag — visibly incomplete rather than silently attached to the wrong club.
-function normTeam(s) {
-  return String(s || '')
-    .toLowerCase()
-    .replace(/\b(fc|afc|cf|club|the)\b/g, ' ')
-    .replace(/&/g, 'and')
-    .replace(/[^a-z0-9]/g, '');
-}
-
-// TheSportsDB spells a few clubs differently from football-data.
-const TEAM_ALIASES = {
-  wolverhamptonwanderers: 'wolverhampton',
-  brightonandhovealbion: 'brighton',
-  tottenhamhotspur: 'tottenham',
-  westhamunited: 'westham',
-  paris: 'parissaintgermain',
-  psg: 'parissaintgermain',
-};
-
-let teamIndex = null;
-function buildTeamIndex() {
-  const rows = db.prepare('SELECT api_team_id, name, full_name, tla FROM teams').all();
-  const idx = new Map();
-  for (const r of rows) {
-    for (const v of [r.name, r.full_name]) {
-      const k = normTeam(v);
-      if (k && !idx.has(k)) idx.set(k, r.api_team_id);
-    }
-  }
-  return idx;
-}
-function matchTeam(name) {
-  if (!teamIndex) teamIndex = buildTeamIndex();
-  const k = normTeam(name);
-  if (!k) return null;
-  if (teamIndex.has(k)) return teamIndex.get(k);
-  const aliased = TEAM_ALIASES[k];
-  if (aliased && teamIndex.has(aliased)) return teamIndex.get(aliased);
-  // Exact-or-nothing. A prefix fallback lived here for exactly one deploy and promptly
-  // matched Norwegian "Lillestrøm" to French "Lille" — the same failure shape as the
-  // order normaliser's word-LIKE match (Crystal Palace → Brentford, Newcastle → West
-  // Ham). Club names sit too close together for approximate matching to ever be safe.
-  // An unmatched name costs a crest; a wrong match silently files a fixture — and later
-  // its revenue — under another club. Add a TEAM_ALIASES entry instead.
-  return null;
-}
+const { matchTeam, resetTeamIndex, normTeam } = require('../utils/team-match');
 
 // ── fetch ───────────────────────────────────────────────────────────────────
 async function fetchDay(sportsdbId, ymd) {
@@ -148,7 +99,7 @@ function seasonIdFor(code) {
  * @returns {{perCompetition: Array, totals: {inserted:number,updated:number,unmatched:number}, errors: string[]}}
  */
 async function syncSportsDb() {
-  teamIndex = null;   // teams table may have grown since the last run
+  resetTeamIndex();   // teams table may have grown since the last run
   const days = ymdList();
   const summary = { perCompetition: [], totals: { inserted: 0, updated: 0, unmatched: 0, partial: 0 }, errors: [] };
 
@@ -223,4 +174,4 @@ async function syncSportsDb() {
   return summary;
 }
 
-module.exports = { syncSportsDb, COMPETITIONS, matchTeam, normTeam, kickoffOf, ID_OFFSET };
+module.exports = { syncSportsDb, COMPETITIONS, kickoffOf, ID_OFFSET };

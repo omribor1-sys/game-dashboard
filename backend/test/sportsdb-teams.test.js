@@ -1,9 +1,10 @@
 const assert = require('node:assert');
-const { normTeam } = require('../services/sportsdb-sync');
+const { normTeam } = require('../utils/team-match');
 
 // normTeam strips only corporate noise — it must never collapse two different clubs.
 assert.strictEqual(normTeam('Newcastle United FC'), 'newcastleunited');
 assert.strictEqual(normTeam('Brighton & Hove Albion'), 'brightonandhovealbion');
+assert.strictEqual(normTeam('Man Utd'), 'manutd');
 assert.strictEqual(normTeam('  Arsenal  FC '), 'arsenal');
 
 // The two Manchester clubs must stay distinct after normalisation.
