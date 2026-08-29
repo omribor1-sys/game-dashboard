@@ -85,6 +85,28 @@ function runIntegrityCheck() {
     }
   }
 
+  // ── 4b. One game_name spanning several kickoffs = orders filed under the wrong game ──
+  // The mirror image of check 4. A fixture has exactly ONE kickoff, so a game_name
+  // carrying orders at two different game_datetimes means a normaliser merged an
+  // unrelated sale into it. Both real incidents (Newcastle/West Brom 2026-08-25,
+  // Crystal Palace/Man City 2026-08-28) show up here immediately, and neither was
+  // visible to any other check — the orders looked perfectly healthy on their own.
+  const multiSlot = db.prepare(`
+    SELECT game_name, COUNT(DISTINCT game_datetime) AS slots,
+           GROUP_CONCAT(DISTINCT game_datetime) AS slot_list
+    FROM orders
+    WHERE deleted_at IS NULL
+      AND game_name IS NOT NULL AND game_name != ''
+      AND game_datetime IS NOT NULL AND game_datetime != ''
+    GROUP BY game_name
+    HAVING slots > 1
+    ORDER BY slots DESC
+    LIMIT 20
+  `).all();
+  for (const row of multiSlot) {
+    issues.push(`משחק אחד עם ${row.slots} מועדים שונים — "${row.game_name}": ${row.slot_list}`);
+  }
+
   // ── 5. Orders whose game_name not in inventory (warning) ─────────────────
   const orphans = db.prepare(`
     SELECT game_name, COUNT(*) AS n

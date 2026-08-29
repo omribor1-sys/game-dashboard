@@ -138,25 +138,26 @@ function normalizeGameName(rawName, db) {
       }
     }
 
-    // Step 3: fuzzy-match against existing canonical names in DB.
+    // Step 3 (word-based LIKE fuzzy match) is GONE — deliberately. Do not add it back.
     //
-    // ⚠️ Scoped to the SAME game_datetime when we know it. Two words are a weak signal:
-    // "Newcastle United FC vs West Bromwich Albion FC" takes its first two words as
-    // "Newcastle" + "West", which LIKE-matches an unrelated "Newcastle vs West Ham"
-    // from another date and silently merges two different fixtures' revenue
-    // (happened 2026-08-25). A team cannot play twice at the same kickoff, so
-    // restricting the fuzzy match to that slot keeps the convenience without the
-    // cross-date merge. No datetime → no fuzzy match; a new group is safer than a
-    // wrong merge, and step 2.5 catches the real duplicates anyway.
-    const words = name.split(/\s+/).filter(w => w.length > 3 && !/^(vs|vs\.|AFC|FC|United|City)$/i.test(w));
-    if (words.length >= 2 && datetime) {
-      const likeClause = words.slice(0, 2).map(() => 'game_name LIKE ?').join(' AND ');
-      const params = words.slice(0, 2).map(w => `%${w}%`);
-      const match = db.prepare(
-        `SELECT game_name FROM orders WHERE ${likeClause} AND game_datetime = ? AND deleted_at IS NULL LIMIT 1`
-      ).get(...params, datetime);
-      if (match) return match.game_name;
-    }
+    // It took the first two "significant" words of the incoming name and LIKE-matched
+    // them against every existing game_name. Both words routinely come from the SAME
+    // team, so a match proved nothing about the fixture:
+    //
+    //   "Crystal Palace FC vs Manchester City FC" → "Crystal" + "Palace"
+    //      → matched "Brentford vs Crystal Palace" (a game from May). 3 orders misfiled.
+    //   "Newcastle United FC vs West Bromwich Albion FC" → "Newcastle" + "West"
+    //      → matched "Newcastle vs West Ham" (another date). 3 orders misfiled.
+    //
+    // Both wrote real revenue onto the wrong game, silently, with no error anywhere.
+    // Scoping it to game_datetime (first attempt, 2026-08-25) narrowed the blast radius
+    // but did not fix it: within one kickoff slot it is strictly weaker than step 2.5,
+    // which checks a genuinely shared TEAM PHRASE on both sides. Anything step 3 could
+    // legitimately catch, step 2.5 already catches — so it only ever added false merges.
+    //
+    // When nothing matches, a NEW game group is created. That is the correct failure
+    // mode: a wrong merge corrupts revenue invisibly, a new group is visible on the
+    // dashboard and in the integrity check, and is one rename away from fixed.
   }
   return name;
 }

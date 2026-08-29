@@ -93,35 +93,22 @@ assert.ok(!sharesTeam('Manchester City vs Aston Villa', 'Manchester United vs Wo
 assert.ok(!sharesTeam('Brentford vs Crystal Palace', 'Tottenham vs Everton'));
 assert.ok(!sharesTeam('Community Shield', 'Arsenal vs Chelsea'));
 
-// ── Step 3: fuzzy match on first two significant words (>3 chars, not vs/FC/City/United),
-//    scoped to the same kickoff ──
-const dbFuzzy = makeDb([
-  { game_name: 'Tottenham vs Leeds United', game_datetime: 'Sat, 10/10/2026, 15:00' },
+// ── Step 3 is GONE: a word-based LIKE match must never merge two fixtures ────
+// Both real incidents took two words from the SAME team and matched an unrelated game.
+const dbCrystal = makeDb([
+  { game_name: 'Brentford vs Crystal Palace', game_datetime: 'Sun, 17/05/2026, 15:00' },
 ]);
+// "Crystal" + "Palace" both hit "Brentford vs Crystal Palace" — must NOT merge (2026-08-28)
 assert.strictEqual(
-  normalizeGameName('Tottenham Leeds Friendly | Sat, 10/10/2026, 15:00', dbFuzzy),
-  'Tottenham vs Leeds United'
+  normalizeGameName('Crystal Palace FC vs Manchester City FC | Fri, 28/08/2026, 20:00', dbCrystal),
+  'Crystal Palace FC vs Manchester City FC'
 );
-// no shared words -> no false match
+// same, with no datetime to lean on
 assert.strictEqual(
-  normalizeGameName('Everton Liverpool Derby | Sat, 10/10/2026, 15:00', dbFuzzy),
-  'Everton Liverpool Derby'
+  normalizeGameName('Crystal Palace FC vs Manchester City FC', dbCrystal),
+  'Crystal Palace FC vs Manchester City FC'
 );
-// same words, DIFFERENT kickoff -> must NOT merge (regression, 2026-08-25)
-assert.strictEqual(
-  normalizeGameName('Tottenham Leeds Friendly | Wed, 26/08/2026, 19:45', dbFuzzy),
-  'Tottenham Leeds Friendly'
-);
-// no datetime at all -> no fuzzy merge either; a new group beats a wrong one
-assert.strictEqual(
-  normalizeGameName('Tottenham Leeds Friendly', dbFuzzy),
-  'Tottenham Leeds Friendly'
-);
-
-// ── Regression: the West Brom bug ────────────────────────────────────────────
-// "Newcastle United FC vs West Bromwich Albion FC" takes "Newcastle" + "West" as its
-// two fuzzy words, which LIKE-matched an unrelated "Newcastle vs West Ham" from a
-// different date and merged both fixtures' revenue into one game.
+// "Newcastle" + "West" hit "Newcastle vs West Ham" — must NOT merge (2026-08-25)
 const dbWestBrom = makeDb([
   { game_name: 'Newcastle vs West Ham', game_datetime: 'Sat, 21/02/2026, 15:00' },
 ]);
@@ -129,10 +116,22 @@ assert.strictEqual(
   normalizeGameName('Newcastle United FC vs West Bromwich Albion FC | Wed, 26/08/2026, 19:45', dbWestBrom),
   'Newcastle United FC vs West Bromwich Albion FC'
 );
-// ...but a genuine same-kickoff order still adopts the canonical name
+// ...but step 2.5 still adopts the canonical name on a genuine same-kickoff shared team
 assert.strictEqual(
   normalizeGameName('Newcastle United FC vs West Ham United FC | Sat, 21/02/2026, 15:00', dbWestBrom),
   'Newcastle vs West Ham'
+);
+// and the loose-label case step 3 used to serve is covered by step 2.5's shared-team rule
+const dbFuzzy = makeDb([
+  { game_name: 'Tottenham vs Leeds United', game_datetime: 'Sat, 10/10/2026, 15:00' },
+]);
+assert.strictEqual(
+  normalizeGameName('Tottenham Leeds Friendly | Sat, 10/10/2026, 15:00', dbFuzzy),
+  'Tottenham vs Leeds United'
+);
+assert.strictEqual(
+  normalizeGameName('Everton Liverpool Derby | Sat, 10/10/2026, 15:00', dbFuzzy),
+  'Everton Liverpool Derby'
 );
 
 console.log('normalize: all assertions passed');
