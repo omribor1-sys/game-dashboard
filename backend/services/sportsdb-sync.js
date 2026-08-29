@@ -69,13 +69,12 @@ function matchTeam(name) {
   if (teamIndex.has(k)) return teamIndex.get(k);
   const aliased = TEAM_ALIASES[k];
   if (aliased && teamIndex.has(aliased)) return teamIndex.get(aliased);
-  // Last resort: one name is a prefix of the other ("Bradford" ↔ "Bradford City").
-  // Prefix-only, never substring, and never on a stub shorter than 5 chars — otherwise
-  // "United" or "City" would happily attach a cup tie to the wrong club.
-  for (const [key, id] of teamIndex) {
-    const shorter = Math.min(key.length, k.length);
-    if (shorter >= 5 && (key.startsWith(k) || k.startsWith(key))) return id;
-  }
+  // Exact-or-nothing. A prefix fallback lived here for exactly one deploy and promptly
+  // matched Norwegian "Lillestrøm" to French "Lille" — the same failure shape as the
+  // order normaliser's word-LIKE match (Crystal Palace → Brentford, Newcastle → West
+  // Ham). Club names sit too close together for approximate matching to ever be safe.
+  // An unmatched name costs a crest; a wrong match silently files a fixture — and later
+  // its revenue — under another club. Add a TEAM_ALIASES entry instead.
   return null;
 }
 
@@ -151,10 +150,10 @@ function seasonIdFor(code) {
 async function syncSportsDb() {
   teamIndex = null;   // teams table may have grown since the last run
   const days = ymdList();
-  const summary = { perCompetition: [], totals: { inserted: 0, updated: 0, unmatched: 0 }, errors: [] };
+  const summary = { perCompetition: [], totals: { inserted: 0, updated: 0, unmatched: 0, partial: 0 }, errors: [] };
 
   for (const comp of COMPETITIONS) {
-    const result = { code: comp.code, inserted: 0, updated: 0, unmatched: 0, days: days.length };
+    const result = { code: comp.code, inserted: 0, updated: 0, unmatched: 0, partial: 0, days: days.length };
     const seasonId = seasonIdFor(comp.code);
 
     for (const ymd of days) {
@@ -166,9 +165,16 @@ async function syncSportsDb() {
 
           const homeId = matchTeam(ev.strHomeTeam);
           const awayId = matchTeam(ev.strAwayTeam);
-          if (!homeId || !awayId) {
+          // One unmatched side is routine: cup draws pull in lower-league clubs that play
+          // in no competition we sync, so they were never in the teams table. Only a tie
+          // where BOTH sides are unknown is a real problem — that fixture cannot be
+          // reached by any team filter at all. Alerting on the routine case would train
+          // Omri to ignore this alert, which is how the real one gets missed.
+          if (!homeId && !awayId) {
             result.unmatched++;
-            summary.errors.push(`unmatched team in ${comp.code}: "${ev.strHomeTeam}" vs "${ev.strAwayTeam}"`);
+            summary.errors.push(`no team matched in ${comp.code}: "${ev.strHomeTeam}" vs "${ev.strAwayTeam}"`);
+          } else if (!homeId || !awayId) {
+            result.partial++;
           }
 
           const hs = intOrNull(ev.intHomeScore);
@@ -208,6 +214,7 @@ async function syncSportsDb() {
     summary.totals.inserted += result.inserted;
     summary.totals.updated += result.updated;
     summary.totals.unmatched += result.unmatched;
+    summary.totals.partial += result.partial;
     summary.perCompetition.push(result);
   }
 
