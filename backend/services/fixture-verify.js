@@ -42,7 +42,7 @@ const CHECKS = [
   { code: 'UEL', written_by: 'uefa',          verify_with: 'thesportsdb', tsdb_id: 4481 },
 ];
 
-const { normTeam } = require('../utils/team-match');
+const { canonTeam } = require('../utils/team-match');
 
 function ymdWindow() {
   const out = [];
@@ -84,8 +84,8 @@ async function externalDay(check, ymd) {
 const sideOf = (o, which) => (which === 'home' ? (o.home ?? o.home_team) : (o.away ?? o.away_team));
 
 function sameTie(a, b) {
-  const ah = normTeam(sideOf(a, 'home')), aa = normTeam(sideOf(a, 'away'));
-  const bh = normTeam(sideOf(b, 'home')), ba = normTeam(sideOf(b, 'away'));
+  const ah = canonTeam(sideOf(a, 'home')), aa = canonTeam(sideOf(a, 'away'));
+  const bh = canonTeam(sideOf(b, 'home')), ba = canonTeam(sideOf(b, 'away'));
   if (!ah || !aa || !bh || !ba) return false;
   const near = (x, y) => x === y || (x.length >= 5 && y.length >= 5 && (x.startsWith(y) || y.startsWith(x)));
   return near(ah, bh) && near(aa, ba);

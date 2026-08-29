@@ -29,22 +29,30 @@ function normTeam(s) {
     .replace(/[^a-z0-9]/g, '');
 }
 
-// provider spelling (normalised) → our spelling (normalised)
+// Long provider spelling (normalised) → the short form football-data uses, which is what
+// the teams table stores. Every entry here was added because two real sources disagreed,
+// never speculatively — this table is the ONLY sanctioned way to widen a match.
 const ALIASES = {
-  // UEFA abbreviates
-  mancity: 'manchestercity',
-  spurs: 'tottenham',
-  // TheSportsDB spells them out
+  // full club name → football-data shortName
+  manchestercity: 'mancity',
+  manchesterunited: 'manunited',
+  tottenhamhotspur: 'tottenham',
+  newcastleunited: 'newcastle',
+  westhamunited: 'westham',
   wolverhamptonwanderers: 'wolverhampton',
   brightonandhovealbion: 'brightonhove',
-  tottenhamhotspur: 'tottenham',
-  westhamunited: 'westham',
-  newcastleunited: 'newcastle',
-  manchesterunited: 'manunited',
+  brightonandhove: 'brightonhove',
+  nottinghamforest: 'nottingham',
+  ipswichtown: 'ipswich',
+  hullcity: 'hull',
+  coventrycity: 'coventry',
+  sunderlandafc: 'sunderland',
+  // nicknames / abbreviations providers use
+  spurs: 'tottenham',
   // continental
   paris: 'parissaintgermain',
   psg: 'parissaintgermain',
-  interminlan: 'inter',
+  internazionale: 'inter',
   bayernmunchen: 'bayernmunich',
   bayern: 'bayernmunich',
 };
@@ -85,4 +93,15 @@ function matchTeam(name) {
   return null;   // deliberately: no prefix, no substring, no "close enough"
 }
 
-module.exports = { normTeam, matchTeam, resetTeamIndex, ALIASES };
+/**
+ * Collapse a club name to one canonical token, so two providers spelling the same club
+ * differently ("Man City" / "Manchester City", "Brighton Hove" / "Brighton & Hove Albion")
+ * compare equal WITHOUT any fuzzy matching. This is what the cross-source verifier needs:
+ * it has no teams table to look things up in, only two strings from two providers.
+ */
+function canonTeam(name) {
+  const k = normTeam(name);
+  return ALIASES[k] || k;
+}
+
+module.exports = { normTeam, canonTeam, matchTeam, resetTeamIndex, ALIASES };
