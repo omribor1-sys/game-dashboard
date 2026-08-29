@@ -124,16 +124,25 @@ router.get('/hot', (req, res) => {
 // GET /api/fixtures/meta?competition=PL  → filter metadata scoped to a competition
 router.get('/meta', (req, res) => {
   const code = req.query.competition || defaultCompetition();
+  // ALL = every competition at once: the team filter is meant to follow a club across
+  // its league AND its cups, so the metadata behind it must not be scoped to one tab.
+  const all = code === 'ALL';
+  const scope = all ? '1=1' : 'competition_code = ?';
+  const p = all ? [] : [code];
+
   const teams = db.prepare(`
     SELECT t.api_team_id, t.name, t.crest_url, t.tla, t.is_tracked, t.is_primary,
-           (SELECT COUNT(*) FROM fixtures f WHERE f.competition_code=? AND (f.home_team_id=t.api_team_id OR f.away_team_id=t.api_team_id)) AS cnt
+           (SELECT COUNT(*) FROM fixtures f WHERE ${all ? '1=1' : 'f.competition_code=?'}
+              AND (f.home_team_id=t.api_team_id OR f.away_team_id=t.api_team_id)) AS cnt
     FROM teams t
-    WHERE t.api_team_id IN (SELECT home_team_id FROM fixtures WHERE competition_code=? UNION SELECT away_team_id FROM fixtures WHERE competition_code=?)
+    WHERE t.api_team_id IN (
+      SELECT home_team_id FROM fixtures WHERE ${scope}
+      UNION SELECT away_team_id FROM fixtures WHERE ${scope})
     ORDER BY t.is_tracked DESC, t.name
-  `).all(code, code, code);
-  const months = db.prepare(`SELECT DISTINCT substr(kickoff_utc,1,7) ym FROM fixtures WHERE competition_code=? AND kickoff_utc IS NOT NULL ORDER BY ym`).all(code).map(r => r.ym);
-  const matchdays = db.prepare(`SELECT DISTINCT matchday FROM fixtures WHERE competition_code=? AND matchday IS NOT NULL ORDER BY matchday`).all(code).map(r => r.matchday);
-  const last = db.prepare('SELECT MAX(last_synced_at) m FROM fixtures WHERE competition_code=?').get(code).m;
+  `).all(...p, ...p, ...p);
+  const months = db.prepare(`SELECT DISTINCT substr(kickoff_utc,1,7) ym FROM fixtures WHERE ${scope} AND kickoff_utc IS NOT NULL ORDER BY ym`).all(...p).map(r => r.ym);
+  const matchdays = db.prepare(`SELECT DISTINCT matchday FROM fixtures WHERE ${scope} AND matchday IS NOT NULL ORDER BY matchday`).all(...p).map(r => r.matchday);
+  const last = db.prepare(`SELECT MAX(last_synced_at) m FROM fixtures WHERE ${scope}`).get(...p).m;
   res.json({ teams, months, matchdays, last_synced_at: last });
 });
 
@@ -158,8 +167,9 @@ router.get('/standings', (req, res) => {
 // GET /api/fixtures?competition=PL&month=2026-12&team=57&homeAway=home&tracked=1&matchday=5
 router.get('/', (req, res) => {
   const code = req.query.competition || defaultCompetition();
-  const where = ['competition_code = ?'];
-  const params = [code];
+  // ALL spans every competition — one club's league games, cup games and Europe together.
+  const where = code === 'ALL' ? [] : ['competition_code = ?'];
+  const params = code === 'ALL' ? [] : [code];
 
   if (req.query.month) { where.push("substr(kickoff_utc,1,7) = ?"); params.push(req.query.month); }
   if (req.query.matchday) { where.push('matchday = ?'); params.push(Number(req.query.matchday)); }
@@ -171,7 +181,9 @@ router.get('/', (req, res) => {
     if (ha.sql) { where.push(ha.sql); params.push(...ha.params); }
   }
 
-  const rows = db.prepare(`SELECT * FROM fixtures WHERE ${where.join(' AND ')} ORDER BY kickoff_utc`).all(...params);
+  const rows = db.prepare(
+    `SELECT * FROM fixtures ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY kickoff_utc`
+  ).all(...params);
   const idx = profitIndex();
   res.json(rows.map(r => enrich(r, idx)));
 });

@@ -5,6 +5,15 @@ export default function LeagueTabs({ competitions, active, onSelect }) {
     <div className="league-tabs" role="tablist" aria-label="Leagues">
       <button
         role="tab"
+        aria-selected={active === 'ALL'}
+        className={['league-tab', 'all-tab', active === 'ALL' ? 'active' : ''].filter(Boolean).join(' ')}
+        onClick={() => onSelect('ALL')}
+        title="Every competition at once — pick a team to see its full season"
+      >
+        <span className="label">🌍 All comps</span>
+      </button>
+      <button
+        role="tab"
         aria-selected={active === 'HOT'}
         className={['league-tab', 'hot-tab', active === 'HOT' ? 'active' : ''].filter(Boolean).join(' ')}
         onClick={() => onSelect('HOT')}

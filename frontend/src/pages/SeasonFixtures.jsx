@@ -23,6 +23,7 @@ export default function SeasonFixtures() {
   const [mode, setMode] = useState('upcoming');   // 'upcoming' | 'past' | 'table'
 
   const isHot = competition === 'HOT';
+  const isAll = competition === 'ALL';   // every competition; team filter spans league + cups
 
   const loadMeta = useCallback(() => {
     const calls = [fetch('/api/fixtures/competitions', { credentials: 'include' }).then(r => r.json())];
@@ -141,7 +142,7 @@ export default function SeasonFixtures() {
           >
             {showPast ? '← Upcoming' : `⏮ Past games (${pastFixtures.length})`}
           </button>
-          {!isHot && (
+          {!isHot && !isAll && (
             <button
               className={`btn ${showTable ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => setMode(m => (m === 'table' ? 'upcoming' : 'table'))}
@@ -171,6 +172,11 @@ export default function SeasonFixtures() {
       )}
 
       <LeagueTabs competitions={competitions} active={competition} onSelect={setCompetition} />
+      {isAll && !showTable && (
+        <p className="page-subtitle fx-all-hint">
+          Every competition together. Pick a team to see its whole season — league, Europe and cups in one list.
+        </p>
+      )}
       {isHot && !showTable && <KeyDatesPanel />}
       {!isHot && !showTable && (
         <FixtureFilters meta={meta} filters={filters} onChange={setFilters} view={view} onView={setView} />
