@@ -156,7 +156,7 @@ router.get('/', (req, res) => {
   try {
     const gamesFromTable = db.prepare(`
       SELECT id, name, date, uploaded_at, total_revenue, total_ticket_cost,
-        eli_cost, total_all_costs, net_profit, margin_percent, tickets_sold, completed
+        eli_cost, eli_paid, total_all_costs, net_profit, margin_percent, tickets_sold, completed
       FROM games ORDER BY date DESC, uploaded_at DESC
     `).all();
 
@@ -237,6 +237,7 @@ router.get('/', (req, res) => {
           total_revenue: round2(revenue),
           total_ticket_cost: round2(costs),
           eli_cost: 0,
+          eli_paid: 0,
           total_all_costs: round2(costs),
           net_profit: netProfit,
           margin_percent: marginPercent,
@@ -290,6 +291,7 @@ router.get('/', (req, res) => {
           total_revenue: g.total_revenue || 0,
           total_ticket_cost: 0,
           eli_cost: 0,
+          eli_paid: 0,
           total_all_costs: 0,
           net_profit: null,
           margin_percent: null,
@@ -415,6 +417,22 @@ router.put('/:id/notes', (req, res) => {
     const result = db.prepare('UPDATE games SET notes = ? WHERE id = ?').run(notes || '', req.params.id);
     if (result.changes === 0) return res.status(404).json({ error: 'Game not found' });
     res.json({ success: true, notes: notes || '' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/games/:id/eli-payment — record how much of Eli's cost has been paid.
+// Does NOT touch net_profit: the cost stands whether paid or not; this is settlement only.
+router.put('/:id/eli-payment', (req, res) => {
+  try {
+    const game = db.prepare('SELECT id, eli_cost FROM games WHERE id = ?').get(req.params.id);
+    if (!game) return res.status(404).json({ error: 'Game not found' });
+    const eliPaid = Math.max(0, round2(parseFloat(req.body.eli_paid) || 0));
+    db.prepare('UPDATE games SET eli_paid = ? WHERE id = ?').run(eliPaid, req.params.id);
+    const owed = round2((game.eli_cost || 0) - eliPaid);
+    res.json({ id: game.id, eli_cost: game.eli_cost || 0, eli_paid: eliPaid, eli_owed: owed });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

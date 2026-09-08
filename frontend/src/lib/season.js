@@ -52,6 +52,39 @@ export function seasonsPresent(items, getDate, now = new Date()) {
   return [...set].sort((a, b) => b - a);
 }
 
+// ── Month bucketing (parallel to seasons) ──────────────────────────────────
+// Month key = "YYYY-MM" (sortable). null → undated.
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+export function monthKey(dateLike) {
+  const d = toDate(dateLike);
+  if (!d) return null;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// "Sep 2026" from "2026-09". null → "Undated".
+export function monthLabel(key) {
+  if (!key) return 'Undated';
+  const [y, m] = String(key).split('-');
+  return `${MONTH_NAMES[+m - 1] || m} ${y}`;
+}
+
+// Distinct month keys present in `items` (via getDate), newest first.
+export function monthsPresent(items, getDate) {
+  const set = new Set();
+  for (const it of items) {
+    const k = monthKey(getDate(it));
+    if (k) set.add(k);
+  }
+  return [...set].sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
+}
+
+// Does a date-ish value belong to the selected month key? 'all' → always true.
+export function inMonth(dateLike, selected) {
+  if (selected === 'all' || selected == null) return true;
+  return monthKey(dateLike) === selected;
+}
+
 // Does a date-ish value belong to the selected season?
 //  selected === 'all' → always true.
 //  Undated items belong to NO specific season — they show only under "All seasons",

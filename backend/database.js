@@ -22,6 +22,9 @@ try { db.exec("ALTER TABLE orders ADD COLUMN row_seat TEXT"); } catch (_) {}
 try { db.exec("ALTER TABLE orders ADD COLUMN game_datetime TEXT"); } catch (_) {}
 try { db.exec("ALTER TABLE orders ADD COLUMN deleted_at DATETIME"); } catch (_) {}
 try { db.exec("ALTER TABLE games ADD COLUMN completed INTEGER DEFAULT 0"); } catch (_) {}
+// Eli settlement: how much of eli_cost has actually been paid to Eli. Owed = eli_cost - eli_paid.
+// Kept separate from profit — the cost is incurred whether or not it's been paid yet.
+try { db.exec("ALTER TABLE games ADD COLUMN eli_paid REAL DEFAULT 0"); } catch (_) {}
 // Hot Games (curated high-demand fixtures) — persist across syncs; sync never touches these.
 try { db.exec("ALTER TABLE fixtures ADD COLUMN is_hot INTEGER DEFAULT 0"); } catch (_) {}
 try { db.exec("ALTER TABLE fixtures ADD COLUMN hot_reason TEXT"); } catch (_) {}

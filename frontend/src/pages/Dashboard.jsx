@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import MetricCard from '../components/MetricCard';
 import GamePerformancePanel from '../components/GamePerformancePanel';
 import SeasonSelect from '../components/SeasonSelect';
-import { currentSeasonStart, seasonsPresent, inSeason } from '../lib/season.js';
+import { currentSeasonStart, seasonsPresent, inSeason, monthsPresent, inMonth, monthLabel } from '../lib/season.js';
 
 function fmtDate(d) {
   if (!d) return '—';
@@ -55,6 +55,8 @@ export default function Dashboard() {
   const [closeDate, setCloseDate] = useState('');
   const [closeSaving, setCloseSaving] = useState(false);
   const [season, setSeason] = useState(() => currentSeasonStart());
+  const [periodMode, setPeriodMode] = useState('season'); // 'season' | 'month'
+  const [month, setMonth] = useState(null);                // "YYYY-MM" or null (→ newest)
   const navigate = useNavigate();
 
   const load = () => {
@@ -176,15 +178,25 @@ export default function Dashboard() {
 
   const { games: allGames = [] } = data;
 
-  // Season filter (default = current season). Everything below renders the filtered set.
+  // Period filter — by season (football fiscal year) OR by calendar month. Default = current season.
   const seasons = seasonsPresent(allGames, g => g.date);
-  const games = allGames.filter(g => inSeason(g.date, season));
+  const months = monthsPresent(allGames, g => g.date);
+  const activeMonth = month || months[0] || null;
+  const inPeriod = (d) => periodMode === 'month' ? inMonth(d, activeMonth) : inSeason(d, season);
+
+  const games = allGames.filter(g => inPeriod(g.date));
   const summary = recalcSummary(games);
 
-  // Missing-costs banner comes from an all-seasons API — keep it consistent with the selector.
-  const seasonMissing = missingCosts.filter(m => inSeason(m.game_date_iso || m.game_datetime, season));
+  // Missing-costs banner comes from an all-periods API — keep it consistent with the selector.
+  const seasonMissing = missingCosts.filter(m => inPeriod(m.game_date_iso || m.game_datetime));
 
   const completedGames = games.filter(g => g.completed);
+
+  // Eli settlement roll-up across the filtered games that actually carry an Eli cost.
+  const eliGames = games.filter(g => (g.eli_cost || 0) > 0);
+  const eliTotal = eliGames.reduce((s, g) => s + (g.eli_cost || 0), 0);
+  const eliPaidTotal = eliGames.reduce((s, g) => s + (g.eli_paid || 0), 0);
+  const eliOwedTotal = eliTotal - eliPaidTotal;
 
   // Duplicate detection compares across ALL seasons (a dup can straddle season buckets).
   const invGames = allGames.filter(g => g.source === 'inventory').map(g => g.name.toLowerCase());
@@ -203,7 +215,34 @@ export default function Dashboard() {
           <div className="page-subtitle">All amounts in € · {games.length} game{games.length !== 1 ? 's' : ''} tracked</div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <SeasonSelect seasons={seasons} value={season} onChange={setSeason} />
+          {/* Season ⇆ Month toggle */}
+          <div style={{ display: 'inline-flex', border: '1.5px solid var(--border)', borderRadius: 9, overflow: 'hidden' }}>
+            {['season', 'month'].map(m => (
+              <button
+                key={m}
+                onClick={() => setPeriodMode(m)}
+                style={{
+                  padding: '8px 14px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                  background: periodMode === m ? '#1D9E75' : '#fff',
+                  color: periodMode === m ? '#fff' : '#374151',
+                }}
+              >
+                {m === 'season' ? 'Season' : 'Month'}
+              </button>
+            ))}
+          </div>
+          {periodMode === 'season'
+            ? <SeasonSelect seasons={seasons} value={season} onChange={setSeason} />
+            : (
+              <select
+                value={activeMonth || ''} onChange={e => setMonth(e.target.value)} title="Month"
+                style={{ padding: '8px 12px', border: '1.5px solid var(--border)', borderRadius: 9, fontSize: 13.5, fontWeight: 600, color: '#111827', background: '#fff', cursor: 'pointer' }}
+              >
+                {months.length === 0 && <option value="">No months</option>}
+                {months.map(m => <option key={m} value={m}>{monthLabel(m)}</option>)}
+              </select>
+            )
+          }
           <button className="btn btn-primary" onClick={() => navigate('/upload')}>
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -245,10 +284,27 @@ export default function Dashboard() {
         <MetricCard label="Games"          value={summary.gameCount || 0} />
       </div>
 
+      {/* ── Eli settlement roll-up ──────────────────────────────────── */}
+      {eliGames.length > 0 && (
+        <div style={{
+          display: 'flex', gap: 0, flexWrap: 'wrap', alignItems: 'stretch',
+          background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 24, overflow: 'hidden',
+        }}>
+          <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 8, borderRight: '1px solid #e5e7eb' }}>
+            <span style={{ background: '#7c3aed', color: '#fff', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>ELI</span>
+            <span style={{ fontSize: 13, color: '#9ca3af' }}>{eliGames.length} game{eliGames.length !== 1 ? 's' : ''}</span>
+          </div>
+          <EliStat label="Total Eli Cost" value={fmt(eliTotal)} color="#111827" />
+          <EliStat label="Paid to Eli" value={fmt(eliPaidTotal)} color="#1D9E75" />
+          <EliStat label="Still Owed" value={fmt(eliOwedTotal)} color={eliOwedTotal > 0.005 ? '#ef4444' : '#1D9E75'} />
+        </div>
+      )}
+
       {/* ── Completed Games Summary ─────────────────────────────────── */}
       {completedGames.length > 0 && (
         <>
-          <CompletedGamesTable games={completedGames} />
+          <CompletedGamesTable games={completedGames} onSaved={load} />
           <GamePerformancePanel games={completedGames} />
         </>
       )}
@@ -573,7 +629,7 @@ export default function Dashboard() {
   );
 }
 
-function CompletedGamesTable({ games }) {
+function CompletedGamesTable({ games, onSaved }) {
   const [expanded, setExpanded] = useState(null);
   const toggle = (id) => setExpanded(prev => prev === id ? null : id);
 
@@ -673,7 +729,10 @@ function CompletedGamesTable({ games }) {
                 }}>
                   <DetailStat label="Ticket Cost" value={fmt(g.total_ticket_cost)} color="#ef4444" />
                   {hasEliCost && (
-                    <DetailStat label="Eli's Cost" value={fmt(g.eli_cost)} color="#ef4444" />
+                    <>
+                      <DetailStat label="Eli's Cost" value={fmt(g.eli_cost)} color="#ef4444" />
+                      <EliPaidEditor game={g} onSaved={onSaved} />
+                    </>
                   )}
                   <DetailStat label="Total Costs" value={fmt(g.total_all_costs)} color="#ef4444" />
                   <DetailStat label="Channels" value={channelText(g.channels)} />
@@ -693,6 +752,70 @@ function DetailStat({ label, value, color }) {
     <div>
       <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 2, fontWeight: 500 }}>{label}</div>
       <div style={{ fontSize: 14, fontWeight: 700, color: color || '#111827' }}>{value}</div>
+    </div>
+  );
+}
+
+// Eli roll-up cell (flex-grows evenly across the settlement bar).
+function EliStat({ label, value, color }) {
+  return (
+    <div style={{ flex: 1, minWidth: 130, padding: '14px 20px' }}>
+      <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3, fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.4 }}>{label}</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: color || '#111827' }}>{value}</div>
+    </div>
+  );
+}
+
+// Per-game "how much of Eli's cost is paid" editor. Owed = eli_cost − eli_paid (derived).
+function EliPaidEditor({ game, onSaved }) {
+  const [paid, setPaid] = useState(game.eli_paid != null ? String(game.eli_paid) : '0');
+  const [saving, setSaving] = useState(false);
+  const paidNum = parseFloat(paid) || 0;
+  const owed = Math.round(((game.eli_cost || 0) - paidNum) * 100) / 100;
+  const dirty = paidNum !== (game.eli_paid || 0);
+
+  const save = async (e) => {
+    e.stopPropagation();
+    if (!game.id) return;
+    setSaving(true);
+    try {
+      await fetch(`/api/games/${game.id}/eli-payment`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eli_paid: paidNum }),
+      });
+      onSaved && onSaved();
+    } catch (err) {
+      alert('Failed to save Eli payment: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div onClick={e => e.stopPropagation()}>
+      <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 2, fontWeight: 500 }}>Paid to Eli / Owed</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontSize: 13, color: '#6b7280' }}>€</span>
+        <input
+          type="number" step="0.01" value={paid}
+          onChange={e => setPaid(e.target.value)}
+          style={{ width: 90, padding: '4px 8px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
+        />
+        <button
+          onClick={save} disabled={saving || !dirty}
+          style={{
+            padding: '4px 10px', borderRadius: 6, border: 'none', fontSize: 12, fontWeight: 600,
+            cursor: (saving || !dirty) ? 'default' : 'pointer',
+            background: (saving || !dirty) ? '#e5e7eb' : '#7c3aed', color: (saving || !dirty) ? '#9ca3af' : '#fff',
+          }}
+        >
+          {saving ? '…' : 'Save'}
+        </button>
+      </div>
+      <div style={{ fontSize: 12, marginTop: 3, fontWeight: 700, color: owed > 0.005 ? '#ef4444' : '#1D9E75' }}>
+        Owed: {fmt(owed)}
+      </div>
     </div>
   );
 }
