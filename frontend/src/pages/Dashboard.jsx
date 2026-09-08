@@ -192,8 +192,9 @@ export default function Dashboard() {
 
   const completedGames = games.filter(g => g.completed);
 
-  // Eli settlement roll-up across the filtered games that actually carry an Eli cost.
-  const eliGames = games.filter(g => (g.eli_cost || 0) > 0);
+  // Eli settlement roll-up — ALL seasons, not the selected period. Debt is a running
+  // obligation to Eli that doesn't reset per season, so it ignores the season/month filter.
+  const eliGames = allGames.filter(g => (g.eli_cost || 0) > 0);
   const eliTotal = eliGames.reduce((s, g) => s + (g.eli_cost || 0), 0);
   const eliPaidTotal = eliGames.reduce((s, g) => s + (g.eli_paid || 0), 0);
   const eliOwedTotal = eliTotal - eliPaidTotal;
@@ -302,7 +303,7 @@ export default function Dashboard() {
           <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 8, borderRight: '1px solid #e5e7eb' }}>
             <span style={{ background: '#7c3aed', color: '#fff', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>ELI</span>
             <a href="/eli" onClick={(e) => { e.preventDefault(); navigate('/eli'); }} style={{ fontSize: 13, color: '#7c3aed', fontWeight: 600, textDecoration: 'none' }}>
-              {eliGames.length} game{eliGames.length !== 1 ? 's' : ''} · open tracker →
+{eliGames.length} game{eliGames.length !== 1 ? 's' : ''} · all seasons · open tracker →
             </a>
           </div>
           <EliStat label="Total Eli Cost" value={fmt(eliTotal)} color="#111827" />

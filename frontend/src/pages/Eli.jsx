@@ -26,10 +26,15 @@ export default function Eli() {
   if (error) return <div className="page"><div className="error-box">Error: {error}</div></div>;
   if (games == null) return <div className="loading">Loading…</div>;
 
-  // Debt = cost still not paid. Sort most-owed first.
+  // Debt = cost still not paid. Sort by game date, newest first (undated last).
   const rows = games
     .map(g => ({ ...g, owed: r2((g.eli_cost || 0) - (g.eli_paid || 0)) }))
-    .sort((a, b) => b.owed - a.owed);
+    .sort((a, b) => {
+      const da = a.date || '', db = b.date || '';
+      if (da > db) return -1;
+      if (da < db) return 1;
+      return 0;
+    });
 
   const totalCost = r2(rows.reduce((s, g) => s + (g.eli_cost || 0), 0));
   const totalPaid = r2(rows.reduce((s, g) => s + (g.eli_paid || 0), 0));
