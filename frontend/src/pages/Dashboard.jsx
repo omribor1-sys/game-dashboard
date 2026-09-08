@@ -284,29 +284,31 @@ export default function Dashboard() {
         <MetricCard label="Games"          value={summary.gameCount || 0} />
       </div>
 
-      {/* ── Eli settlement roll-up ──────────────────────────────────── */}
-      {eliGames.length > 0 && (
-        <div style={{
-          display: 'flex', gap: 0, flexWrap: 'wrap', alignItems: 'stretch',
-          background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 24, overflow: 'hidden',
-        }}>
-          <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 8, borderRight: '1px solid #e5e7eb' }}>
-            <span style={{ background: '#7c3aed', color: '#fff', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>ELI</span>
-            <span style={{ fontSize: 13, color: '#9ca3af' }}>{eliGames.length} game{eliGames.length !== 1 ? 's' : ''}</span>
-          </div>
-          <EliStat label="Total Eli Cost" value={fmt(eliTotal)} color="#111827" />
-          <EliStat label="Paid to Eli" value={fmt(eliPaidTotal)} color="#1D9E75" />
-          <EliStat label="Still Owed" value={fmt(eliOwedTotal)} color={eliOwedTotal > 0.005 ? '#ef4444' : '#1D9E75'} />
-        </div>
-      )}
-
       {/* ── Completed Games Summary ─────────────────────────────────── */}
       {completedGames.length > 0 && (
         <>
           <CompletedGamesTable games={completedGames} onSaved={load} />
           <GamePerformancePanel games={completedGames} />
         </>
+      )}
+
+      {/* ── Eli settlement roll-up (below Performance per Game) ──────── */}
+      {eliGames.length > 0 && (
+        <div style={{
+          display: 'flex', gap: 0, flexWrap: 'wrap', alignItems: 'stretch',
+          background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 24, marginTop: 8, overflow: 'hidden',
+        }}>
+          <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 8, borderRight: '1px solid #e5e7eb' }}>
+            <span style={{ background: '#7c3aed', color: '#fff', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>ELI</span>
+            <a href="/eli" onClick={(e) => { e.preventDefault(); navigate('/eli'); }} style={{ fontSize: 13, color: '#7c3aed', fontWeight: 600, textDecoration: 'none' }}>
+              {eliGames.length} game{eliGames.length !== 1 ? 's' : ''} · open tracker →
+            </a>
+          </div>
+          <EliStat label="Total Eli Cost" value={fmt(eliTotal)} color="#111827" />
+          <EliStat label="Paid to Eli" value={fmt(eliPaidTotal)} color="#1D9E75" />
+          <EliStat label="Still Owed" value={fmt(eliOwedTotal)} color={eliOwedTotal > 0.005 ? '#ef4444' : '#1D9E75'} />
+        </div>
       )}
 
       {games.length === 0 ? (
