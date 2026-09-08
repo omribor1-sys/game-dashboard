@@ -40,12 +40,15 @@ export default function Eli() {
   const totalPaid = r2(rows.reduce((s, g) => s + (g.eli_paid || 0), 0));
   const totalOwed = r2(totalCost - totalPaid);
 
+  // Only games still owed money are listed — fully-paid ones drop off the tab.
+  const unpaid = rows.filter(g => g.owed > 0.005);
+
   return (
     <div className="page">
       <div className="page-header">
         <div>
           <div className="page-title">Eli — Debt Tracker</div>
-          <div className="page-subtitle">All amounts in € · {rows.length} game{rows.length !== 1 ? 's' : ''} with an Eli cost</div>
+          <div className="page-subtitle">All amounts in € · {unpaid.length} unpaid game{unpaid.length !== 1 ? 's' : ''} · {fmt(totalOwed)} still owed</div>
         </div>
       </div>
 
@@ -59,10 +62,10 @@ export default function Eli() {
         <Total label="Total Debt" value={fmt(totalOwed)} color={totalOwed > 0.005 ? '#ef4444' : '#1D9E75'} big />
       </div>
 
-      {rows.length === 0 ? (
+      {unpaid.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '64px 0', color: 'var(--text-muted)' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🧾</div>
-          No games have an Eli cost yet.
+          <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+          {rows.length === 0 ? 'No games have an Eli cost yet.' : 'All Eli costs are fully paid — nothing owed.'}
         </div>
       ) : (
         <div className="table-wrap">
@@ -78,7 +81,7 @@ export default function Eli() {
               </tr>
             </thead>
             <tbody>
-              {rows.map(g => <EliRow key={g.id} game={g} onSaved={load} />)}
+              {unpaid.map(g => <EliRow key={g.id} game={g} onSaved={load} />)}
             </tbody>
           </table>
         </div>
