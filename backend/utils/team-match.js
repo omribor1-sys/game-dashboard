@@ -73,6 +73,7 @@ const ALIASES = {
   hapoelbeersheva: 'hbeersheva',
   vikingfk: 'viking',
   sabahfk: 'sabah',
+  viktoriaplzen: 'viktoriaplze',
 };
 
 let cache = null;
