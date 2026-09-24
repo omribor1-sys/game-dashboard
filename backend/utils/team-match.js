@@ -55,6 +55,24 @@ const ALIASES = {
   internazionale: 'inter',
   bayernmunchen: 'bayernmunich',
   bayern: 'bayernmunich',
+  // StubHub (full club names) vs the UEFA feed (short names) — 2026-09-24. Keys are what
+  // normTeam produces TODAY (it drops non-ASCII letters, so "München" → "mnchen").
+  bayernmnchen: 'bayernmunich',
+  losclille: 'lille',
+  borussiadortmund: 'dortmund',
+  bdortmund: 'dortmund',
+  rbleipzig: 'leipzig',
+  sscnapoli: 'napoli',
+  realbetisbalompi: 'realbetis',
+  rclens: 'lens',
+  rcceltadevigo: 'celta',
+  tsg1899hoffenheim: 'hoffenheim',
+  scutorreense: 'torreense',
+  jagielloniabiaystok: 'jagiellonia',
+  pfclevskisofia: 'levskisofia',
+  hapoelbeersheva: 'hbeersheva',
+  vikingfk: 'viking',
+  sabahfk: 'sabah',
 };
 
 let cache = null;

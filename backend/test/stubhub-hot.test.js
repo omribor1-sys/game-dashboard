@@ -39,3 +39,13 @@ assert.strictEqual(events[0].kickoff_utc, '2026-10-10T16:30:00.000Z');
 assert.strictEqual(events[0].url, 'https://www.stubhub.ie/a-vs-b/event/1/');
 
 console.log('stubhub-hot: all assertions passed');
+
+// StubHub's full names must meet the UEFA feed's short names — both sides, exact-or-alias.
+const { canonTeam } = require('../utils/team-match');
+for (const [sh, uefa] of [['LOSC Lille', 'Lille'], ['FC Bayern Munich', 'Bayern München'],
+  ['Borussia Dortmund', 'B. Dortmund'], ['Real Betis Balompié', 'Real Betis'], ['Viking FK', 'Viking'],
+  ['Hapoel Beer Sheva', 'H. Beer-Sheva'], ['Jagiellonia Białystok', 'Jagiellonia']]) {
+  assert.strictEqual(canonTeam(sh), canonTeam(uefa), `${sh} ≠ ${uefa}`);
+}
+assert.notStrictEqual(canonTeam('Real Betis'), canonTeam('Real Madrid'));
+console.log('stubhub-hot: team alias assertions passed');
