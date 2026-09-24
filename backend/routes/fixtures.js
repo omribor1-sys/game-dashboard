@@ -31,10 +31,16 @@ function sideMatches(team, key) {
 }
 function profitFor(row, idx) {
   if (!idx || !idx.length) return null;
+  // The date is mandatory on BOTH paths. Matching on names alone attached last season's
+  // Chelsea vs Tottenham (19/05/2026) P&L to the 24/10/2026 fixture, and every other
+  // repeat fixture the same way. ±1 day absorbs a UTC/UK-local date boundary; a game
+  // with no date cannot be placed on a fixture at all.
+  const t = Date.parse(row.kickoff_utc || '');
+  if (!Number.isFinite(t)) return null;
+  const sameDay = (d) => d && Math.abs(Date.parse(d) - Date.parse(new Date(t).toISOString().slice(0, 10))) <= 864e5;
   const key = norm(`${row.home_team} vs ${row.away_team}`);
-  const day = (row.kickoff_utc || '').slice(0, 10);
-  const g = idx.find(x => x.key === key)
-    || idx.find(x => x.date === day && sideMatches(row.home_team, x.key) && sideMatches(row.away_team, x.key));
+  const g = idx.find(x => sameDay(x.date) && x.key === key)
+    || idx.find(x => sameDay(x.date) && sideMatches(row.home_team, x.key) && sideMatches(row.away_team, x.key));
   if (!g) return null;
   return {
     game_name: g.name,
