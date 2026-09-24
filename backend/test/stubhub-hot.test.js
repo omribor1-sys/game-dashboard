@@ -1,0 +1,41 @@
+const assert = require('node:assert');
+const { splitTeams, pctChange, tierOf, parseEvents } = require('../services/stubhub-hot');
+
+// Competition suffix is stripped before splitting, or "Lille - Champions League…" never matches.
+assert.deepStrictEqual(splitTeams('Arsenal FC vs LOSC Lille - Champions League 2026-2027'),
+  { home: 'Arsenal FC', away: 'LOSC Lille', label: 'Champions League 2026-2027' });
+assert.deepStrictEqual(splitTeams('Fleetwood Town FC vs Arsenal FC - Carabao Cup'),
+  { home: 'Fleetwood Town FC', away: 'Arsenal FC', label: 'Carabao Cup' });
+assert.deepStrictEqual(splitTeams('Tottenham Hotspur vs Coventry City FC'),
+  { home: 'Tottenham Hotspur', away: 'Coventry City FC', label: null });
+assert.strictEqual(splitTeams('Emirates Stadium Tour'), null);
+
+assert.strictEqual(pctChange(125, 100), 25);
+assert.strictEqual(pctChange(80, 100), -20);
+assert.strictEqual(pctChange(100, null), null);   // no baseline → no jump, never "+∞"
+assert.strictEqual(pctChange(100, 0), null);
+
+assert.strictEqual(tierOf(25), 'notable');
+assert.strictEqual(tierOf(45), 'high');
+assert.strictEqual(tierOf(80), 'elite');
+
+// Page fallback: union of the event lists, unpriced events dropped, local time → UTC.
+const state = {
+  'app.entity.events.allResults': { numFound: 3, events: [
+    { id: 1, status: 'Active', name: 'A vs B', webURI: 'a-vs-b/event/1/', eventDateLocal: '2026-10-10T17:30:00+0100',
+      ticketInfo: { minPrice: 163.45, totalTickets: 100, currencyCode: 'EUR' } },
+    { id: 2, status: 'Active', name: 'A vs C', webURI: 'a-vs-c/event/2/', eventDateLocal: '2026-10-11T15:00:00+0100' },
+  ] },
+  'app.entity.events.geoExcludeRadius': { numFound: 3, events: [
+    { id: 1, status: 'Active', name: 'A vs B', webURI: 'x', eventDateLocal: '2026-10-10T17:30:00+0100',
+      ticketInfo: { minPrice: 999, totalTickets: 1, currencyCode: 'EUR' } },
+  ] },
+};
+const { events, numFound } = parseEvents(`<script>window.__INITIAL_STATE__=${JSON.stringify(state)};</script>`);
+assert.strictEqual(numFound, 3);
+assert.strictEqual(events.length, 1);
+assert.strictEqual(events[0].min_price, 163.45);            // first occurrence wins, not overwritten
+assert.strictEqual(events[0].kickoff_utc, '2026-10-10T16:30:00.000Z');
+assert.strictEqual(events[0].url, 'https://www.stubhub.ie/a-vs-b/event/1/');
+
+console.log('stubhub-hot: all assertions passed');

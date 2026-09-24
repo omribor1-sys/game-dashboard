@@ -54,6 +54,23 @@ const SKIP_NAME = /hospitality|vip|package|parking|women|legends|tour|museum/i;
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+/** One StubHub event (page state or search API — same shape) → our row, or null if unpriced. */
+function toEvent(e) {
+  const ti = e.ticketInfo;
+  if (!ti || !(ti.minPrice > 0) || !e.eventDateLocal) return null;
+  return {
+    event_id: Number(e.id),
+    status: e.status,
+    name: e.name,
+    url: BASE + String(e.webURI || '').replace(/^\//, ''),
+    // "2026-10-10T17:30:00+0100" → add the colon so every Date parser accepts it
+    kickoff_utc: new Date(e.eventDateLocal.replace(/([+-]\d{2})(\d{2})$/, '$1:$2')).toISOString(),
+    min_price: Number(ti.minPrice),
+    tickets: Number(ti.totalTickets) || 0,
+    currency: ti.currencyCode,
+  };
+}
+
 /** Pull every event with a price out of one performer page's HTML. */
 function parseEvents(html) {
   const start = html.indexOf('window.__INITIAL_STATE__=');
@@ -69,28 +86,82 @@ function parseEvents(html) {
     if (!k.startsWith('app.entity.events.') || !Array.isArray(v?.events)) continue;
     if (Number.isFinite(v.numFound)) numFound = Math.max(numFound ?? 0, v.numFound);
     for (const e of v.events) {
-      const ti = e.ticketInfo;
-      if (out.has(e.id) || !ti || !(ti.minPrice > 0) || !e.eventDateLocal) continue;
-      out.set(e.id, {
-        event_id: Number(e.id),
-        status: e.status,
-        name: e.name,
-        url: BASE + String(e.webURI || '').replace(/^\//, ''),
-        // "2026-10-10T17:30:00+0100" → add the colon so every Date parser accepts it
-        kickoff_utc: new Date(e.eventDateLocal.replace(/([+-]\d{2})(\d{2})$/, '$1:$2')).toISOString(),
-        min_price: Number(ti.minPrice),
-        tickets: Number(ti.totalTickets) || 0,
-        currency: ti.currencyCode,
-      });
+      const ev = !out.has(e.id) && toEvent(e);
+      if (ev) out.set(e.id, ev);
     }
   }
   return { events: [...out.values()], numFound };
 }
 
-/** "Tottenham Hotspur vs Coventry City FC" → both sides, or null when it is not a match. */
+/**
+ * "Arsenal FC vs LOSC Lille - Champions League 2026-2027" → sides + competition label,
+ * or null when it is not a two-team match.
+ */
 function splitTeams(name) {
-  const p = name.split(/\s+vs\.?\s+/i);
-  return p.length === 2 && p[0] && p[1] ? { home: p[0].trim(), away: p[1].trim() } : null;
+  const m = name.match(/^(.*?)\s+-\s+([^-]+(?:-\d{4})?)$/);
+  const core = m ? m[1] : name;
+  const p = core.split(/\s+vs\.?\s+/i);
+  if (p.length !== 2 || !p[0].trim() || !p[1].trim()) return null;
+  return { home: p[0].trim(), away: p[1].trim(), label: m ? m[2].trim() : null };
+}
+
+// ── StubHub session ─────────────────────────────────────────────────────────
+// The club page only server-renders its first 30 events; the rest (and the whole list, in
+// one call) come from the catalog search API the page itself uses. That API wants a Hawk
+// signature, and the page hands out the Hawk credentials (id/key) in the SH_BAU cookie on
+// every anonymous visit — so one page load buys a session for the whole run.
+async function openSession() {
+  const r = await fetch(BASE + PERFORMERS[0][1], { headers: { 'User-Agent': UA, 'Accept-Language': 'en-GB,en;q=0.9' } });
+  const cookies = r.headers.getSetCookie();
+  await r.text();
+  const bau = cookies.find(c => c.startsWith('SH_BAU='));
+  if (!bau) throw new Error('no SH_BAU cookie');
+  const cred = JSON.parse(decodeURIComponent(bau.split(';')[0].slice('SH_BAU='.length)));
+  if (!cred.id || !cred.key) throw new Error('SH_BAU cookie without id/key');
+  return { cred, cookie: cookies.map(c => c.split(';')[0]).join('; ') };
+}
+
+function hawkHeader({ id, key }, path) {
+  const crypto = require('crypto');
+  const ts = Math.floor(Date.now() / 1000);
+  const nonce = crypto.randomBytes(6).toString('base64url').slice(0, 6);
+  const mac = crypto.createHmac('sha256', key)
+    .update(`hawk.1.header\n${ts}\n${nonce}\nGET\n${path}\nwww.stubhub.ie\n443\n\n\n`)
+    .digest('base64');
+  return `Hawk id="${id}", ts="${ts}", nonce="${nonce}", mac="${mac}"`;
+}
+
+const performerIdOf = (path) => path.match(/performer\/(\d+)/)[1];
+
+async function fetchClubApi(session, path) {
+  const out = [];
+  let numFound = null;
+  for (let start = 0; start < 500; start += 100) {
+    const q = `/bfx/api/search/catalog/events/v3/?shstore=14&status=active%20%7Ccontingent`
+      + `&fieldList=id%2CticketInfo%2Cname%2CeventDateLocal%2CeventInfoUrl%2Cstatus`
+      + `&sourceId=0%20%7C1%20%7C4001%20%7C5001%20%7C29001&start=${start}&rows=100`
+      + `&sort=eventDateLocal%20asc&eventType=Main%7CFestival%7CSeason%7CTailgate%7CHospitality`
+      + `&performerId=${performerIdOf(path)}`;
+    const r = await fetch('https://www.stubhub.ie' + q, { headers: {
+      'User-Agent': UA, accept: 'application/json', 'Accept-Language': 'en-IE',
+      Authorization: hawkHeader(session.cred, q), Cookie: session.cookie,
+    } });
+    if (!r.ok) throw new Error(`search API HTTP ${r.status}`);
+    const body = await r.json();
+    numFound = body.numFound;
+    for (const e of body.events || []) { const ev = toEvent(e); if (ev) out.push(ev); }
+    if (!body.events?.length || start + 100 >= numFound) break;
+  }
+  return { events: out, numFound };
+}
+
+/** Full event list for one club: search API first, the 30-event page as a fallback. */
+async function fetchClub(session, path) {
+  if (session) {
+    try { return { ...(await fetchClubApi(session, path)), via: 'api' }; }
+    catch (e) { console.warn('[stubhub-hot] API failed, falling back to page:', path, e.message); }
+  }
+  return { ...parseEvents(await fetchPage(path)), via: 'page' };
 }
 
 /** Percent change of the from-price; null when there is nothing earlier to compare with. */
@@ -117,13 +188,16 @@ async function detectStubhubHot() {
 
   // ── 1. collect ────────────────────────────────────────────────────────────
   const events = new Map();
+  let session = null;
+  try { session = await openSession(); }
+  catch (e) { summary.session_error = e.message; }
   for (const [club, path] of PERFORMERS) {
     try {
-      const { events: evs, numFound } = parseEvents(await fetchPage(path));
+      const { events: evs, numFound, via } = await fetchClub(session, path);
       summary.pages_ok++;
-      // Parsed fewer events than the page says exist → the page paginated or the markup
-      // moved. Say so instead of silently watching half a club's fixtures.
-      if (numFound != null && evs.length < numFound) summary.truncated.push(`${club} ${evs.length}/${numFound}`);
+      // The page fallback only carries a club's next 30 events. Say so instead of
+      // silently watching part of a club's season.
+      if (via === 'page' && numFound != null && evs.length < numFound) summary.truncated.push(`${club} ${evs.length}/${numFound}`);
       for (const e of evs) events.set(e.event_id, e);
     } catch (e) {
       summary.pages_failed.push(`${club}: ${e.message}`);

@@ -133,6 +133,24 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
       {/* Hot reason line */}
       {fx.is_hot && fx.hot_reason ? <div className="fc-hot-reason">🔥 {fx.hot_reason}</div> : null}
 
+      {/* StubHub from-price, refreshed daily. Dated when stale so an old number never passes for today's. */}
+      {fx.sh_min_price != null ? (() => {
+        const ageH = fx.sh_checked_at ? (Date.now() - Date.parse(fx.sh_checked_at)) / 36e5 : Infinity;
+        const pct = fx.sh_change_pct;
+        return (
+          <a className="fc-stubhub" href={fx.sh_url} target="_blank" rel="noopener noreferrer"
+             title={`StubHub cheapest ticket incl. fees${fx.sh_tickets != null ? ` · ${fx.sh_tickets} listed` : ''}`}>
+            🎫 StubHub from <strong>{eur(fx.sh_min_price).replace(/\.00$/, '')}</strong>
+            {pct != null && fx.sh_change_days ? (
+              <span className={pct > 0 ? 'sh-up' : pct < 0 ? 'sh-down' : ''}>
+                {' '}{pct > 0 ? '▲' : pct < 0 ? '▼' : '■'} {Math.abs(pct)}% / {fx.sh_change_days}d
+              </span>
+            ) : null}
+            {ageH > 48 ? <span className="sh-stale"> · as of {new Date(fx.sh_checked_at).toLocaleDateString('en-GB')}</span> : null}
+          </a>
+        );
+      })() : null}
+
       {/* Closed-game P&L (only present once the game has been closed with costs) */}
       {fx.pnl ? (
         <div className={`fc-pnl ${fx.pnl.net_profit >= 0 ? 'pos' : 'neg'}`} title={fx.pnl.game_name}>

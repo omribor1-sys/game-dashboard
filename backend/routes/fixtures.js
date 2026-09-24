@@ -277,6 +277,14 @@ router.post('/detect-hot', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// POST /api/fixtures/detect-hot-stubhub  → StubHub from-price read + price-jump hot flags
+router.post('/detect-hot-stubhub', async (req, res) => {
+  try {
+    const { detectStubhubHot } = require('../services/stubhub-hot');
+    res.json(await detectStubhubHot());
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // POST /api/fixtures/sync   body: { competition_code? }
 router.post('/sync', async (req, res) => {
   try {

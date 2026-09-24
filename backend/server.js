@@ -657,6 +657,25 @@ cron.schedule('20 7 * * *', async () => {
   }
 }, { timezone: 'UTC' });
 
+// Hot-game detection from StubHub price jumps — 07:35 UTC, after the odds pass so its
+// flags are in place (a fixture already hot keeps its source; the price still shows).
+// Partial runs shout: a scraper that quietly reads nothing looks exactly like a quiet market.
+cron.schedule('35 7 * * *', async () => {
+  try {
+    const { detectStubhubHot, PERFORMERS } = require('./services/stubhub-hot');
+    const r = await detectStubhubHot();
+    if (r.pages_failed.length || r.skipped_marking || r.truncated.length) {
+      const { sendWhatsApp } = require('./services/whatsapp-notifier');
+      await sendWhatsApp(`⚠️ StubHub hot check: ${r.pages_ok}/${PERFORMERS.length} clubs read`
+        + (r.skipped_marking ? ` — flags NOT refreshed (${r.skipped_marking})` : '')
+        + (r.truncated.length ? ` — partial lists: ${r.truncated.join(', ')}` : '')
+        + (r.pages_failed.length ? ` — ${r.pages_failed.slice(0, 3).join(' | ')}` : ''));
+    }
+  } catch (e) {
+    console.error('[cron] stubhub hot failed:', e.message);
+  }
+}, { timezone: 'UTC' });
+
 // Cross-source verification — 07:10 UTC, after every sync has written. Reports only;
 // it must never repair, or a bad source gets laundered into the DB by the very job
 // meant to catch it.
