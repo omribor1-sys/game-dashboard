@@ -56,3 +56,10 @@ for (const [sh, uefa] of [['LOSC Lille', 'Lille'], ['FC Bayern Munich', 'Bayern 
 }
 assert.notStrictEqual(canonTeam('Real Betis'), canonTeam('Real Madrid'));
 console.log('stubhub-hot: team alias assertions passed');
+
+// Opportunities fire both ways: a 25% drop is as much a signal as a 25% rise.
+const { big } = require('../services/stubhub-hot');
+assert.ok(big(25, 25) && big(-25, 25) && big(-40.2, 25));
+assert.ok(!big(24.9, 25) && !big(-24.9, 25) && !big(null, 25));
+assert.strictEqual(tierOf(-65), 'elite');
+console.log('stubhub-hot: two-way opportunity assertions passed');

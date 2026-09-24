@@ -131,7 +131,7 @@ export default function SeasonFixtures() {
         <div>
           <h1 className="page-title">Season Fixtures</h1>
           <p className="page-subtitle">
-            {isHot ? '🔥 Hot games across all competitions: StubHub price jumps, odds, manual picks' : (activeComp ? activeComp.name : 'Premier League 2026/27')}
+            {isHot ? '🔥 Hot games + opportunities: StubHub moves of 25%+ (📈 rising / 📉 dropping, next 3 months), odds, manual picks' : (activeComp ? activeComp.name : 'Premier League 2026/27')}
           </p>
         </div>
         <div className="header-actions">

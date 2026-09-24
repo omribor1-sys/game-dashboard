@@ -45,8 +45,12 @@ const PERFORMERS = [
 // A jump is only worth a flag when it is both large and measured over enough time and
 // enough stock to not be one odd listing. ponytail: thresholds are a first guess with no
 // history to backtest against yet; retune once stubhub_price_obs has a few weeks.
-const JUMP_PCT = 25;          // from-price up at least this much vs ~7 days ago
-const DAY_JUMP_PCT = 20;      // or this much vs yesterday (a sudden move)
+// Omri 2026-09-24: an opportunity is a move of 25%+ in EITHER direction — a rise is demand
+// to sell into, a drop is stock to buy — on any English club's game up to 3 months out.
+const JUMP_PCT = 25;          // from-price moved at least this much vs ~7 days ago
+const DAY_JUMP_PCT = 25;      // or this much vs yesterday (a sudden move)
+const HORIZON_DAYS = 90;      // further out, prices are placeholders, not a market
+const big = (v, lim) => v != null && Math.abs(v) >= lim;
 const MIN_TICKETS = 20;       // thinner markets move on a single listing
 const BASELINE_DAYS = 7;
 const MIN_PAGES_OK = 16;      // below this the run is too partial to clear/re-mark flags
@@ -187,7 +191,7 @@ function insightOf({ change, days, stockChange }) {
   return parts.length ? parts.join(' · ') : null;
 }
 
-function tierOf(pct) { return pct >= 60 ? 'elite' : pct >= 40 ? 'high' : 'notable'; }
+function tierOf(pct) { pct = Math.abs(pct); return pct >= 60 ? 'elite' : pct >= 40 ? 'high' : 'notable'; }
 
 async function fetchPage(path) {
   const r = await fetch(BASE + path, { headers: { 'User-Agent': UA, 'Accept-Language': 'en-GB,en;q=0.9' } });
@@ -272,8 +276,8 @@ async function detectStubhubHot() {
       setPrice.run(e.event_id, e.url, e.min_price, e.tickets, change, days, insight, nowIso, fx.id);
     }
 
-    const isJump = e.tickets >= MIN_TICKETS &&
-      ((change != null && change >= JUMP_PCT) || (dayChange != null && dayChange >= DAY_JUMP_PCT));
+    const inHorizon = Date.parse(e.kickoff_utc) - Date.now() <= HORIZON_DAYS * 864e5;
+    const isJump = inHorizon && e.tickets >= MIN_TICKETS && (big(change, JUMP_PCT) || big(dayChange, DAY_JUMP_PCT));
     if (isJump) jumps.push({ e, fx, wk, yd, change, days, dayChange });
   }
 
@@ -288,21 +292,23 @@ async function detectStubhubHot() {
                                WHERE id=? AND is_hot=0`);
     for (const j of jumps) {
       const eur = (n) => `€${Math.round(n)}`;
+      const sgn = (v) => (v > 0 ? '+' : '') + v;
+      // The bigger of the two moves decides the direction; both are shown when both fired.
+      const pct = Math.abs(j.change ?? 0) >= Math.abs(j.dayChange ?? 0) ? j.change : j.dayChange;
       const parts = [];
-      if (j.change != null && j.change >= JUMP_PCT) {
-        parts.push(`from-price ${eur(j.wk.min_price)} → ${eur(j.e.min_price)} (+${j.change}% in ${j.days}d)`);
+      if (big(j.change, JUMP_PCT)) {
+        parts.push(`price ${eur(j.wk.min_price)} → ${eur(j.e.min_price)} (${sgn(j.change)}% in ${j.days}d)`);
       }
-      if (j.dayChange != null && j.dayChange >= DAY_JUMP_PCT) {
-        parts.push(`+${j.dayChange}% since yesterday`);
-      }
+      if (big(j.dayChange, DAY_JUMP_PCT)) parts.push(`${sgn(j.dayChange)}% since yesterday`);
       const base = j.wk || j.yd;
       if (base && base.tickets) parts.push(`listed tickets ${base.tickets} → ${j.e.tickets}`);
-      const reason = `StubHub: ${parts.join(', ')}`;
-      const pct = Math.max(j.change ?? 0, j.dayChange ?? 0);
+      const reason = pct > 0
+        ? `📈 StubHub rising: ${parts.join(', ')}`
+        : `📉 StubHub dropping - buying opportunity: ${parts.join(', ')}`;
       const row = { name: j.e.name, kickoff_utc: j.e.kickoff_utc, from: j.e.min_price, change_pct: pct, reason, url: j.e.url };
       if (!j.fx) { summary.unmatched_jumps.push(row); continue; }
       // Manual and odds flags stay as they are; the price columns still show the jump.
-      if (setHot.run(tierOf(pct), reason, pct, j.fx.id).changes) summary.marked++;
+      if (setHot.run(tierOf(pct), reason, pct, j.fx.id).changes)   // hot_score keeps the sign: <0 = drop summary.marked++;
       summary.hot.push(row);
     }
   }
@@ -314,4 +320,4 @@ async function detectStubhubHot() {
   return summary;
 }
 
-module.exports = { detectStubhubHot, parseEvents, splitTeams, pctChange, tierOf, insightOf, PERFORMERS };
+module.exports = { detectStubhubHot, parseEvents, splitTeams, pctChange, tierOf, insightOf, big, PERFORMERS };

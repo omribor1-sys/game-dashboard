@@ -87,6 +87,7 @@
 .hot-badge.hot-elite { background: var(--red-light); color: var(--red); border: 1px solid var(--red); }
 .hot-badge.hot-high { background: var(--amber-light); color: var(--amber); border: 1px solid var(--amber); }
 .hot-badge.hot-notable { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
+.hot-badge.hot-drop { background: #dcfce7; color: #15803d; border: 1px solid #16a34a; }
 .fc-hot-reason { font-size: 12.5px; color: var(--text-muted); font-style: italic; line-height: 1.3; padding-left: 2px; }
 .fc-stubhub { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 12.5px; padding-left: 2px; }
 .fc-stubhub a { color: var(--text); text-decoration: none; }

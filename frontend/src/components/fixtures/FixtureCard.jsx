@@ -134,11 +134,17 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
           {fx.last_changed_at ? (
             <span className="fc-changed" title={`Moved from ${fx.previous_kickoff_local || '—'} to ${fx.kickoff_local || '—'}`}>⚠️</span>
           ) : null}
-          {fx.is_hot ? (
-            <span className={`hot-badge ${HOT_TIER_CLASS[fx.hot_tier] || 'hot-notable'}`} title={fx.hot_reason || ''}>
-              🔥 {HOT_TIER_LABEL[fx.hot_tier] || 'Hot'}
-            </span>
-          ) : null}
+          {fx.is_hot ? (() => {
+            // StubHub price moves carry their direction in hot_score's sign: a drop is a buy.
+            const move = fx.hot_source === 'stubhub' ? (fx.hot_score < 0 ? 'drop' : 'rise') : null;
+            return (
+              <span className={`hot-badge ${move === 'drop' ? 'hot-drop' : HOT_TIER_CLASS[fx.hot_tier] || 'hot-notable'}`} title={fx.hot_reason || ''}>
+                {move === 'drop' ? `📉 Drop ${Math.round(fx.hot_score)}%`
+                  : move === 'rise' ? `📈 Rising +${Math.round(fx.hot_score)}%`
+                  : `🔥 ${HOT_TIER_LABEL[fx.hot_tier] || 'Hot'}`}
+              </span>
+            );
+          })() : null}
         </div>
 
         <span className="fc-meta">
@@ -149,7 +155,7 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
       </div>
 
       {/* Hot reason line */}
-      {fx.is_hot && fx.hot_reason ? <div className="fc-hot-reason">🔥 {fx.hot_reason}</div> : null}
+      {fx.is_hot && fx.hot_reason ? <div className="fc-hot-reason">{fx.hot_source === 'stubhub' ? '' : '🔥 '}{fx.hot_reason}</div> : null}
 
       {/* StubHub from-price (no fees, as StubHub shows it) + 14-day trend + one insight, only when something moved. */}
       {fx.sh_min_price != null ? (() => {
