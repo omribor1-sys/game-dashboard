@@ -88,10 +88,14 @@
 .hot-badge.hot-high { background: var(--amber-light); color: var(--amber); border: 1px solid var(--amber); }
 .hot-badge.hot-notable { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
 .fc-hot-reason { font-size: 12.5px; color: var(--text-muted); font-style: italic; line-height: 1.3; padding-left: 2px; }
-.fc-stubhub { font-size: 12.5px; color: var(--text); text-decoration: none; padding-left: 2px; align-self: flex-start; }
-.fc-stubhub:hover { text-decoration: underline; }
+.fc-stubhub { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 12.5px; padding-left: 2px; }
+.fc-stubhub a { color: var(--text); text-decoration: none; }
+.fc-stubhub a:hover { text-decoration: underline; }
+.fc-stubhub .sh-spark polyline { stroke: var(--text-muted); }
+.fc-stubhub .sh-spark.up polyline { stroke: #dc2626; }
+.fc-stubhub .sh-spark.down polyline { stroke: #16a34a; }
 .fc-stubhub .sh-up { color: #dc2626; font-weight: 600; }
-.fc-stubhub .sh-down { color: #16a34a; }
+.fc-stubhub .sh-down { color: #16a34a; font-weight: 600; }
 .fc-stubhub .sh-stale { color: var(--text-muted); }
 
 /* Foot: ticket status + actions */

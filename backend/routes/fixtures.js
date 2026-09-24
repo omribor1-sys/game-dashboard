@@ -139,7 +139,14 @@ router.get('/competitions', (req, res) => {
 router.get('/hot', (req, res) => {
   const rows = db.prepare('SELECT * FROM fixtures WHERE is_hot=1 ORDER BY kickoff_utc').all();
   const idx = profitIndex();
-  res.json(rows.map(r => enrich(r, idx)));
+  // 14 days of StubHub from-price per game, for the card sparkline (hot tab only: ~36 games).
+  const series = db.prepare(`SELECT obs_at, min_price FROM stubhub_price_log
+                             WHERE event_id=? AND obs_at >= ? ORDER BY obs_at`);
+  const since = new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 13);
+  res.json(rows.map(r => ({
+    ...enrich(r, idx),
+    sh_series: r.sh_event_id ? series.all(r.sh_event_id, since).map(o => [o.obs_at, o.min_price]) : [],
+  })));
 });
 
 // GET /api/fixtures/meta?competition=PL  → filter metadata scoped to a competition

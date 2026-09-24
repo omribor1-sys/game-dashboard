@@ -1,5 +1,5 @@
 const assert = require('node:assert');
-const { splitTeams, pctChange, tierOf, parseEvents } = require('../services/stubhub-hot');
+const { splitTeams, pctChange, tierOf, parseEvents, insightOf } = require('../services/stubhub-hot');
 
 // Competition suffix is stripped before splitting, or "Lille - Champions League…" never matches.
 assert.deepStrictEqual(splitTeams('Arsenal FC vs LOSC Lille - Champions League 2026-2027'),
@@ -23,20 +23,27 @@ assert.strictEqual(tierOf(80), 'elite');
 const state = {
   'app.entity.events.allResults': { numFound: 3, events: [
     { id: 1, status: 'Active', name: 'A vs B', webURI: 'a-vs-b/event/1/', eventDateLocal: '2026-10-10T17:30:00+0100',
-      ticketInfo: { minPrice: 163.45, totalTickets: 100, currencyCode: 'EUR' } },
+      ticketInfo: { minPrice: 212.49, minListPrice: 163.45, totalTickets: 100, currencyCode: 'EUR' } },
     { id: 2, status: 'Active', name: 'A vs C', webURI: 'a-vs-c/event/2/', eventDateLocal: '2026-10-11T15:00:00+0100' },
   ] },
   'app.entity.events.geoExcludeRadius': { numFound: 3, events: [
     { id: 1, status: 'Active', name: 'A vs B', webURI: 'x', eventDateLocal: '2026-10-10T17:30:00+0100',
-      ticketInfo: { minPrice: 999, totalTickets: 1, currencyCode: 'EUR' } },
+      ticketInfo: { minPrice: 999, minListPrice: 800, totalTickets: 1, currencyCode: 'EUR' } },
   ] },
 };
 const { events, numFound } = parseEvents(`<script>window.__INITIAL_STATE__=${JSON.stringify(state)};</script>`);
 assert.strictEqual(numFound, 3);
 assert.strictEqual(events.length, 1);
-assert.strictEqual(events[0].min_price, 163.45);            // first occurrence wins, not overwritten
+assert.strictEqual(events[0].min_price, 163.45);            // list price (what StubHub shows), not the fee-inclusive 212.49; first occurrence wins
 assert.strictEqual(events[0].kickoff_utc, '2026-10-10T16:30:00.000Z');
 assert.strictEqual(events[0].url, 'https://www.stubhub.ie/a-vs-b/event/1/');
+
+// Insight: silence unless something moved enough to matter.
+assert.strictEqual(insightOf({ change: 4, days: 7, stockChange: -8 }), null);
+assert.strictEqual(insightOf({ change: null, days: null, stockChange: null }), null);
+assert.strictEqual(insightOf({ change: 18.5, days: 7, stockChange: null }), '▲ price +18.5% in 7d');
+assert.strictEqual(insightOf({ change: -12, days: 3, stockChange: 35 }), '▼ price -12% in 3d · stock +35% (supply growing)');
+assert.strictEqual(insightOf({ change: 2, days: 7, stockChange: -30 }), 'stock -30% (selling)');
 
 console.log('stubhub-hot: all assertions passed');
 

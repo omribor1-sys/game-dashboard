@@ -8,9 +8,11 @@
 //
 // Source: each English club's StubHub performer page. It is server-rendered, needs no login
 // and no browser, and embeds every upcoming event of that club — PL, Europe and cups alike —
-// with its "from" price (ticketInfo.minPrice, buyer-facing, fees included) and listed tickets.
-// One observation per event per day goes into stubhub_price_obs; a jump is today's floor
-// against the floor about a week ago.
+// with its "from" price and listed tickets. The price is ticketInfo.minListPrice: the number
+// StubHub shows by default ("Show prices with estimated fees" off). minPrice is the same
+// ticket WITH buyer fees (~+30%) and does not match what anyone sees on the page.
+// One observation per event per 6h slot goes into stubhub_price_log; a jump is the current
+// floor against the floor about a week ago.
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 const BASE = 'https://www.stubhub.ie/';
@@ -57,7 +59,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 /** One StubHub event (page state or search API — same shape) → our row, or null if unpriced. */
 function toEvent(e) {
   const ti = e.ticketInfo;
-  if (!ti || !(ti.minPrice > 0) || !e.eventDateLocal) return null;
+  if (!ti || !(ti.minListPrice > 0) || !e.eventDateLocal) return null;
   return {
     event_id: Number(e.id),
     status: e.status,
@@ -65,7 +67,7 @@ function toEvent(e) {
     url: BASE + String(e.webURI || '').replace(/^\//, ''),
     // "2026-10-10T17:30:00+0100" → add the colon so every Date parser accepts it
     kickoff_utc: new Date(e.eventDateLocal.replace(/([+-]\d{2})(\d{2})$/, '$1:$2')).toISOString(),
-    min_price: Number(ti.minPrice),
+    min_price: Number(ti.minListPrice),
     tickets: Number(ti.totalTickets) || 0,
     currency: ti.currencyCode,
   };
@@ -170,6 +172,21 @@ function pctChange(now, base) {
   return Math.round(((now - base) / base) * 1000) / 10;
 }
 
+// The one line a card is allowed to say. Silence is the default: a move under the
+// threshold is noise and gets no words at all.
+const MOVE_PCT = 10;       // from-price move worth mentioning
+const STOCK_PCT = 20;      // change in listed tickets worth mentioning
+function insightOf({ change, days, stockChange }) {
+  const parts = [];
+  if (change != null && Math.abs(change) >= MOVE_PCT) {
+    parts.push(`${change > 0 ? '▲' : '▼'} price ${change > 0 ? '+' : ''}${change}% in ${days}d`);
+  }
+  if (stockChange != null && Math.abs(stockChange) >= STOCK_PCT) {
+    parts.push(stockChange < 0 ? `stock ${stockChange}% (selling)` : `stock +${stockChange}% (supply growing)`);
+  }
+  return parts.length ? parts.join(' · ') : null;
+}
+
 function tierOf(pct) { return pct >= 60 ? 'elite' : pct >= 40 ? 'high' : 'notable'; }
 
 async function fetchPage(path) {
@@ -182,7 +199,6 @@ async function detectStubhubHot() {
   const db = require('../database');
   const { canonTeam } = require('../utils/team-match');
 
-  const today = new Date().toISOString().slice(0, 10);
   const summary = { pages_ok: 0, pages_failed: [], events: 0, matched: 0, marked: 0, cleared: 0,
                     truncated: [], hot: [], unmatched_jumps: [] };
 
@@ -205,26 +221,27 @@ async function detectStubhubHot() {
     await sleep(1500);
   }
 
+  // One row per event per 6h slot ("2026-09-24T06"): re-running inside a slot replaces,
+  // so a manual run never double-counts.
+  const slot = new Date(Math.floor(Date.now() / (6 * 3600e3)) * 6 * 3600e3).toISOString().slice(0, 13);
   const upsertObs = db.prepare(`
-    INSERT INTO stubhub_price_obs (event_id, obs_date, name, kickoff_utc, min_price, tickets, currency, url)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(event_id, obs_date) DO UPDATE SET
+    INSERT INTO stubhub_price_log (event_id, obs_at, name, kickoff_utc, min_price, tickets, url)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(event_id, obs_at) DO UPDATE SET
       min_price=excluded.min_price, tickets=excluded.tickets, name=excluded.name,
-      kickoff_utc=excluded.kickoff_utc, url=excluded.url, currency=excluded.currency`);
-  // Baseline: the newest observation at least BASELINE_DAYS old; until a week of history
-  // exists, the oldest one we have (so a jump shows from day two, over a shorter window).
-  const baseWeek = db.prepare(`SELECT obs_date, min_price, tickets FROM stubhub_price_obs
-                               WHERE event_id=? AND obs_date<=? ORDER BY obs_date DESC LIMIT 1`);
-  const baseOldest = db.prepare(`SELECT obs_date, min_price, tickets FROM stubhub_price_obs
-                                 WHERE event_id=? AND obs_date<? ORDER BY obs_date ASC LIMIT 1`);
-  const baseDay = db.prepare(`SELECT obs_date, min_price, tickets FROM stubhub_price_obs
-                              WHERE event_id=? AND obs_date<? ORDER BY obs_date DESC LIMIT 1`);
-  const weekAgo = new Date(Date.now() - BASELINE_DAYS * 864e5).toISOString().slice(0, 10);
+      kickoff_utc=excluded.kickoff_utc, url=excluded.url`);
+  // Baseline: the newest reading at least BASELINE_DAYS old; until a week of history exists,
+  // the oldest reading older than a day (so a move shows from day two, over a shorter window).
+  const baseBefore = db.prepare(`SELECT obs_at, min_price, tickets FROM stubhub_price_log
+                                 WHERE event_id=? AND obs_at<=? ORDER BY obs_at DESC LIMIT 1`);
+  const baseOldest = db.prepare(`SELECT obs_at, min_price, tickets FROM stubhub_price_log
+                                 WHERE event_id=? AND obs_at<=? ORDER BY obs_at ASC LIMIT 1`);
+  const slotAgo = (h) => new Date(Date.now() - h * 3600e3).toISOString().slice(0, 13);
 
   const candidates = db.prepare(`SELECT id, home_team, away_team, kickoff_utc, is_hot, hot_source
                                  FROM fixtures WHERE kickoff_utc BETWEEN ? AND ?`);
   const setPrice = db.prepare(`UPDATE fixtures SET sh_event_id=?, sh_url=?, sh_min_price=?, sh_tickets=?,
-                               sh_change_pct=?, sh_change_days=?, sh_checked_at=? WHERE id=?`);
+                               sh_change_pct=?, sh_change_days=?, sh_insight=?, sh_checked_at=? WHERE id=?`);
 
   // ── 2. record + measure + attach to fixtures ──────────────────────────────
   const nowIso = new Date().toISOString();
@@ -235,13 +252,14 @@ async function detectStubhubHot() {
     if (!sides) continue;
     summary.events++;
 
-    upsertObs.run(e.event_id, today, e.name, e.kickoff_utc, e.min_price, e.tickets, e.currency, e.url);
+    upsertObs.run(e.event_id, slot, e.name, e.kickoff_utc, e.min_price, e.tickets, e.url);
 
-    const wk = baseWeek.get(e.event_id, weekAgo) || baseOldest.get(e.event_id, today);
-    const yd = baseDay.get(e.event_id, today);
+    const wk = baseBefore.get(e.event_id, slotAgo(BASELINE_DAYS * 24)) || baseOldest.get(e.event_id, slotAgo(20));
+    const yd = baseBefore.get(e.event_id, slotAgo(20));
     const change = wk ? pctChange(e.min_price, wk.min_price) : null;
-    const days = wk ? Math.round((Date.parse(today) - Date.parse(wk.obs_date)) / 864e5) : null;
+    const days = wk ? Math.max(1, Math.round((Date.now() - Date.parse(wk.obs_at + ':00:00Z')) / 864e5)) : null;
     const dayChange = yd ? pctChange(e.min_price, yd.min_price) : null;
+    const insight = insightOf({ change, days, stockChange: wk ? pctChange(e.tickets, wk.tickets) : null });
 
     // Both clubs equal after canonicalisation and the kickoff within 36h — never one club
     // alone (that has merged two different fixtures in this codebase before).
@@ -251,7 +269,7 @@ async function detectStubhubHot() {
       .find(r => canonTeam(r.home_team) === h && canonTeam(r.away_team) === a) || null;
     if (fx) {
       summary.matched++;
-      setPrice.run(e.event_id, e.url, e.min_price, e.tickets, change, days, nowIso, fx.id);
+      setPrice.run(e.event_id, e.url, e.min_price, e.tickets, change, days, insight, nowIso, fx.id);
     }
 
     const isJump = e.tickets >= MIN_TICKETS &&
@@ -296,4 +314,4 @@ async function detectStubhubHot() {
   return summary;
 }
 
-module.exports = { detectStubhubHot, parseEvents, splitTeams, pctChange, tierOf, PERFORMERS };
+module.exports = { detectStubhubHot, parseEvents, splitTeams, pctChange, tierOf, insightOf, PERFORMERS };

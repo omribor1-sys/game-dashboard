@@ -25,6 +25,24 @@ function eur(n, signed = false) {
   return `${signed ? (v >= 0 ? '+' : '−') : ''}€${s}`;
 }
 
+// 14-day from-price trend. Needs 2+ readings to say anything; one dot is not a trend.
+function Sparkline({ points }) {
+  if (!points || points.length < 2) return null;
+  const W = 72, H = 18;
+  const ys = points.map(p => p[1]);
+  const lo = Math.min(...ys), hi = Math.max(...ys), span = hi - lo || 1;
+  const d = points.map((p, i) =>
+    `${(i / (points.length - 1)) * W},${H - 1 - ((p[1] - lo) / span) * (H - 2)}`).join(' ');
+  const rising = ys[ys.length - 1] > ys[0];
+  return (
+    <svg className={`sh-spark ${rising ? 'up' : 'down'}`} width={W} height={H} viewBox={`0 0 ${W} ${H}`}
+         role="img" aria-label={`From-price €${Math.round(ys[0])} → €${Math.round(ys[ys.length - 1])}`}>
+      <title>{`€${Math.round(ys[0])} → €${Math.round(ys[ys.length - 1])} (low €${Math.round(lo)}, high €${Math.round(hi)})`}</title>
+      <polyline points={d} fill="none" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function Crest({ url, tla }) {
   if (url) {
     return (
@@ -133,21 +151,20 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
       {/* Hot reason line */}
       {fx.is_hot && fx.hot_reason ? <div className="fc-hot-reason">🔥 {fx.hot_reason}</div> : null}
 
-      {/* StubHub from-price, refreshed daily. Dated when stale so an old number never passes for today's. */}
+      {/* StubHub from-price (no fees, as StubHub shows it) + 14-day trend + one insight, only when something moved. */}
       {fx.sh_min_price != null ? (() => {
         const ageH = fx.sh_checked_at ? (Date.now() - Date.parse(fx.sh_checked_at)) / 36e5 : Infinity;
-        const pct = fx.sh_change_pct;
+        const up = /^▲|selling/.test(fx.sh_insight || '');   // price up or stock draining = heating
         return (
-          <a className="fc-stubhub" href={fx.sh_url} target="_blank" rel="noopener noreferrer"
-             title={`StubHub cheapest ticket incl. fees${fx.sh_tickets != null ? ` · ${fx.sh_tickets} listed` : ''}`}>
-            🎫 StubHub from <strong>{eur(fx.sh_min_price).replace(/\.00$/, '')}</strong>
-            {pct != null && fx.sh_change_days ? (
-              <span className={pct > 0 ? 'sh-up' : pct < 0 ? 'sh-down' : ''}>
-                {' '}{pct > 0 ? '▲' : pct < 0 ? '▼' : '■'} {Math.abs(pct)}% / {fx.sh_change_days}d
-              </span>
-            ) : null}
-            {ageH > 48 ? <span className="sh-stale"> · as of {new Date(fx.sh_checked_at).toLocaleDateString('en-GB')}</span> : null}
-          </a>
+          <div className="fc-stubhub">
+            <a href={fx.sh_url} target="_blank" rel="noopener noreferrer"
+               title={`Cheapest ticket on StubHub, before fees${fx.sh_tickets != null ? ` · ${fx.sh_tickets} listed` : ''}`}>
+              🎫 StubHub from <strong>€{Math.round(fx.sh_min_price)}</strong>
+            </a>
+            <Sparkline points={fx.sh_series} />
+            {fx.sh_insight ? <span className={up ? 'sh-up' : 'sh-down'}>{fx.sh_insight}</span> : null}
+            {ageH > 24 ? <span className="sh-stale">as of {new Date(fx.sh_checked_at).toLocaleDateString('en-GB')}</span> : null}
+          </div>
         );
       })() : null}
 

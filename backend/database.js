@@ -213,25 +213,27 @@ try { db.exec('ALTER TABLE fixtures ADD COLUMN home_score INTEGER'); } catch (_)
 try { db.exec('ALTER TABLE fixtures ADD COLUMN away_score INTEGER'); } catch (_) {}
 try { db.exec('ALTER TABLE fixtures ADD COLUMN winner TEXT'); } catch (_) {}
 
-// StubHub "from" price, one row per event per day — the history behind price-jump HOT
-// detection (services/stubhub-hot.js). Kept per event, not per fixture, so the history
-// survives a fixture that fails to match (added 2026-09-24).
+// StubHub "from" price (list price, no fees), one row per event per 6h slot: the history
+// behind price-jump HOT detection and the card sparkline (services/stubhub-hot.js). Kept per
+// event, not per fixture, so history survives a fixture that fails to match (2026-09-24).
+// stubhub_price_obs held one day of fee-INCLUSIVE prices; comparing against it would fake a
+// -24% drop on every game, so it is dropped rather than migrated.
+try { db.exec('DROP TABLE IF EXISTS stubhub_price_obs'); } catch (_) {}
 try {
-  db.exec(`CREATE TABLE IF NOT EXISTS stubhub_price_obs (
+  db.exec(`CREATE TABLE IF NOT EXISTS stubhub_price_log (
     event_id INTEGER NOT NULL,
-    obs_date TEXT NOT NULL,
+    obs_at TEXT NOT NULL,
     name TEXT,
     kickoff_utc TEXT,
     min_price REAL NOT NULL,
     tickets INTEGER,
-    currency TEXT,
     url TEXT,
-    PRIMARY KEY (event_id, obs_date)
+    PRIMARY KEY (event_id, obs_at)
   )`);
 } catch (_) {}
 // Latest StubHub reading on the fixture itself, so every card can show "from €X" + the move.
 for (const col of ['sh_event_id INTEGER', 'sh_url TEXT', 'sh_min_price REAL', 'sh_tickets INTEGER',
-                   'sh_change_pct REAL', 'sh_change_days INTEGER', 'sh_checked_at TEXT']) {
+                   'sh_change_pct REAL', 'sh_change_days INTEGER', 'sh_insight TEXT', 'sh_checked_at TEXT']) {
   try { db.exec(`ALTER TABLE fixtures ADD COLUMN ${col}`); } catch (_) {}
 }
 

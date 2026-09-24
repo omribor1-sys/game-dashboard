@@ -657,10 +657,10 @@ cron.schedule('20 7 * * *', async () => {
   }
 }, { timezone: 'UTC' });
 
-// Hot-game detection from StubHub price jumps — 07:35 UTC, after the odds pass so its
+// StubHub from-price read + price-jump HOT detection — every 6h (07:35 run follows the odds pass, so its
 // flags are in place (a fixture already hot keeps its source; the price still shows).
 // Partial runs shout: a scraper that quietly reads nothing looks exactly like a quiet market.
-cron.schedule('35 7 * * *', async () => {
+cron.schedule('35 1,7,13,19 * * *', async () => {
   try {
     const { detectStubhubHot, PERFORMERS } = require('./services/stubhub-hot');
     const r = await detectStubhubHot();
