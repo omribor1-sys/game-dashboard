@@ -29,6 +29,11 @@ This applies to ALL actions:
 Do NOT say: "Should I proceed?", "Is this correct?", "Can I update this?", "Do you want me to..."
 Just execute. Report what was done AFTER it's done.
 
+**One hard exception (Omri, 2026-09-26):** changing a price on StubHub (or any
+other irreversible external financial action) is NEVER autonomous - it needs
+Omri's explicit yes, per change. Same rule in `gameyield-intelligence/CLAUDE.md`
+and memory `feedback_gameyield_approvals.md` (source of truth if they differ).
+
 ## ⚠️ CRITICAL: UK game times = UK timezone (BST/GMT)
 
 Game times shown on StubHub for UK games are in **local UK time** (BST = UTC+1 in summer, GMT = UTC+0 in winter). Store them exactly as shown — do NOT convert to UTC or any other timezone. Example: a game at "15:00" in London is stored as "15:00", not "14:00".
