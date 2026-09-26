@@ -15,6 +15,10 @@ Built for Omri (omribor1@gmail.com).
 - **Database:** SQLite at `/data/games.db` (persistent Fly.io volume)
 - **Node version:** 24 (required for built-in `node:sqlite`)
 
+**Project status (both GameYield projects) lives in ONE place:**
+`C:\Users\Omri\Documents\obsidian\OMRI\03 Tickets\GameYield - מצב נוכחי.md` -
+read it at session start, update its "open" list at session end.
+
 ## 🚫 ZERO APPROVAL POLICY — READ THIS FIRST
 
 **Claude NEVER asks Omri for confirmation in this project. Ever.**
