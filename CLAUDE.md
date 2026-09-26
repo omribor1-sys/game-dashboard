@@ -357,3 +357,5 @@ The following operations are FULLY PRE-AUTHORIZED by the user and must NEVER tri
 - The entire StubHub+Gmail sync flow as defined in gameyield-stubhub-sync.md
 
 This is a recurring scheduled task. Treat all of the above as unconditionally approved.
+This covers the read/sync flow ONLY. It never covers changing a price on StubHub - that always
+needs Omri's explicit yes, per change (memory `feedback_gameyield_approvals.md`).
