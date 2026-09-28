@@ -635,8 +635,29 @@ export default function Dashboard() {
 function CompletedGamesTable({ games, onSaved }) {
   const [expanded, setExpanded] = useState(null);
   const toggle = (id) => setExpanded(prev => prev === id ? null : id);
+  const [sort, setSort] = useState({ key: 'date', dir: 'desc' });
 
   const COLS = '1fr 105px 120px 76px 130px 82px 36px';
+  const SORT_COLS = [
+    { key: 'name', label: 'Game' },
+    { key: 'date', label: 'Date' },
+    { key: 'total_revenue', label: 'Revenue', right: true },
+    { key: 'tickets_sold', label: 'Tickets', right: true },
+    { key: 'net_profit', label: 'Net Profit', right: true },
+    { key: 'margin_percent', label: 'Margin', right: true },
+  ];
+  // First click = biggest first (A→Z for the name); click again to flip.
+  const onSort = (key) => setSort(s => s.key === key
+    ? { key, dir: s.dir === 'desc' ? 'asc' : 'desc' }
+    : { key, dir: key === 'name' ? 'asc' : 'desc' });
+  const sign = sort.dir === 'asc' ? 1 : -1;
+  const sorted = [...games].sort((a, b) => {
+    const x = a[sort.key], y = b[sort.key];
+    if (x == null || x === '') return (y == null || y === '') ? 0 : 1; // blanks always last
+    if (y == null || y === '') return -1;
+    const nx = Number(x), ny = Number(y);
+    return sign * (Number.isFinite(nx) && Number.isFinite(ny) ? nx - ny : String(x).localeCompare(String(y)));
+  });
 
   return (
     <div style={{ marginBottom: 28 }}>
@@ -662,17 +683,28 @@ function CompletedGamesTable({ games, onSaved }) {
           background: '#f9fafb', borderBottom: '1px solid #e5e7eb',
           fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5,
         }}>
-          <span>Game</span>
-          <span>Date</span>
-          <span style={{ textAlign: 'right' }}>Revenue</span>
-          <span style={{ textAlign: 'right' }}>Tickets</span>
-          <span style={{ textAlign: 'right' }}>Net Profit</span>
-          <span style={{ textAlign: 'right' }}>Margin</span>
+          {SORT_COLS.map(c => {
+            const active = sort.key === c.key;
+            return (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => onSort(c.key)}
+                aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                style={{
+                  all: 'unset', cursor: 'pointer', textAlign: c.right ? 'right' : 'left',
+                  color: active ? '#111827' : 'inherit', padding: '6px 0',
+                }}
+              >
+                {c.label}{active ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+              </button>
+            );
+          })}
           <span />
         </div>
 
         {/* Rows */}
-        {games.map((g, idx) => {
+        {sorted.map((g, idx) => {
           const key = g.id ?? `c-${idx}`;
           const isOpen = expanded === key;
           const profit = g.net_profit ?? 0;
