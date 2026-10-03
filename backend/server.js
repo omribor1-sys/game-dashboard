@@ -17,6 +17,21 @@ app.use('/api/auth', require('./routes/auth'));
 // Health check (public)
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
+// Machine-to-machine read for gameyield-cloud (the market radar): which StubHub
+// events the season board flags HOT, and the price move behind it. Read-only, token
+// in a header, constant-time compare; answers 401 for everyone while GY_M2M_TOKEN is unset.
+app.get('/api/m2m/hot', (req, res) => {
+  const crypto = require('crypto');
+  const want = Buffer.from(process.env.GY_M2M_TOKEN || '');
+  const got = Buffer.from(String(req.get('x-gy-token') || ''));
+  if (!want.length || got.length !== want.length || !crypto.timingSafeEqual(got, want)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  res.json(require('./database').prepare(
+    `SELECT sh_event_id, hot_reason, hot_source, sh_min_price, sh_change_pct, sh_change_days
+       FROM fixtures WHERE is_hot=1 AND sh_event_id IS NOT NULL`).all());
+});
+
 // ── Protect all /api/* routes below this line ────────────────────────────────
 const requireAuth = require('./middleware/requireAuth');
 app.use('/api', requireAuth);
