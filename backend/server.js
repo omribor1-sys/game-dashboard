@@ -56,7 +56,8 @@ app.post('/api/admin/check-emails', async (req, res) => {
 
     const futureOnly = req.query.futureOnly === 'true' || req.body.futureOnly === true;
     const ignoreRead = req.query.ignoreRead === 'true' || req.body.ignoreRead === true;
-    const { stats, importedOrders } = await checkEmailsAndImport({ futureOnly, ignoreRead });
+    const soldAtOnly = req.query.soldAtOnly === 'true' || req.body.soldAtOnly === true;
+    const { stats, importedOrders } = await checkEmailsAndImport({ futureOnly, ignoreRead, soldAtOnly });
 
     // Send notifications if anything was imported
     if (stats.imported > 0) {

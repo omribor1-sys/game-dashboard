@@ -21,6 +21,9 @@ try { db.exec("ALTER TABLE orders ADD COLUMN category TEXT"); } catch (_) {}
 try { db.exec("ALTER TABLE orders ADD COLUMN row_seat TEXT"); } catch (_) {}
 try { db.exec("ALTER TABLE orders ADD COLUMN game_datetime TEXT"); } catch (_) {}
 try { db.exec("ALTER TABLE orders ADD COLUMN deleted_at DATETIME"); } catch (_) {}
+// Real sale moment (ISO UTC) = the sale email's Gmail internalDate. created_at is the 08:00
+// import time, which made "when do tickets sell" unanswerable (2026-10-25).
+try { db.exec("ALTER TABLE orders ADD COLUMN sold_at TEXT"); } catch (_) {}
 try { db.exec("ALTER TABLE games ADD COLUMN completed INTEGER DEFAULT 0"); } catch (_) {}
 // Eli settlement: how much of eli_cost has actually been paid to Eli. Owed = eli_cost - eli_paid.
 // Kept separate from profit — the cost is incurred whether or not it's been paid yet.

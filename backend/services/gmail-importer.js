@@ -2,6 +2,7 @@
 
 const { google } = require('googleapis');
 const db = require('../database');
+const { logUpdate } = require('./audit');
 const { normalizeGameName } = require('../utils/normalize');
 
 // How many days before the watermark to re-scan on every run. Covers cron misses,
@@ -72,8 +73,8 @@ function insertOrder(data) {
     INSERT INTO orders
       (buyer_name, buyer_email, buyer_phone, status, notes,
        game_name, order_number, sales_channel,
-       total_amount, ticket_quantity, category, row_seat, game_datetime)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+       total_amount, ticket_quantity, category, row_seat, game_datetime, sold_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).run(
     data.buyer_name    || null,
     data.buyer_email   || null,
@@ -88,8 +89,21 @@ function insertOrder(data) {
     data.category      || null,
     data.row_seat      || null,
     data.game_datetime || null,
+    data.sold_at       || null,
   );
   return result.lastInsertRowid;
+}
+
+// Fill sold_at on an order that already exists (imported by stubhub-sync, or before the
+// column existed). Only NULL -> value, or an EARLIER value (StubHub sends each sale email
+// twice; the first one is the sale). Never touches financial fields. Returns true if changed.
+function setSoldAt(orderNumber, soldAt) {
+  if (!orderNumber || !soldAt) return false;
+  const row = db.prepare('SELECT sold_at FROM orders WHERE order_number = ?').get(String(orderNumber));
+  if (!row || (row.sold_at && row.sold_at <= soldAt)) return false;
+  db.prepare('UPDATE orders SET sold_at = ? WHERE order_number = ?').run(soldAt, String(orderNumber));
+  logUpdate('gmail-import', String(orderNumber), 'sold_at', row.sold_at || null, soldAt);
+  return true;
 }
 
 // ── StubHub parser ─────────────────────────────────────────────────────────────
@@ -400,12 +414,13 @@ async function checkEmailsAndImport(options = {}) {
     return { stats: { checked: 0, imported: 0, skipped: 0, errors: ['GOOGLE credentials not configured'] }, importedOrders: [] };
   }
   const futureOnly  = !!options.futureOnly;
-  const ignoreRead  = !!options.ignoreRead; // when true, ignore the watermark and search ALL mail
+  const soldAtOnly  = !!options.soldAtOnly; // backfill sold_at over ALL mail; inserts nothing
+  const ignoreRead  = !!options.ignoreRead || soldAtOnly; // when true, ignore the watermark and search ALL mail
   const today = new Date(); today.setHours(0, 0, 0, 0);
 
   const auth   = getOAuth2Client();
   const gmail  = google.gmail({ version: 'v1', auth });
-  const stats  = { checked: 0, imported: 0, skipped: 0, errors: [] };
+  const stats  = { checked: 0, imported: 0, skipped: 0, soldAtSet: 0, errors: [] };
   const importedOrders = [];
 
   try {
@@ -492,8 +507,16 @@ async function checkEmailsAndImport(options = {}) {
           continue;
         }
 
+        const soldAt = msg.data.internalDate ? new Date(Number(msg.data.internalDate)).toISOString() : null;
+        if (soldAtOnly) {
+          // Backfill mode: never inserts, never marks read - only fills the sale time.
+          for (const parsed of parsedList) if (setSoldAt(parsed.order_number, soldAt)) stats.soldAtSet++;
+          continue;
+        }
+
         let emailHadAction = false;
         for (const parsed of parsedList) {
+          parsed.sold_at = soldAt;
           // Future-only filter
           if (futureOnly && parsed.game_date instanceof Date && !isNaN(parsed.game_date)) {
             const gd = new Date(parsed.game_date); gd.setHours(0, 0, 0, 0);
@@ -507,6 +530,7 @@ async function checkEmailsAndImport(options = {}) {
 
           if (orderExists(parsed.order_number)) {
             console.log(`[Gmail] Order ${parsed.order_number} already exists — skip`);
+            if (setSoldAt(parsed.order_number, soldAt)) stats.soldAtSet++;
             stats.skipped++;
           } else {
             const newId = insertOrder(parsed);
@@ -620,4 +644,4 @@ async function sendSummaryEmail(auth, stats, importedOrders) {
   }
 }
 
-module.exports = { checkEmailsAndImport, sendSummaryEmail, parseTicombo, parseFootballTicketNet };
+module.exports = { checkEmailsAndImport, sendSummaryEmail, parseTicombo, parseFootballTicketNet, setSoldAt };
