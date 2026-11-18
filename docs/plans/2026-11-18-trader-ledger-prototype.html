@@ -1,0 +1,558 @@
+<title>ספר הסוחר</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700&family=Assistant:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: phone-first app shell. Sticky header, one scrolling column (max 560px), fixed bottom nav with a raised "+" for capture. */
+:root{
+  --bg:#f3f6f5; --surface:#ffffff; --ink:#14201d; --muted:#5d6b67; --line:#dce4e1;
+  --accent:#0f6b5c; --on-accent:#ffffff; --accent-soft:#e0efea;
+  --pos:#1d7a46; --pos-soft:#e3f3e9; --neg:#a8530f; --neg-soft:#fbeedd; --bad:#b3262d; --bad-soft:#fbe5e6;
+  --shadow:0 8px 30px rgba(20,40,35,.16);
+  --f-display:"Rubik","Assistant",system-ui,sans-serif;
+  --f-body:"Assistant",system-ui,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1413; --surface:#161f1d; --ink:#e3ebe8; --muted:#97a6a1; --line:#293532;
+  --accent:#4fc2aa; --on-accent:#08201b; --accent-soft:#1a2f2a;
+  --pos:#6fd39a; --pos-soft:#17301f; --neg:#eaa458; --neg-soft:#2f2415; --bad:#f07c82; --bad-soft:#341a1c;
+  --shadow:0 8px 30px rgba(0,0,0,.5); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1413; --surface:#161f1d; --ink:#e3ebe8; --muted:#97a6a1; --line:#293532;
+  --accent:#4fc2aa; --on-accent:#08201b; --accent-soft:#1a2f2a;
+  --pos:#6fd39a; --pos-soft:#17301f; --neg:#eaa458; --neg-soft:#2f2415; --bad:#f07c82; --bad-soft:#341a1c;
+  --shadow:0 8px 30px rgba(0,0,0,.5); color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:400 16px/1.55 var(--f-body);direction:rtl}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num,bdi.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-weight:500}
+bdi.num{direction:ltr;unicode-bidi:isolate}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;line-height:1.25}
+
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+.top-in{max-width:560px;margin:0 auto;display:flex;align-items:center;gap:10px;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{font:700 1.1rem var(--f-display);letter-spacing:-.01em}
+.brand b{color:var(--accent)}
+.demo-chip{font:500 .72rem var(--f-mono);background:var(--neg-soft);color:var(--neg);padding:2px 8px;border-radius:99px;white-space:nowrap}
+.top-in .sp{flex:1}
+.linkbtn{background:none;border:0;color:var(--accent);font-weight:600;padding:6px 4px}
+
+main{max-width:560px;margin:0 auto;padding-block:16px calc(110px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:22px}
+section{display:flex;flex-direction:column;gap:10px;min-width:0}
+.sec-h{display:flex;align-items:baseline;gap:8px}
+.sec-h h2{font-size:1.05rem;font-weight:500}
+.sec-h .cnt{font:500 .78rem var(--f-mono);color:var(--muted)}
+.sec-h .sp{flex:1}
+.muted{color:var(--muted)}
+.fine{font-size:.85rem;color:var(--muted);margin:0}
+
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:right;display:flex;flex-direction:column;gap:2px}
+.tile .lbl{font-size:.85rem;color:var(--muted)}
+.tile .val{font:500 1.5rem var(--f-mono);font-variant-numeric:tabular-nums}
+.tile.pos .val{color:var(--pos)} .tile.neg .val{color:var(--neg)}
+.tile .sub{font-size:.8rem;color:var(--muted)}
+
+.capture{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;background:var(--accent);color:var(--on-accent);border:0;border-radius:16px;padding:14px 16px;text-align:right}
+.capture .mic{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.18);display:grid;place-items:center}
+.capture strong{display:block;font:500 1.05rem var(--f-display)}
+.capture span{font-size:.88rem;opacity:.85}
+.quick{display:flex;gap:8px;flex-wrap:wrap}
+.chipbtn{background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:7px 14px;font-weight:600;font-size:.92rem}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.pend{padding:12px 14px;display:flex;flex-direction:column;gap:8px;border-inline-start:4px solid var(--neg)}
+.pend .org{font-size:.8rem;color:var(--muted)}
+.pend q{font-size:.98rem;quotes:none;display:block}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+.list{display:flex;flex-direction:column}
+.list > *{border-bottom:1px solid var(--line)}
+.list > *:last-child{border-bottom:0}
+.item{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:12px 14px;background:none;border:0;text-align:right;width:100%;align-items:center}
+.item .t{font-weight:600;min-width:0}
+.item .s{font-size:.85rem;color:var(--muted);min-width:0}
+.item .v{text-align:left;grid-row:span 2}
+.amt{font:500 1rem var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+.pill{display:inline-block;font:600 .74rem var(--f-body);padding:2px 9px;border-radius:99px;white-space:nowrap}
+.p-paid{background:var(--pos-soft);color:var(--pos)}
+.p-part{background:var(--neg-soft);color:var(--neg)}
+.p-open{background:var(--bad-soft);color:var(--bad)}
+.p-dlv{background:var(--accent-soft);color:var(--accent)}
+.p-dir{background:var(--accent-soft);color:var(--accent)}
+
+.bal{font-size:.85rem;font-weight:600;white-space:nowrap}
+.bal.pos{color:var(--pos)} .bal.neg{color:var(--neg)} .bal.zero{color:var(--muted)}
+
+.search{width:100%;padding:11px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface)}
+
+.trader-head{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.trader-head h1{font-size:1.6rem}
+.big-bal{font:500 1.9rem var(--f-mono);font-variant-numeric:tabular-nums}
+.big-bal.pos{color:var(--pos)} .big-bal.neg{color:var(--neg)} .big-bal.zero{color:var(--muted)}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:.88rem}
+.split div{background:var(--bg);border-radius:10px;padding:8px 10px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 16px;font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.ghost{background:none}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.back{background:none;border:0;color:var(--accent);font-weight:600;padding:0;align-self:flex-start}
+
+.deal{padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.deal-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:none;border:0;padding:0;text-align:right;width:100%}
+.deal-top .g{font-weight:600;flex:1;min-width:10ch}
+.deal-math{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:.92rem}
+.deal-more{display:flex;flex-direction:column;gap:8px;padding-top:6px;border-top:1px dashed var(--line)}
+blockquote.src{margin:0;background:var(--bg);border-radius:10px;padding:10px 12px;font-size:.92rem;border-inline-start:3px solid var(--accent)}
+blockquote.src span{display:block;font-size:.76rem;color:var(--muted);margin-bottom:2px}
+
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font-weight:600;color:var(--muted);font-size:.8rem}
+tr:last-child td{border-bottom:0}
+td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.profit-pos{color:var(--pos)} .profit-neg{color:var(--bad)}
+
+.src-card{padding:14px;display:flex;flex-direction:column;gap:10px}
+.src-card h3{font-size:1rem;font-weight:500;display:flex;gap:8px;align-items:center}
+.src-card input[type=url]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);direction:ltr;text-align:left}
+.err{color:var(--bad);font-size:.88rem;margin:0}
+.ok{color:var(--pos);font-size:.88rem;margin:0}
+.soon{font:600 .72rem var(--f-body);background:var(--accent-soft);color:var(--accent);padding:2px 8px;border-radius:99px}
+
+nav.bottom{position:fixed;inset:auto 0 0 0;z-index:20;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+.nav-in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);align-items:end}
+.nav-in button{background:none;border:0;padding:8px 2px 10px;font-size:.76rem;font-weight:600;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px}
+.nav-in button[aria-current="page"]{color:var(--accent)}
+.nav-in svg{width:22px;height:22px}
+.nav-in .fab{transform:translateY(-14px)}
+.nav-in .fab span.c{width:56px;height:56px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;box-shadow:var(--shadow)}
+.nav-in .fab svg{width:26px;height:26px}
+
+#scrim{position:fixed;inset:0;background:rgba(5,15,12,.45);z-index:40}
+#sheet{position:fixed;inset:auto 0 0 0;z-index:41;max-height:92%;overflow:auto;background:var(--surface);border-radius:20px 20px 0 0;box-shadow:var(--shadow);padding-block:8px calc(20px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+@media (min-width:600px){#sheet{max-width:560px;margin:0 auto}}
+.grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:4px auto 12px}
+#sheetBody{display:flex;flex-direction:column;gap:14px}
+#sheetBody h2{font-size:1.25rem}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--bg);border-radius:12px;padding:4px;gap:4px}
+.seg button{border:0;background:none;border-radius:9px;padding:8px;font-weight:600;color:var(--muted)}
+.seg button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.seg.two{grid-template-columns:1fr 1fr}
+textarea{width:100%;min-height:96px;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);resize:vertical}
+.micbig{width:96px;height:96px;border-radius:50%;border:0;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;margin:4px auto 0;box-shadow:var(--shadow)}
+.micbig svg{width:40px;height:40px}
+.micbig.rec{animation:pulse 1.1s ease-in-out 2}
+@keyframes pulse{50%{transform:scale(1.08);box-shadow:0 0 0 14px var(--accent-soft)}}
+@media (prefers-reduced-motion:reduce){.micbig.rec{animation:none}}
+.examples{display:flex;flex-direction:column;gap:6px}
+.examples button{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 12px;text-align:right;font-size:.9rem}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fld{display:flex;flex-direction:column;gap:4px;font-size:.84rem;color:var(--muted);min-width:0}
+.fld.wide{grid-column:1/-1}
+.fld input,.fld select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:1rem}
+.fld.flag input,.fld.flag select{border-color:var(--neg);background:var(--neg-soft)}
+.fld em{font-style:normal;color:var(--neg);font-weight:600;font-size:.8rem}
+.totalline{background:var(--accent-soft);border-radius:12px;padding:10px 14px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-weight:600}
+#toast{position:fixed;z-index:50;inset:auto 16px calc(92px + env(safe-area-inset-bottom,0px)) 16px;max-width:520px;margin:0 auto;background:var(--ink);color:var(--bg);border-radius:12px;padding:12px 16px;font-weight:600;box-shadow:var(--shadow)}
+.empty{padding:20px;text-align:center;color:var(--muted)}
+.maptbl select{padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg)}
+.files{display:flex;flex-direction:column;gap:6px}
+.files button{display:flex;justify-content:space-between;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;text-align:right}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:10px}
+</style>
+
+<header class="top"><div class="top-in">
+  <span class="brand">Game<b>Yield</b></span>
+  <span class="demo-chip">סקיצה · נתוני דוגמה</span>
+  <span class="sp"></span>
+  <button class="linkbtn" id="resetBtn" type="button">איפוס</button>
+</div></header>
+
+<main id="view" aria-live="polite"></main>
+
+<nav class="bottom" aria-label="ניווט"><div class="nav-in">
+  <button type="button" data-view="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>בית</button>
+  <button type="button" data-view="traders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14c2.4 0 4 1.5 4.6 4"/></svg>סוחרים</button>
+  <button type="button" class="fab" id="fab" aria-label="עסקה חדשה"><span class="c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg></span></button>
+  <button type="button" data-view="games"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>משחקים</button>
+  <button type="button" data-view="sources"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v3h16v-3"/></svg>ייבוא</button>
+</div></nav>
+
+<div id="scrim" hidden></div>
+<div id="sheet" role="dialog" aria-modal="true" aria-label="חלון" hidden><div class="grab"></div><div id="sheetBody"></div></div>
+<div id="toast" role="status" hidden></div>
+
+<script>
+(function(){
+const TODAY='2026-11-18';
+const MIC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+
+function seed(){return{
+  traders:[
+    {id:'nir',name:'ניר',aliases:['ניר','nir'],note:'ספק, בעיקר ארסנל'},
+    {id:'sol',name:'סול',aliases:['סול','sol'],note:'ספק, ליגת האלופות'},
+    {id:'moshe',name:'משה',aliases:['משה','moshe'],note:'קונה קבוע'},
+    {id:'eli',name:'אלי',aliases:['אלי','eli'],note:'ספק מנויים'},
+    {id:'dani',name:'דני',aliases:['דני','dani'],note:'קונה'}],
+  games:[
+    {id:'g1',name:"ארסנל - צ'לסי",date:'2026-11-29',teams:[['ארסנל','arsenal'],["צ'לסי",'צלסי','chelsea']],platQty:6,platRev:2140},
+    {id:'g2',name:"ליברפול - מנצ'סטר יונייטד",date:'2026-12-06',teams:[['ליברפול','liverpool'],['יונייטד','united']],platQty:2,platRev:760},
+    {id:'g3',name:'טוטנהאם - ארסנל',date:'2026-12-13',teams:[['טוטנהאם','tottenham','ספרס'],['ארסנל','arsenal']],platQty:0,platRev:0},
+    {id:'g4',name:"מנצ'סטר סיטי - ליברפול",date:'2026-11-08',teams:[['סיטי','city'],['ליברפול','liverpool']],platQty:4,platRev:1180}],
+  deals:[
+    {id:'d1',traderId:'nir',dir:'buy',gameId:'g1',qty:4,unit:250,paid:500,cat:'LU',date:'2026-11-04',delivered:false,src:{label:'הודעה קולית · 04.11',text:"קניתי מניר 4 כרטיסים לארסנל צ'לסי LU ב-250, שילמתי לו 500"}},
+    {id:'d2',traderId:'nir',dir:'sell',gameId:'g2',qty:2,unit:310,paid:0,cat:'SU',date:'2026-11-14',delivered:false,src:{label:'הודעת ווטסאפ שהועברה · 14.11',text:'ניר לוקח ממני 2 ליברפול יונייטד SU ב-310 כל אחד, משלם אחרי המשחק'}},
+    {id:'d3',traderId:'sol',dir:'buy',gameId:'g2',qty:6,unit:180,paid:1080,cat:'LL',date:'2026-11-03',delivered:true,src:{label:'טופס ידני · 03.11',text:''}},
+    {id:'d4',traderId:'sol',dir:'buy',gameId:'g3',qty:2,unit:400,paid:0,cat:'LU',date:'2026-11-16',delivered:false,src:{label:'הודעה קולית · 16.11',text:'קניתי מסול 2 כרטיסים לטוטנהאם ארסנל LU ב-400'}},
+    {id:'d5',traderId:'moshe',dir:'sell',gameId:'g1',qty:3,unit:340,paid:600,cat:'SL',date:'2026-11-10',delivered:true,src:{label:'הודעה קולית · 10.11',text:"מכרתי למשה 3 כרטיסים לארסנל צ'לסי SL ב-340, קיבלתי 600"}},
+    {id:'d6',traderId:'eli',dir:'buy',gameId:'g4',qty:4,unit:150,paid:600,cat:'SU',date:'2026-10-28',delivered:true,src:{label:'גוגל שיט · שורה 9',text:'28.10 | אלי | סיטי ליברפול | 4 | 150 | שולם'}},
+    {id:'d7',traderId:'dani',dir:'sell',gameId:'g3',qty:2,unit:450,paid:900,cat:'LL',date:'2026-11-09',delivered:false,src:{label:'הודעה קולית · 09.11',text:'מכרתי לדני 2 כרטיסים לטוטנהאם ארסנל ב-450, שולם במלואו'}}],
+  payments:[
+    {traderId:'nir',dir:'out',amount:500,date:'2026-11-05'},
+    {traderId:'sol',dir:'out',amount:1080,date:'2026-11-03'},
+    {traderId:'moshe',dir:'in',amount:600,date:'2026-11-12'},
+    {traderId:'eli',dir:'out',amount:600,date:'2026-10-30'},
+    {traderId:'dani',dir:'in',amount:900,date:'2026-11-10'}],
+  pending:[
+    {id:'p1',label:'הודעה שהעברת לבוט · היום 09:12',show:'מכרתי לדני 2 כרטיסים לליברפול ב-290, שילם 290',text:'מכרתי לדני 2 כרטיסים לליברפול ב-290, שילם 290'},
+    {id:'p2',label:'גוגל שיט "עסקאות 2026" · שורה 14',show:'17.11 | סול | טוטנהאם ארסנל | 3 | 380 | לא שולם',text:'קניתי מסול 3 כרטיסים לטוטנהאם ארסנל ב-380'}]
+};}
+
+let S=seed();
+let nav={view:'home',traderId:null};
+let openDeal=null;
+
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>'€'+(Math.round(n*100)/100).toLocaleString('en-US',{maximumFractionDigits:2});
+const m=n=>'<bdi class="num">'+fmt(n)+'</bdi>';
+const dm=d=>{const p=d.split('-');return p[2]+'.'+p[1];};
+const total=d=>d.qty*d.unit;
+const openAmt=d=>Math.max(0,total(d)-d.paid);
+const trader=id=>S.traders.find(t=>t.id===id);
+const game=id=>S.games.find(g=>g.id===id);
+const num=s=>parseFloat(String(s).replace(/,/g,''));
+function bal(tid){let b=0;for(const d of S.deals)if(d.traderId===tid)b+=(d.dir==='sell'?1:-1)*openAmt(d);return Math.round(b*100)/100;}
+function balLine(b,name){if(b>0)return name+' חייב לך';if(b<0)return 'אתה חייב ל'+name;return 'מאוזן';}
+const cls=b=>b>0?'pos':b<0?'neg':'zero';
+function statusPill(d){if(d.paid>=total(d))return '<span class="pill p-paid">שולם</span>';if(d.paid>0)return '<span class="pill p-part">שולם חלקית</span>';return '<span class="pill p-open">לא שולם</span>';}
+const dirLabel=d=>d.dir==='buy'?'קנית ממנו':'מכרת לו';
+
+/* ---------- demo parser (the real product sends this to the AI, same output shape) ---------- */
+const NUMW={'אחד':1,'אחת':1,'שניים':2,'שתיים':2,'שני':2,'שתי':2,'שלושה':3,'שלוש':3,'ארבעה':4,'ארבע':4,'חמישה':5,'חמש':5,'שישה':6,'שש':6,'שבעה':7,'שבע':7,'שמונה':8,'עשרה':10,'עשר':10};
+function parse(text){
+  const t=String(text||''); const low=t.toLowerCase();
+  const r={dir:null,traderId:null,newTrader:null,gameId:null,gameOptions:[],qty:null,unit:null,paid:0,cat:'',flags:{}};
+  if(/מכרתי|מכרנו|לוקח ממני|sold/.test(low))r.dir='sell';else if(/קניתי|קנינו|לקחתי|bought/.test(low))r.dir='buy';
+  if(!r.dir)r.flags.dir='לא ברור אם קנית או מכרת';
+  const hits=S.traders.filter(tr=>tr.aliases.some(a=>low.includes(a.toLowerCase())));
+  if(hits.length===1)r.traderId=hits[0].id;
+  else if(hits.length>1)r.flags.trader='מופיעים כמה סוחרים, לבחור';
+  else{
+    const mm=t.match(/(?:קניתי|קנינו|לקחתי)\s+מ([א-ת'"]{2,})/)||t.match(/(?:מכרתי|מכרנו)\s+ל([א-ת'"]{2,})/)||t.match(/עם\s+([א-ת'"]{2,})/);
+    if(mm){r.newTrader=mm[1];r.flags.trader='סוחר חדש, לוודא את השם';}else r.flags.trader='לא זיהיתי עם מי';
+  }
+  const q=t.match(/(\d+)\s*(?:כרטיסים|כרטיס|טיקטים|tickets?)/i);
+  if(q)r.qty=+q[1];else{for(const w in NUMW){if(new RegExp('(^|\\s)'+w+'\\s+(?:כרטיס|טיקט)').test(t)){r.qty=NUMW[w];break;}}}
+  if(!r.qty){const q2=t.match(/(?:^|\s)(\d{1,2})\s+[א-תa-z]/i);if(q2){r.qty=+q2[1];r.flags.qty='לוודא כמות';}else r.flags.qty='לא זיהיתי כמות';}
+  const tot=t.match(/(?:סה"כ|סה״כ|ביחד|בסך הכל|total)\s*€?\s*(\d[\d,.]*)/i);
+  const pr=t.match(/(?:ב-?|במחיר\s*|@\s*)€?\s*(\d[\d,.]*)/)||t.match(/€\s*(\d[\d,.]*)/)||t.match(/(\d[\d,.]*)\s*(?:€|יורו|אירו|euro)/i);
+  if(tot&&r.qty){r.unit=Math.round(num(tot[1])/r.qty*100)/100;r.flags.unit='חושב מהסכום הכולל';}
+  else if(pr)r.unit=num(pr[1]);else r.flags.unit='לא זיהיתי מחיר';
+  if(/שולם במלואו|שילם הכל|שילמתי הכל|שולם הכל|שולם\s*$/.test(t))r.paid='full';
+  else{const p=t.match(/(?:שילמתי|שילם|שולם|קיבלתי|העברתי)\s*(?:לו|לי|לנו)?\s*€?\s*(\d[\d,.]*)/);if(p)r.paid=num(p[1]);}
+  const c=t.match(/(?:^|[^A-Za-z])(LUC|LLC|LU|LL|SU|SL)(?![A-Za-z])/i);if(c)r.cat=c[1].toUpperCase();
+  const score=g=>g.teams.filter(al=>al.some(a=>low.includes(a.toLowerCase()))).length;
+  const s2=S.games.filter(g=>score(g)===2),s1=S.games.filter(g=>score(g)===1);
+  if(s2.length===1)r.gameId=s2[0].id;
+  else if(s2.length>1||s1.length){r.gameOptions=(s2.length?s2:s1).map(g=>g.id);
+    if(r.gameOptions.length===1){r.gameId=r.gameOptions[0];r.flags.game='זוהתה רק קבוצה אחת, לוודא';}
+    else r.flags.game='כמה משחקים מתאימים, לבחור';}
+  else r.flags.game='לא זיהיתי משחק';
+  return r;
+}
+
+/* ---------- shell ---------- */
+function toast(msg){const el=$('#toast');el.textContent=msg;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>{el.hidden=true;},2600);}
+function openSheet(html,mount){$('#sheetBody').innerHTML=html;$('#scrim').hidden=false;$('#sheet').hidden=false;$('#sheet').scrollTop=0;if(mount)mount($('#sheetBody'));const f=$('#sheetBody input,#sheetBody select,#sheetBody textarea,#sheetBody button');if(f&&window.matchMedia('(min-width:600px)').matches)f.focus();}
+function closeSheet(){$('#scrim').hidden=true;$('#sheet').hidden=true;$('#sheetBody').innerHTML='';}
+$('#scrim').addEventListener('click',closeSheet);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#sheet').hidden)closeSheet();});
+function go(view,traderId){nav={view,traderId:traderId||null};openDeal=null;render();window.scrollTo(0,0);}
+$$('.nav-in [data-view]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.view)));
+$('#fab').addEventListener('click',()=>openAdd(nav.view==='trader'?nav.traderId:null));
+$('#resetBtn').addEventListener('click',()=>{S=seed();go('home');toast('נתוני הדוגמה אופסו');});
+
+function render(){
+  const v=nav.view;
+  $$('.nav-in [data-view]').forEach(b=>{if(b.dataset.view===v||(v==='trader'&&b.dataset.view==='traders'))b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
+  const el=$('#view');
+  el.innerHTML=v==='home'?vHome():v==='traders'?vTraders():v==='trader'?vTrader(nav.traderId):v==='games'?vGames():vSources();
+  bind(el);
+}
+
+/* ---------- views ---------- */
+function dealRow(d,showTrader){
+  const tr=trader(d.traderId),g=game(d.gameId);
+  return '<button type="button" class="item" data-go-trader="'+esc(d.traderId)+'"><span class="t">'+(showTrader?esc(tr.name)+' · ':'')+esc(g.name)+'</span><span class="v"><span class="amt">'+m(total(d))+'</span><br>'+statusPill(d)+'</span><span class="s">'+dirLabel(d)+' · '+d.qty+' כרטיסים · '+dm(d.date)+'</span></button>';
+}
+function vHome(){
+  let owedToMe=0,iOwe=0,nPos=0,nNeg=0;
+  for(const t of S.traders){const b=bal(t.id);if(b>0){owedToMe+=b;nPos++;}else if(b<0){iOwe-=b;nNeg++;}}
+  const recent=[...S.deals].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+  const pend=S.pending.map(p=>'<div class="card pend"><span class="org">'+esc(p.label)+'</span><q>'+esc(p.show)+'</q><div class="row"><button type="button" class="btn primary" data-review="'+esc(p.id)+'">בדוק ואשר</button><button type="button" class="btn ghost" data-reject="'+esc(p.id)+'">דחה</button></div></div>').join('');
+  return '<section><div class="tiles">'+
+    '<button type="button" class="tile pos" data-view-go="traders"><span class="lbl">חייבים לך</span><span class="val">'+fmt(owedToMe)+'</span><span class="sub">'+nPos+' סוחרים</span></button>'+
+    '<button type="button" class="tile neg" data-view-go="traders"><span class="lbl">אתה חייב</span><span class="val">'+fmt(iOwe)+'</span><span class="sub">'+nNeg+' סוחרים</span></button></div></section>'+
+    '<section><button type="button" class="capture" data-add="voice"><span class="mic">'+MIC+'</span><span><strong>סגרת עסקה? תגיד אותה</strong><span>"קניתי מניר 4 לארסנל ב-250"</span></span></button>'+
+    '<div class="quick"><button type="button" class="chipbtn" data-add="msg">הדבק הודעת ווטסאפ</button><button type="button" class="chipbtn" data-add="form">הזנה ידנית</button><button type="button" class="chipbtn" data-view-go="sources">ייבוא מגוגל שיט</button></div></section>'+
+    '<section><div class="sec-h"><h2>ממתין לאישור שלך</h2><span class="cnt">'+S.pending.length+'</span></div>'+(pend||'<div class="card empty">אין מה לאשר. כל מה שנקלט נכנס לספרים.</div>')+'</section>'+
+    '<section><div class="sec-h"><h2>עסקאות אחרונות</h2><span class="sp"></span><button type="button" class="linkbtn" data-view-go="traders">לכל הסוחרים</button></div><div class="card list">'+recent.map(d=>dealRow(d,true)).join('')+'</div></section>';
+}
+function vTraders(){
+  const rows=S.traders.map(t=>{const b=bal(t.id);const openN=S.deals.filter(d=>d.traderId===t.id&&openAmt(d)>0).length;
+    return '<button type="button" class="item" data-go-trader="'+esc(t.id)+'" data-name="'+esc(t.name)+'"><span class="t">'+esc(t.name)+'</span><span class="v"><span class="amt bal '+cls(b)+'">'+(b===0?'מאוזן':fmt(Math.abs(b)))+'</span><br><span class="bal '+cls(b)+'">'+(b>0?'חייב לך':b<0?'אתה חייב':'')+'</span></span><span class="s">'+esc(t.note||'')+(openN?' · '+openN+' עסקאות פתוחות':'')+'</span></button>';}).join('');
+  return '<section><div class="sec-h"><h2>סוחרים</h2><span class="cnt">'+S.traders.length+'</span><span class="sp"></span><button type="button" class="linkbtn" id="newTrader">+ סוחר חדש</button></div>'+
+    '<input class="search" id="trSearch" type="search" placeholder="חיפוש סוחר" aria-label="חיפוש סוחר">'+
+    '<div class="card list" id="trList">'+rows+'</div><p class="fine">כל סוחר הוא ספר נפרד: מה נסגר, מה שולם, מה פתוח, ומה כתוב במקור.</p></section>';
+}
+function dealCard(d){
+  const g=game(d.gameId),o=openAmt(d),isOpen=openDeal===d.id;
+  return '<div class="deal"><button type="button" class="deal-top" data-toggle-deal="'+esc(d.id)+'" aria-expanded="'+isOpen+'"><span class="pill p-dir">'+dirLabel(d)+'</span><span class="g">'+esc(g.name)+'</span>'+statusPill(d)+(d.delivered?'<span class="pill p-dlv">נמסר</span>':'')+'</button>'+
+    '<div class="deal-math"><span class="muted">'+dm(d.date)+(d.cat?' · '+esc(d.cat):'')+' · <bdi class="num">'+d.qty+' × '+fmt(d.unit)+'</bdi> = '+m(total(d))+'</span><span>'+(o>0?'פתוח '+m(o):'<span class="muted">סגור</span>')+'</span></div>'+
+    (isOpen?'<div class="deal-more">'+(d.src&&d.src.text?'<blockquote class="src"><span>מקור: '+esc(d.src.label)+'</span>'+esc(d.src.text)+'</blockquote>':'<p class="fine">מקור: '+esc(d.src?d.src.label:'')+'</p>')+
+      '<div class="row">'+(o>0?'<button type="button" class="btn" data-pay-deal="'+esc(d.id)+'">רשום תשלום</button>':'')+'<button type="button" class="btn ghost" data-deliver="'+esc(d.id)+'">'+(d.delivered?'בטל סימון נמסר':'סמן נמסר')+'</button></div></div>':'')+
+  '</div>';
+}
+function vTrader(id){
+  const t=trader(id);if(!t)return vTraders();
+  const b=bal(id);
+  const ds=S.deals.filter(d=>d.traderId===id).sort((a,c)=>c.date.localeCompare(a.date));
+  const open=ds.filter(d=>openAmt(d)>0),closed=ds.filter(d=>openAmt(d)===0);
+  const iOwe=ds.filter(d=>d.dir==='buy').reduce((s,d)=>s+openAmt(d),0),heOwes=ds.filter(d=>d.dir==='sell').reduce((s,d)=>s+openAmt(d),0);
+  const pays=S.payments.filter(p=>p.traderId===id).sort((a,c)=>c.date.localeCompare(a.date));
+  return '<button type="button" class="back" data-view-go="traders">→ כל הסוחרים</button>'+
+    '<div class="trader-head"><div><h1>'+esc(t.name)+'</h1><span class="muted">'+esc(t.note||'')+'</span></div>'+
+    '<div><div class="big-bal '+cls(b)+'">'+(b===0?fmt(0):fmt(Math.abs(b)))+'</div><div class="bal '+cls(b)+'">'+balLine(b,t.name)+'</div></div>'+
+    ((iOwe&&heOwes)?'<div class="split"><div>אתה חייב לו<br>'+m(iOwe)+'</div><div>הוא חייב לך<br>'+m(heOwes)+'</div></div><p class="fine">היתרה מקוזזת: מה שהוא חייב לך פחות מה שאתה חייב לו.</p>':'')+
+    '<div class="row"><button type="button" class="btn primary" data-add-trader="'+esc(id)+'">+ עסקה עם '+esc(t.name)+'</button><button type="button" class="btn" data-pay-trader="'+esc(id)+'">רשום תשלום</button><button type="button" class="btn ghost" data-summary="'+esc(id)+'">סיכום לשליחה</button></div></div>'+
+    '<section><div class="sec-h"><h2>פתוחות</h2><span class="cnt">'+open.length+'</span></div><div class="card list">'+(open.map(dealCard).join('')||'<div class="empty">אין עסקאות פתוחות</div>')+'</div></section>'+
+    (closed.length?'<section><div class="sec-h"><h2>סגורות</h2><span class="cnt">'+closed.length+'</span></div><div class="card list">'+closed.map(dealCard).join('')+'</div></section>':'')+
+    '<section><div class="sec-h"><h2>תשלומים</h2><span class="cnt">'+pays.length+'</span></div><div class="card list">'+(pays.map(p=>'<div class="item"><span class="t">'+(p.dir==='out'?'שילמת ל'+esc(t.name):esc(t.name)+' שילם לך')+'</span><span class="v amt">'+m(p.amount)+'</span><span class="s">'+dm(p.date)+'</span></div>').join('')||'<div class="empty">עוד לא נרשמו תשלומים</div>')+'</div></section>';
+}
+function vGames(){
+  const rows=[...S.games].sort((a,b)=>a.date.localeCompare(b.date)).map(g=>{
+    const ds=S.deals.filter(d=>d.gameId===g.id);
+    const bq=ds.filter(d=>d.dir==='buy').reduce((s,d)=>s+d.qty,0),sq=ds.filter(d=>d.dir==='sell').reduce((s,d)=>s+d.qty,0)+g.platQty;
+    const cost=ds.filter(d=>d.dir==='buy').reduce((s,d)=>s+total(d),0),rev=ds.filter(d=>d.dir==='sell').reduce((s,d)=>s+total(d),0)+g.platRev;
+    const pr=rev-cost,past=g.date<TODAY;
+    return '<tr><td><b>'+esc(g.name)+'</b><br><span class="muted">'+dm(g.date)+(past?' · הסתיים':'')+'</span></td><td class="n">'+bq+'</td><td class="n">'+sq+'</td><td class="n">'+fmt(cost)+'</td><td class="n">'+fmt(rev)+'</td><td class="n '+(pr>=0?'profit-pos':'profit-neg')+'">'+(pr<0?'-':'')+fmt(Math.abs(pr))+'</td></tr>';}).join('');
+  return '<section><div class="sec-h"><h2>משחקים</h2><span class="cnt">'+S.games.length+'</span></div>'+
+    '<p class="fine">זה הלוח הקיים, והוא נשאר כמו שהוא. מה שנוסף: עסקאות מול סוחרים נכנסות אליו אוטומטית, לצד המכירות מהפלטפורמות.</p>'+
+    '<div class="tbl"><table><thead><tr><th>משחק</th><th>נקנו</th><th>נמכרו</th><th>עלות</th><th>הכנסה</th><th>רווח</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    '<p class="fine">"נמכרו" ו"הכנסה" כוללים מכירות StubHub לדוגמה. <a href="https://game-dashboard-omri.fly.dev/" target="_blank" rel="noopener">ללוח האמיתי</a></p></section>';
+}
+let src={sheet:null,drive:false,mail:{stubhub:true,viagogo:false,ftn:false},waNotify:false};
+function vSources(){
+  const mails=[['stubhub','StubHub'],['viagogo','Viagogo'],['ftn','FootballTicketNet']].map(([k,n])=>'<div class="toggle"><span>'+n+'</span>'+(src.mail[k]?'<span class="pill p-paid">מחובר</span>':'<button type="button" class="btn" data-mail="'+k+'">חבר</button>')+'</div>').join('');
+  return '<section><div class="sec-h"><h2>מאיפה הנתונים מגיעים</h2></div><p class="fine">כל מה שנקלט ממקור חיצוני עובר קודם לתור האישור בבית. רק אחרי אישור הוא נכנס לספרים.</p></section>'+
+  '<div class="card src-card"><h3>גוגל שיט</h3><p class="fine">הדבק קישור לטבלה שאתה כבר עובד איתה. מתאימים עמודות פעם אחת, ומאז שורות חדשות נקלטות לבד.</p>'+
+    '<label class="fld wide" for="sheetUrl">קישור לגיליון<input id="sheetUrl" type="url" inputmode="url" placeholder="https://docs.google.com/spreadsheets/d/..." value="'+esc(src.sheet||'')+'"></label>'+
+    '<div class="row"><button type="button" class="btn primary" id="sheetGo">התחבר לגיליון</button><button type="button" class="linkbtn" id="sheetSample">השתמש בקישור לדוגמה</button></div><p class="err" id="sheetErr" hidden></p><div id="mapArea"></div></div>'+
+  '<div class="card src-card"><h3>Google Drive</h3>'+(src.drive?'<p class="ok">מחובר · רק לקבצים שבחרת, קריאה בלבד</p><div class="files">'+[['עסקאות 2026','עודכן היום'],['חובות ספקים','עודכן לפני 3 ימים'],['עונה 25-26 סגורה','עודכן ביוני']].map(f=>'<button type="button" data-file="'+esc(f[0])+'"><span>'+esc(f[0])+'</span><span class="muted">'+esc(f[1])+'</span></button>').join('')+'</div>':'<p class="fine">במקום להדביק קישור: מתחברים פעם אחת ובוחרים קבצים מהרשימה.</p><div class="row"><button type="button" class="btn" id="driveGo">חבר את Drive</button></div>')+'</div>'+
+  '<div class="card src-card"><h3>מיילים מהפלטפורמות</h3><p class="fine">מכירות נקלטות מהמייל של האישור, כמו שעובד היום עם StubHub.</p>'+mails+'</div>'+
+  '<div class="card src-card"><h3>קובץ Excel או CSV <span class="soon">קיים בלוח</span></h3><p class="fine">ייבוא מרוכז של מלאי, כמו היום.</p></div>'+
+  '<div class="card src-card"><h3>ווטסאפ אוטומטי <span class="soon">בקרוב</span></h3><p class="fine">המערכת תקרא רק שיחות עם סוחרים שסימנת, ותציע עסקאות לתור האישור. היא לא שולחת שום דבר בשמך. עד אז: מעבירים את הודעת הסגירה לבוט, וזה לוקח שתי לחיצות.</p>'+
+    '<div class="toggle"><span>עדכנו אותי כשזה מוכן</span><button type="button" class="btn" id="waNotify">'+(src.waNotify?'נרשמת':'עדכנו אותי')+'</button></div></div>';
+}
+
+/* ---------- interactions ---------- */
+function bind(el){
+  $$('[data-view-go]',el).forEach(b=>b.addEventListener('click',()=>go(b.dataset.viewGo)));
+  $$('[data-go-trader]',el).forEach(b=>b.addEventListener('click',()=>go('trader',b.dataset.goTrader)));
+  $$('[data-add]',el).forEach(b=>b.addEventListener('click',()=>openAdd(null,b.dataset.add)));
+  $$('[data-add-trader]',el).forEach(b=>b.addEventListener('click',()=>openAdd(b.dataset.addTrader)));
+  $$('[data-review]',el).forEach(b=>b.addEventListener('click',()=>{const p=S.pending.find(x=>x.id===b.dataset.review);openConfirm(p.text,{label:p.label,show:p.show},p.id,null,false);}));
+  $$('[data-reject]',el).forEach(b=>b.addEventListener('click',()=>{S.pending=S.pending.filter(x=>x.id!==b.dataset.reject);render();toast('נדחה ולא נכנס לספרים');}));
+  $$('[data-toggle-deal]',el).forEach(b=>b.addEventListener('click',()=>{openDeal=openDeal===b.dataset.toggleDeal?null:b.dataset.toggleDeal;render();}));
+  $$('[data-deliver]',el).forEach(b=>b.addEventListener('click',()=>{const d=S.deals.find(x=>x.id===b.dataset.deliver);d.delivered=!d.delivered;render();toast(d.delivered?'סומן כנמסר':'הסימון בוטל');}));
+  $$('[data-pay-deal]',el).forEach(b=>b.addEventListener('click',()=>{const d=S.deals.find(x=>x.id===b.dataset.payDeal);openPay(d.traderId,d);}));
+  $$('[data-pay-trader]',el).forEach(b=>b.addEventListener('click',()=>openPay(b.dataset.payTrader,null)));
+  $$('[data-summary]',el).forEach(b=>b.addEventListener('click',()=>openSummary(b.dataset.summary)));
+  const s=$('#trSearch',el);if(s)s.addEventListener('input',()=>{const q=s.value.trim();$$('#trList [data-name]').forEach(r=>{r.hidden=q&&!r.dataset.name.includes(q);});});
+  const nt=$('#newTrader',el);if(nt)nt.addEventListener('click',openNewTrader);
+  if(nav.view==='sources')bindSources(el);
+}
+function bindSources(el){
+  const SAMPLE='https://docs.google.com/spreadsheets/d/1aB2cD3eF4gH5iJ6kL7mN8oP9qR0sT/edit';
+  $('#sheetSample',el).addEventListener('click',()=>{$('#sheetUrl').value=SAMPLE;});
+  $('#sheetGo',el).addEventListener('click',()=>{
+    const u=$('#sheetUrl').value.trim(),err=$('#sheetErr');
+    if(!/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[\w-]{10,}/.test(u)){err.textContent='זה לא נראה כמו קישור לגוגל שיט. הקישור מתחיל ב-docs.google.com/spreadsheets/d/';err.hidden=false;return;}
+    err.hidden=true;src.sheet=u;showMapping('עסקאות 2026');
+  });
+  const dg=$('#driveGo',el);if(dg)dg.addEventListener('click',openDriveConsent);
+  $$('[data-file]',el).forEach(b=>b.addEventListener('click',()=>showMapping(b.dataset.file)));
+  $$('[data-mail]',el).forEach(b=>b.addEventListener('click',()=>{src.mail[b.dataset.mail]=true;render();toast('מחובר. מכירות חדשות ייכנסו לתור האישור');}));
+  $('#waNotify',el).addEventListener('click',()=>{src.waNotify=true;render();toast('נעדכן אותך');});
+}
+const SHEET_COLS=[['תאריך','date'],['ספק','trader'],['משחק','game'],['כמות','qty'],['מחיר ליח\'','unit'],['שולם?','paid']];
+const FIELD_OPTS=[['date','תאריך'],['trader','סוחר'],['game','משחק'],['qty','כמות'],['unit','מחיר ליחידה'],['paid','שולם'],['skip','לא לייבא']];
+const SHEET_ROWS=[
+  {show:'18.11 | ניר | טוטנהאם ארסנל | 2 | 410 | לא',text:'קניתי מניר 2 כרטיסים לטוטנהאם ארסנל ב-410'},
+  {show:"18.11 | משה | ארסנל צ'לסי | 1 | 360 | כן",text:"מכרתי למשה 1 כרטיסים לארסנל צ'לסי ב-360, שולם במלואו"},
+  {show:'17.11 | רון | ליברפול יונייטד | 4 | 205 | לא',text:'קניתי מרון 4 כרטיסים לליברפול יונייטד ב-205'}];
+function showMapping(name){
+  const a=$('#mapArea');
+  a.innerHTML='<p class="ok">התחברתי לגיליון "'+esc(name)+'". נמצאו '+SHEET_ROWS.length+' שורות חדשות.</p>'+
+   '<p class="fine">בדוק שכל עמודה מתאימה לשדה הנכון. ההתאמה נשמרת לפעם הבאה.</p>'+
+   '<div class="tbl maptbl"><table><thead><tr><th>עמודה אצלך</th><th>השדה במערכת</th></tr></thead><tbody>'+
+   SHEET_COLS.map((c,i)=>'<tr><td>'+esc(c[0])+'</td><td><select id="map'+i+'" aria-label="שדה עבור '+esc(c[0])+'">'+FIELD_OPTS.map(o=>'<option value="'+o[0]+'"'+(o[0]===c[1]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></td></tr>').join('')+
+   '</tbody></table></div><div class="row"><button type="button" class="btn primary" id="importRows">שלח '+SHEET_ROWS.length+' שורות לאישור</button></div>';
+  $('#importRows').addEventListener('click',()=>{
+    SHEET_ROWS.forEach((r,i)=>S.pending.push({id:'s'+Date.now()+i,label:'גוגל שיט "'+name+'" · שורה '+(15+i),show:r.show,text:r.text}));
+    go('home');toast(SHEET_ROWS.length+' שורות מחכות לאישור שלך');
+  });
+}
+function openDriveConsent(){
+  openSheet('<h2>חיבור Google Drive</h2><p>המערכת תבקש מגוגל הרשאה מצומצמת:</p><ul class="fine" style="margin:0;padding-inline-start:18px"><li>גישה רק לקבצים שתבחר, לא לכל ה-Drive</li><li>קריאה בלבד: המערכת לא משנה ולא מוחקת כלום אצלך</li><li>אפשר לנתק בכל רגע מהגדרות החשבון של גוגל</li></ul><p class="fine">בסקיצה הזו החיבור מדומה.</p><div class="row"><button type="button" class="btn primary" id="driveOk">המשך לגוגל</button><button type="button" class="btn ghost" id="driveNo">ביטול</button></div>',b=>{
+    $('#driveOk',b).addEventListener('click',()=>{src.drive=true;closeSheet();render();toast('Drive מחובר. בחר קובץ');});
+    $('#driveNo',b).addEventListener('click',closeSheet);
+  });
+}
+
+/* add flow */
+const EX_VOICE=["קניתי מניר 4 כרטיסים לארסנל צ'לסי LU ב-250, שילמתי לו 500",'מכרתי למשה 2 כרטיסים לטוטנהאם ארסנל ב-420','קניתי מיוסי 3 כרטיסים לליברפול יונייטד ב-300, שולם במלואו'];
+const EX_MSG=['סגרנו אחי 👍 6 טיקטים ליברפול יונייטד SU ב-195, מעביר לך מחר','Nir: deal, 4 tickets Arsenal Chelsea LL @ 260'];
+function openAdd(ctxTrader,tab){
+  tab=tab||'voice';
+  if(tab==='form'){openConfirm('',{label:'הזנה ידנית'},null,ctxTrader,true);return;}
+  const voice=tab==='voice';
+  const t=ctxTrader?trader(ctxTrader):null;
+  openSheet('<h2>'+(t?'עסקה עם '+esc(t.name):'עסקה חדשה')+'</h2>'+
+    '<div class="seg" role="tablist"><button type="button" role="tab" data-tab="voice" aria-selected="'+voice+'">קול</button><button type="button" role="tab" data-tab="msg" aria-selected="'+(!voice)+'">הודעה</button><button type="button" role="tab" data-tab="form" aria-selected="false">טופס</button></div>'+
+    (voice?'<button type="button" class="micbig" id="micBtn" aria-label="הקלט">'+MIC+'</button><p class="fine" id="micHint" style="text-align:center">לחץ ודבר. אומרים עם מי, מה, כמה ובכמה.</p>'
+          :'<p class="fine">העתק את הודעת הסגירה מהקבוצה או מהשיחה עם הסוחר, והדבק כאן.</p>')+
+    '<label class="fld wide" for="addText">'+(voice?'מה שנאמר (התמלול)':'ההודעה')+'<textarea id="addText" placeholder="'+(voice?'למשל: קניתי מסול 2 כרטיסים לטוטנהאם ארסנל ב-400':'הדבק כאן את ההודעה')+'"></textarea></label>'+
+    '<div class="examples"><span class="fine">דוגמאות לנסות:</span>'+(voice?EX_VOICE:EX_MSG).map((x,i)=>'<button type="button" data-ex="'+i+'">'+esc(x)+'</button>').join('')+'</div>'+
+    '<p class="err" id="addErr" hidden></p><div class="row"><button type="button" class="btn primary" id="parseBtn">המשך לאישור</button><button type="button" class="btn ghost" id="addCancel">ביטול</button></div>',b=>{
+    $$('[data-tab]',b).forEach(x=>x.addEventListener('click',()=>openAdd(ctxTrader,x.dataset.tab)));
+    const list=voice?EX_VOICE:EX_MSG;
+    $$('[data-ex]',b).forEach(x=>x.addEventListener('click',()=>{$('#addText').value=list[+x.dataset.ex];}));
+    const mic=$('#micBtn',b);if(mic)mic.addEventListener('click',()=>{mic.classList.remove('rec');void mic.offsetWidth;mic.classList.add('rec');$('#micHint').textContent='במוצר ההקלטה עובדת בבוט ובאפליקציה. בתצוגה הזו המיקרופון חסום, אז בחר דוגמה או הקלד את מה שהיית אומר.';});
+    $('#addCancel',b).addEventListener('click',closeSheet);
+    $('#parseBtn',b).addEventListener('click',()=>{const v=$('#addText').value.trim();if(v.length<6){const e=$('#addErr');e.textContent='כתוב או בחר עסקה קודם.';e.hidden=false;return;}
+      openConfirm(v,{label:voice?'הודעה קולית · היום':'הודעה שהודבקה · היום'},null,ctxTrader,false);});
+  });
+}
+function fld(id,label,control,flag,wide){return '<label class="fld'+(flag?' flag':'')+(wide?' wide':'')+'" for="'+id+'">'+label+control+(flag?'<em>'+esc(flag)+'</em>':'')+'</label>';}
+function openConfirm(text,source,pendingId,defTrader,manual){
+  const p=manual?{dir:null,traderId:defTrader,newTrader:null,gameId:null,gameOptions:[],qty:null,unit:null,paid:0,cat:'',flags:{}}:parse(text);
+  if(!manual&&!p.traderId&&!p.newTrader&&defTrader){p.traderId=defTrader;delete p.flags.trader;}
+  const paid0=p.paid==='full'?(p.qty&&p.unit?p.qty*p.unit:0):(p.paid||0);
+  const F=p.flags;
+  const trOpts='<option value="">בחר סוחר</option>'+(p.newTrader?'<option value="__new" selected>+ סוחר חדש: '+esc(p.newTrader)+'</option>':'')+S.traders.map(t=>'<option value="'+esc(t.id)+'"'+(t.id===p.traderId?' selected':'')+'>'+esc(t.name)+'</option>').join('');
+  const gs=[...S.games].sort((a,b)=>a.date.localeCompare(b.date));
+  const gOpt=g=>'<option value="'+g.id+'"'+(g.id===p.gameId?' selected':'')+'>'+esc(g.name)+' · '+dm(g.date)+'</option>';
+  const gameOpts='<option value="">בחר משחק</option>'+(p.gameOptions.length>1?'<optgroup label="מתאימים להודעה">'+gs.filter(g=>p.gameOptions.includes(g.id)).map(gOpt).join('')+'</optgroup><optgroup label="כל המשחקים">'+gs.filter(g=>!p.gameOptions.includes(g.id)).map(gOpt).join('')+'</optgroup>':gs.map(gOpt).join(''));
+  openSheet('<h2>'+(manual?'הזנה ידנית':'לאשר את העסקה?')+'</h2>'+
+    (manual?'':'<blockquote class="src"><span>'+esc(source.label)+'</span>'+esc(source.show||text)+'</blockquote>'+(Object.keys(F).length?'<p class="fine">סימנתי בכתום את מה שלא הייתי בטוח בו. תקן ואשר.</p>':'<p class="fine">זיהיתי הכול. בדוק ואשר.</p>'))+
+    '<div class="fields">'+
+      fld('f-dir','סוג','<select id="f-dir"><option value="">בחר</option><option value="buy"'+(p.dir==='buy'?' selected':'')+'>קנייה (קנית ממנו)</option><option value="sell"'+(p.dir==='sell'?' selected':'')+'>מכירה (מכרת לו)</option></select>',F.dir)+
+      fld('f-trader','סוחר','<select id="f-trader">'+trOpts+'</select>',F.trader)+
+      fld('f-game','משחק','<select id="f-game">'+gameOpts+'</select>',F.game,true)+
+      fld('f-qty','כמות','<input id="f-qty" type="number" inputmode="numeric" min="1" step="1" value="'+(p.qty||'')+'">',F.qty)+
+      fld('f-unit','מחיר ליחידה (€)','<input id="f-unit" type="number" inputmode="decimal" min="0" step="0.01" value="'+(p.unit||'')+'">',F.unit)+
+      fld('f-paid','שולם עד עכשיו (€)','<input id="f-paid" type="number" inputmode="decimal" min="0" step="0.01" value="'+(paid0||0)+'">',null)+
+      fld('f-cat','קטגוריה','<input id="f-cat" type="text" maxlength="12" placeholder="LU, SL..." value="'+esc(p.cat)+'">',null)+
+    '</div><div class="totalline" id="f-total"></div><p class="err" id="f-err" hidden></p>'+
+    '<div class="row"><button type="button" class="btn primary" id="f-save">אשר ושמור</button><button type="button" class="btn ghost" id="f-cancel">ביטול</button></div>'+
+    '<p class="fine">שום דבר לא נכנס לספרים בלי האישור שלך.</p>',b=>{
+    const upd=()=>{const q=+$('#f-qty').value||0,u=+$('#f-unit').value||0,pd=+$('#f-paid').value||0,tt=q*u;$('#f-total').innerHTML='<span>סה"כ '+m(tt)+'</span><span>'+(tt?(pd>=tt?'שולם במלואו':'פתוח '+m(Math.max(0,tt-pd))):'')+'</span>';};
+    $$('input,select',b).forEach(x=>{x.addEventListener('input',()=>{const l=x.closest('.fld');if(l){l.classList.remove('flag');const e=l.querySelector('em');if(e)e.remove();}upd();});});
+    upd();
+    $('#f-cancel',b).addEventListener('click',closeSheet);
+    $('#f-save',b).addEventListener('click',()=>{
+      const dir=$('#f-dir').value,tv=$('#f-trader').value,gid=$('#f-game').value,q=+$('#f-qty').value,u=+$('#f-unit').value,pd=+$('#f-paid').value||0,cat=$('#f-cat').value.trim().toUpperCase().slice(0,12);
+      const miss=[];if(!dir)miss.push('סוג');if(!tv)miss.push('סוחר');if(!gid)miss.push('משחק');if(!(q>0&&Number.isInteger(q)))miss.push('כמות');if(!(u>0))miss.push('מחיר');
+      const e=$('#f-err');
+      if(miss.length){e.textContent='חסר: '+miss.join(', ');e.hidden=false;return;}
+      if(pd<0||pd>q*u){e.textContent='הסכום ששולם לא יכול להיות גדול מסה"כ העסקה ('+fmt(q*u)+').';e.hidden=false;return;}
+      let tid=tv;
+      if(tv==='__new'){const name=p.newTrader.trim();const ex=S.traders.find(t=>t.name===name);if(ex)tid=ex.id;else{tid='t'+Date.now();S.traders.push({id:tid,name,aliases:[name],note:'סוחר חדש'});}}
+      const d={id:'d'+Date.now(),traderId:tid,dir,gameId:gid,qty:q,unit:u,paid:pd,cat,date:TODAY,delivered:false,src:{label:source.label,text:manual?'':(source.show||text)}};
+      S.deals.push(d);
+      if(pd>0)S.payments.push({traderId:tid,dir:dir==='buy'?'out':'in',amount:pd,date:TODAY});
+      if(pendingId)S.pending=S.pending.filter(x=>x.id!==pendingId);
+      closeSheet();go('trader',tid);openDeal=d.id;render();toast('נשמר בספר של '+trader(tid).name);
+    });
+  });
+}
+function openPay(tid,deal){
+  const t=trader(tid),ds=S.deals.filter(d=>d.traderId===tid&&openAmt(d)>0);
+  const outOpen=ds.filter(d=>d.dir==='buy').reduce((s,d)=>s+openAmt(d),0),inOpen=ds.filter(d=>d.dir==='sell').reduce((s,d)=>s+openAmt(d),0);
+  let dir=deal?(deal.dir==='buy'?'out':'in'):(outOpen>=inOpen?'out':'in');
+  const limit=()=>deal?openAmt(deal):(dir==='out'?outOpen:inOpen);
+  const draw=()=>{
+    openSheet('<h2>רישום תשלום</h2>'+(deal?'<p class="fine">לעסקה: '+esc(game(deal.gameId).name)+' · פתוח '+m(openAmt(deal))+'</p>':
+      '<div class="seg two" role="tablist"><button type="button" role="tab" data-d="out" aria-selected="'+(dir==='out')+'">שילמתי ל'+esc(t.name)+'</button><button type="button" role="tab" data-d="in" aria-selected="'+(dir==='in')+'">'+esc(t.name)+' שילם לי</button></div><p class="fine">פתוח בכיוון הזה: '+m(limit())+'. התשלום נפרס על העסקאות הפתוחות לפי הוותק, מהישנה לחדשה.</p>')+
+      fld('p-amt','סכום (€)','<input id="p-amt" type="number" inputmode="decimal" min="0" step="0.01" value="'+(limit()||'')+'">',null,true)+
+      '<p class="err" id="p-err" hidden></p><div class="row"><button type="button" class="btn primary" id="p-save">רשום</button><button type="button" class="btn ghost" id="p-cancel">ביטול</button></div>',b=>{
+      $$('[data-d]',b).forEach(x=>x.addEventListener('click',()=>{dir=x.dataset.d;draw();}));
+      $('#p-cancel',b).addEventListener('click',closeSheet);
+      $('#p-save',b).addEventListener('click',()=>{
+        const a=+$('#p-amt').value,e=$('#p-err');
+        if(!(a>0)){e.textContent='הכנס סכום גדול מאפס.';e.hidden=false;return;}
+        if(a>limit()+0.001){e.textContent='הסכום גדול מהחוב הפתוח ('+fmt(limit())+'). בדוק את הסכום או את הכיוון.';e.hidden=false;return;}
+        let left=a;
+        const targets=deal?[deal]:ds.filter(d=>d.dir===(dir==='out'?'buy':'sell')).sort((x,y)=>x.date.localeCompare(y.date));
+        for(const d of targets){if(left<=0)break;const take=Math.min(left,openAmt(d));d.paid=Math.round((d.paid+take)*100)/100;left-=take;}
+        S.payments.push({traderId:tid,dir,amount:a,date:TODAY});
+        closeSheet();render();toast('נרשם תשלום של '+fmt(a));
+      });
+    });
+  };
+  draw();
+}
+function summaryText(tid){
+  const t=trader(tid),b=bal(tid);
+  const [y,mo,d]=TODAY.split('-');
+  const ds=S.deals.filter(x=>x.traderId===tid&&openAmt(x)>0).sort((a,c)=>a.date.localeCompare(c.date));
+  const line=x=>'• '+dm(x.date)+' '+game(x.gameId).name+', '+x.qty+' × '+fmt(x.unit)+' = '+fmt(total(x))+(x.paid?', שולם '+fmt(x.paid):'')+', פתוח '+fmt(openAmt(x));
+  const buys=ds.filter(x=>x.dir==='buy'),sells=ds.filter(x=>x.dir==='sell');
+  let s='היי '+t.name+', סיכום פתוח בינינו נכון ל-'+d+'.'+mo+'.'+y+':\n';
+  if(buys.length)s+='\nקניתי ממך:\n'+buys.map(line).join('\n')+'\n';
+  if(sells.length)s+='\nמכרתי לך:\n'+sells.map(line).join('\n')+'\n';
+  s+='\n'+(b>0?'סה"כ אתה חייב לי '+fmt(b):b<0?'סה"כ אני חייב לך '+fmt(-b):'אנחנו מאוזנים')+'.\nאם משהו לא מסתדר לך, תגיד ונבדוק.';
+  return s;
+}
+function openSummary(tid){
+  const s=summaryText(tid);
+  openSheet('<h2>סיכום לשליחה</h2><p class="fine">טקסט מוכן להדבקה בווטסאפ. אתה שולח בעצמך, המערכת לא שולחת בשמך.</p><textarea id="sumText" readonly style="min-height:240px">'+esc(s)+'</textarea><div class="row"><button type="button" class="btn primary" id="sumCopy">העתק</button><button type="button" class="btn ghost" id="sumClose">סגור</button></div><p class="fine">בהמשך: קישור שהסוחר פותח ומאשר את הסיכום, כך שלשניכם יש תיעוד מוסכם.</p>',b=>{
+    $('#sumClose',b).addEventListener('click',closeSheet);
+    $('#sumCopy',b).addEventListener('click',()=>{const ta=$('#sumText');
+      const fallback=()=>{ta.focus();ta.select();toast('הטקסט מסומן, העתק אותו');};
+      try{navigator.clipboard.writeText(ta.value).then(()=>toast('הועתק'),fallback);}catch(_){fallback();}});
+  });
+}
+function openNewTrader(){
+  openSheet('<h2>סוחר חדש</h2>'+fld('nt-name','שם','<input id="nt-name" type="text" maxlength="40" autocomplete="off">',null,true)+fld('nt-note','הערה','<input id="nt-note" type="text" maxlength="60" placeholder="ספק, קונה, תחום">',null,true)+'<p class="err" id="nt-err" hidden></p><div class="row"><button type="button" class="btn primary" id="nt-save">הוסף</button><button type="button" class="btn ghost" id="nt-cancel">ביטול</button></div>',b=>{
+    $('#nt-cancel',b).addEventListener('click',closeSheet);
+    $('#nt-save',b).addEventListener('click',()=>{const n=$('#nt-name').value.trim(),e=$('#nt-err');
+      if(n.length<2){e.textContent='הכנס שם של שתי אותיות לפחות.';e.hidden=false;return;}
+      if(S.traders.some(t=>t.name===n)){e.textContent='כבר יש סוחר בשם הזה.';e.hidden=false;return;}
+      const id='t'+Date.now();S.traders.push({id,name:n,aliases:[n],note:$('#nt-note').value.trim()});closeSheet();go('trader',id);toast('נוסף '+n);});
+  });
+}
+
+render();
+})();
+</script>
