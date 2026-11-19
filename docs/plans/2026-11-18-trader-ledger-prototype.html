@@ -435,22 +435,22 @@ function seed(){return{
     {id:'eli',name:'Eli',aliases:['eli','אלי'],note:'Season-ticket supplier',cur:'GBP'},
     {id:'dani',name:'Dani',aliases:['dani','danny','דני'],note:'Buyer in Israel',cur:'ILS'}],
   /* A partner gets a share of the TICKET COST on the games they are in (like Eli on the live board). */
-  partners:[{id:'shadubi',name:'Shadubi',pct:25,cur:'GBP'}],
+  partners:[{id:'dubi',name:'Dubi',pct:25,cur:'GBP'}],
   /* Games: platform sales + direct ticket cost in GBP. Trader deals add to cost (buys) and revenue (sells).
      otherCost null = cost not entered yet. partner = {id,pct,paid(GBP)} when a partner shares the game. */
   games:[
-    {id:'g1',name:'Arsenal vs Chelsea',h:'ARS',a:'CHE',comp:'PL',date:'2026-11-29',teams:[['arsenal','ארסנל'],['chelsea',"צ'לסי",'צלסי']],platQty:6,platRev:1840,otherCost:0,partner:{id:'shadubi',pct:25,paid:0},channels:{StubHub:6}},
+    {id:'g1',name:'Arsenal vs Chelsea',h:'ARS',a:'CHE',comp:'PL',date:'2026-11-29',teams:[['arsenal','ארסנל'],['chelsea',"צ'לסי",'צלסי']],platQty:6,platRev:1840,otherCost:0,partner:{id:'dubi',pct:25,paid:0},channels:{StubHub:6}},
     {id:'g2',name:'Liverpool vs Man United',h:'LIV',a:'MUN',comp:'PL',date:'2026-12-06',teams:[['liverpool','ליברפול'],['united','man utd','man united','יונייטד']],platQty:2,platRev:650,otherCost:0,partner:null,channels:{StubHub:2}},
     {id:'g3',name:'Tottenham vs Arsenal',h:'TOT',a:'ARS',comp:'PL',date:'2026-12-13',teams:[['tottenham','spurs','טוטנהאם','ספרס'],['arsenal','ארסנל']],platQty:0,platRev:0,otherCost:0,partner:null,channels:{}},
-    {id:'g4',name:'Man City vs Liverpool',h:'MCI',a:'LIV',comp:'PL',date:'2026-11-08',teams:[['city','man city','סיטי'],['liverpool','ליברפול']],platQty:4,platRev:1010,otherCost:0,partner:{id:'shadubi',pct:25,paid:0},channels:{StubHub:4}},
-    {id:'g5',name:'Arsenal vs Newcastle',h:'ARS',a:'NEW',comp:'PL',date:'2026-11-07',teams:[['arsenal'],['newcastle']],platQty:8,platRev:2120,otherCost:1480,partner:{id:'shadubi',pct:25,paid:370},channels:{StubHub:6,FTN:2}},
+    {id:'g4',name:'Man City vs Liverpool',h:'MCI',a:'LIV',comp:'PL',date:'2026-11-08',teams:[['city','man city','סיטי'],['liverpool','ליברפול']],platQty:4,platRev:1010,otherCost:0,partner:{id:'dubi',pct:25,paid:0},channels:{StubHub:4}},
+    {id:'g5',name:'Arsenal vs Newcastle',h:'ARS',a:'NEW',comp:'PL',date:'2026-11-07',teams:[['arsenal'],['newcastle']],platQty:8,platRev:2120,otherCost:1480,partner:{id:'dubi',pct:25,paid:370},channels:{StubHub:6,FTN:2}},
     {id:'g6',name:'Arsenal vs Inter - Champions League',h:'ARS',a:'INT',comp:'CL',date:'2026-11-04',teams:[['arsenal'],['inter']],platQty:4,platRev:1190,otherCost:1310,partner:null,channels:{StubHub:4}},
     {id:'g13',name:'Crystal Palace vs Liverpool',h:'CRY',a:'LIV',comp:'PL',date:'2026-11-08',teams:[['palace','crystal palace'],['liverpool']],platQty:8,platRev:377,otherCost:657,partner:null,channels:{StubHub:8}},
-    {id:'g7',name:'Chelsea vs Tottenham',h:'CHE',a:'TOT',comp:'PL',date:'2026-10-24',teams:[['chelsea'],['tottenham','spurs']],platQty:19,platRev:5520,otherCost:3740,partner:{id:'shadubi',pct:25,paid:500},channels:{StubHub:15,Viagogo:4}},
+    {id:'g7',name:'Chelsea vs Tottenham',h:'CHE',a:'TOT',comp:'PL',date:'2026-10-24',teams:[['chelsea'],['tottenham','spurs']],platQty:19,platRev:5520,otherCost:3740,partner:{id:'dubi',pct:25,paid:500},channels:{StubHub:15,Viagogo:4}},
     {id:'g8',name:'Arsenal vs Everton',h:'ARS',a:'EVE',comp:'PL',date:'2026-10-24',teams:[['arsenal'],['everton']],platQty:41,platRev:5470,otherCost:4180,partner:null,channels:{StubHub:41}},
     {id:'g11',name:'Man City vs Paris SG - Champions League',h:'MCI',a:'PSG',comp:'CL',date:'2026-10-14',teams:[['city','man city'],['paris','psg']],platQty:17,platRev:1410,otherCost:950,partner:null,channels:{StubHub:17}},
     {id:'g9',name:'Newcastle vs Aston Villa',h:'NEW',a:'AVL',comp:'PL',date:'2026-10-17',teams:[['newcastle'],['villa','aston villa']],platQty:4,platRev:205,otherCost:510,partner:null,channels:{StubHub:4}},
-    {id:'g10',name:'Arsenal vs Leeds United',h:'ARS',a:'LEE',comp:'PL',date:'2026-10-10',teams:[['arsenal'],['leeds']],platQty:58,platRev:11500,otherCost:4680,partner:{id:'shadubi',pct:25,paid:0},channels:{StubHub:52,FTN:6}},
+    {id:'g10',name:'Arsenal vs Leeds United',h:'ARS',a:'LEE',comp:'PL',date:'2026-10-10',teams:[['arsenal'],['leeds']],platQty:58,platRev:11500,otherCost:4680,partner:{id:'dubi',pct:25,paid:0},channels:{StubHub:52,FTN:6}},
     {id:'g12',name:'Fulham vs Man United',h:'FUL',a:'MUN',comp:'PL',date:'2026-09-20',teams:[['fulham'],['united','man united']],platQty:4,platRev:680,otherCost:317,partner:null,channels:{StubHub:4}},
     {id:'g15',name:'Spain vs England - Nations League',h:'ESP',a:'ENG',comp:'NL',date:'2026-11-15',teams:[['spain'],['england']],platQty:4,platRev:464,otherCost:null,partner:null,channels:{StubHub:4}}],
   deals:[
@@ -590,7 +590,7 @@ function parse(text){
 /* ---------- shell ---------- */
 const NAV=[
   ['OVERVIEW',[['home','Home','home'],['dashboard','Dashboard','dash']]],
-  ['TRADING',[['traders','Traders','traders'],['partner','Shadubi Debt','wallet']]],
+  ['TRADING',[['traders','Traders','traders'],['partner','Dubi Debt','wallet']]],
   ['SEASON',[['fixtures','Season Fixtures','cal']]],
   ['DATA',[['import','Import & templates','upload']]]];
 function drawChrome(){
@@ -650,11 +650,11 @@ $('#resetBtn').addEventListener('click',()=>{const s=snap();S=seed();drawChrome(
 function render(){
   markNav();
   const v=nav.view,el=$('#view');
-  el.innerHTML=v==='home'?vHome():v==='dashboard'?vDashboard():v==='traders'?vTraders():v==='trader'?vTrader(nav.id):v==='partner'?vPartner(nav.id||'shadubi'):v==='fixtures'?vFixtures():vImport();
+  el.innerHTML=v==='home'?vHome():v==='dashboard'?vDashboard():v==='traders'?vTraders():v==='trader'?vTrader(nav.id):v==='partner'?vPartner(nav.id||'dubi'):v==='fixtures'?vFixtures():vImport();
   bind(el);
 }
 function openMore(){
-  openSheet('<h2>More</h2><div class="more-list">'+[['traders','Traders','traders'],['partner','Shadubi Debt','wallet'],['import','Import & templates','upload']].map(n=>'<button type="button" data-mv="'+n[0]+'">'+IC[n[2]]+n[1]+'</button>').join('')+
+  openSheet('<h2>More</h2><div class="more-list">'+[['traders','Traders','traders'],['partner','Dubi Debt','wallet'],['import','Import & templates','upload']].map(n=>'<button type="button" data-mv="'+n[0]+'">'+IC[n[2]]+n[1]+'</button>').join('')+
     '<button type="button" data-mrates="1">'+IC.globe+'Exchange rates</button></div>',b=>{
     $$('[data-mv]',b).forEach(x=>x.addEventListener('click',()=>{closeSheet();go(x.dataset.mv);}));
     $('[data-mrates]',b).addEventListener('click',()=>{closeSheet();openRates();});
@@ -822,7 +822,7 @@ function openPartnerAdd(pid){
 }
 function openPartnerSettings(pid){
   const p=partner(pid);
-  openSheet('<h2>Partner settings</h2><p class="fine">In the product each customer names their own partners (like Eli or Shadubi) and their usual share.</p><div class="fields">'+
+  openSheet('<h2>Partner settings</h2><p class="fine">In the product each customer names their own partners (like Eli or Dubi) and their usual share.</p><div class="fields">'+
     fld('ps-name','Name','<input id="ps-name" type="text" maxlength="30" value="'+esc(p.name)+'">',null)+
     fld('ps-pct','Usual share %','<input id="ps-pct" type="number" min="0.5" max="100" step="0.5" value="'+p.pct+'">',null)+
     '</div><p class="err" id="ps-err" role="alert" hidden></p><div class="row"><button type="button" class="btn btn-primary" id="ps-save">Save</button><button type="button" class="btn btn-ghost" id="ps-cancel">Cancel</button></div><p class="fine">Changing the usual % only affects games you add from now on.</p>',b=>{
@@ -956,8 +956,8 @@ const TPL={
     rules:['Date as DD/MM/YYYY','Type is Buy or Sell','Trader name as you call them (Nir, Sol...)','Game as "Home vs Away", e.g. Arsenal vs Chelsea','Price each = price per ticket','Currency is GBP, EUR or ILS','Paid = amount already paid (0 if none)','Category optional (LU, SL...)'],
     ex:[['18/11/2026','Buy','Nir','Tottenham vs Arsenal','2','410','GBP','0','LU'],['18/11/2026','Sell','Moshe','Arsenal vs Chelsea','1','310','GBP','310','SL']]},
   games:{name:'Game totals (sales & costs)',file:'gameyield-games-template.csv',cols:['Date','Game','Tickets sold','Revenue','Ticket cost','Currency','Partner','Partner %'],
-    rules:['One row per game','Date as DD/MM/YYYY','Revenue and Ticket cost are totals for the game','Partner and Partner % optional (e.g. Shadubi, 25)'],
-    ex:[['07/11/2026','Arsenal vs Newcastle','8','2120','1480','GBP','Shadubi','25'],['15/11/2026','Spain vs England - Nations League','4','464','300','GBP','','']]}};
+    rules:['One row per game','Date as DD/MM/YYYY','Revenue and Ticket cost are totals for the game','Partner and Partner % optional (e.g. Dubi, 25)'],
+    ex:[['07/11/2026','Arsenal vs Newcastle','8','2120','1480','GBP','Dubi','25'],['15/11/2026','Spain vs England - Nations League','4','464','300','GBP','','']]}};
 const csvCell=v=>/[",\n]/.test(v)?'"'+String(v).replace(/"/g,'""')+'"':String(v);
 const tplCsv=k=>[TPL[k].cols,...TPL[k].ex].map(r=>r.map(csvCell).join(',')).join('\r\n');
 function parseCsv(text){
@@ -1149,8 +1149,8 @@ function bind(el){
   /* partner */
   $$('[data-ppay]',el).forEach(b=>b.addEventListener('click',()=>setPartnerPaid(b.dataset.ppay,+$('#pp-'+b.dataset.ppay).value,'add')));
   $$('[data-psettle]',el).forEach(b=>b.addEventListener('click',()=>setPartnerPaid(b.dataset.psettle,0,'settle')));
-  const pa=$('#pAdd',el);if(pa)pa.addEventListener('click',()=>openPartnerAdd(nav.id||'shadubi'));
-  const pst=$('#pSet',el);if(pst)pst.addEventListener('click',()=>openPartnerSettings(nav.id||'shadubi'));
+  const pa=$('#pAdd',el);if(pa)pa.addEventListener('click',()=>openPartnerAdd(nav.id||'dubi'));
+  const pst=$('#pSet',el);if(pst)pst.addEventListener('click',()=>openPartnerSettings(nav.id||'dubi'));
   if(nav.view==='fixtures')bindFixtures(el);
   if(nav.view==='import')bindImport(el);
 }
