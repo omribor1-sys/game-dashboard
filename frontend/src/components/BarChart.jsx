@@ -1,3 +1,4 @@
+import { money } from '../lib/currency';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -23,7 +24,7 @@ export default function BarChart({ title, labels, datasets, horizontal = false, 
         callbacks: {
           label: (ctx) => {
             const val = ctx.parsed[horizontal ? 'x' : 'y'];
-            return ` €${val?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            return ` ${money(val)}`;
           },
         },
       },
@@ -37,7 +38,7 @@ export default function BarChart({ title, labels, datasets, horizontal = false, 
         grid: { color: '#f1f5f9' },
         ticks: {
           font: { size: 11 }, color: '#718096',
-          callback: (v) => `€${Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
+          callback: (v) => money(v, { digits: 0 }),
         },
       },
     },
@@ -46,7 +47,7 @@ export default function BarChart({ title, labels, datasets, horizontal = false, 
   if (horizontal) {
     delete options.scales.y.ticks.callback;
     options.scales.x.ticks.callback = (v) =>
-      `€${Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+      money(v, { digits: 0 });
   }
 
   const data = { labels, datasets };

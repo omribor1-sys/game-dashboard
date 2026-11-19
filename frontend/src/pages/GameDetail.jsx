@@ -1,3 +1,4 @@
+import { money } from '../lib/currency';
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -5,7 +6,7 @@ const API = '/api';
 
 function fmt(n) {
   if (n == null || n === '') return '—';
-  return `€${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return money(n);
 }
 
 function StatusBadge({ status }) {

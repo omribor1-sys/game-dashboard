@@ -1,3 +1,4 @@
+import { money } from '../lib/currency';
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import './../styles/fixtures.css';
@@ -166,7 +167,7 @@ export default function SeasonFixtures() {
 
       {showPast && pastFixtures.some(f => f.pnl) && (
         <div className={`fx-past-total ${pastProfit >= 0 ? 'pos' : 'neg'}`}>
-          Closed games P&amp;L: {pastProfit >= 0 ? '+' : '−'}€{Math.abs(pastProfit).toLocaleString('en-IE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          Closed games P&amp;L: {money(pastProfit, { signed: true })}
           <span className="muted"> · {pastFixtures.filter(f => f.pnl).length} of {pastFixtures.length} games have cost data</span>
         </div>
       )}

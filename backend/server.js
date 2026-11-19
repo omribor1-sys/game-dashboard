@@ -44,6 +44,28 @@ app.use('/api/inventory', inventoryRouter);
 app.use('/api/orders',    ordersRouter);
 app.use('/api/fixtures', require('./routes/fixtures'));
 
+// ── Display FX: Bank of Israel representative rates (שער יציג) ──────────────
+// Stored amounts are EUR; the UI only converts what it shows. Cached 1h; a stale
+// cache is served if BOI is down, and no cache = 503 (UI then stays in EUR).
+let fxCache = null;
+app.get('/api/fx', async (req, res) => {
+  if (fxCache && Date.now() - fxCache.at < 3600e3) return res.json(fxCache.body);
+  try {
+    const r = await fetch('https://boi.org.il/PublicApi/GetExchangeRates', { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) throw new Error(`BOI HTTP ${r.status}`);
+    const rows = (await r.json()).exchangeRates || [];
+    const ils = k => { const x = rows.find(e => e.key === k); return x && x.currentExchangeRate > 0 ? { v: x.currentExchangeRate / (x.unit || 1), at: x.lastUpdate } : null; };
+    const eur = ils('EUR'), gbp = ils('GBP');
+    if (!eur || !gbp) throw new Error('BOI response missing EUR/GBP');
+    const body = { source: 'Bank of Israel', date: eur.at, ilsPer: { EUR: eur.v, GBP: gbp.v }, perEur: { GBP: eur.v / gbp.v, ILS: eur.v } };
+    fxCache = { at: Date.now(), body };
+    res.json(body);
+  } catch (e) {
+    if (fxCache) return res.json({ ...fxCache.body, stale: true });
+    res.status(503).json({ error: 'rates unavailable' });
+  }
+});
+
 // ── Admin / manual trigger endpoints ─────────────────────────────────────────
 app.post('/api/admin/check-emails', async (req, res) => {
   try {

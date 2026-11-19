@@ -1,3 +1,4 @@
+import { money } from '../lib/currency';
 export default function PLTable({ game, editCosts, setEditCosts, onSave, saving }) {
   const isProfit = game.net_profit >= 0;
   const editable = !!setEditCosts;
@@ -134,5 +135,5 @@ const inlineInputStyle = {
 
 function fmt(n) {
   if (n == null) return '—';
-  return `€${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return money(n);
 }

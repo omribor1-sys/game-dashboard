@@ -1,3 +1,4 @@
+import { money } from '../../lib/currency';
 import { googleCalendarUrl } from './calendarLinks';
 
 const TICKET_LABEL = {
@@ -20,9 +21,7 @@ const HOT_TIER_LABEL = { elite: 'Elite', high: 'High', notable: 'Notable' };
 const HOT_TIER_CLASS = { elite: 'hot-elite', high: 'hot-high', notable: 'hot-notable' };
 
 function eur(n, signed = false) {
-  const v = Number(n) || 0;
-  const s = Math.abs(v).toLocaleString('en-IE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return `${signed ? (v >= 0 ? '+' : '−') : ''}€${s}`;
+  return money(Number(n) || 0, { signed });
 }
 
 // 14-day from-price trend. Needs 2+ readings to say anything; one dot is not a trend.
@@ -36,8 +35,8 @@ function Sparkline({ points }) {
   const rising = ys[ys.length - 1] > ys[0];
   return (
     <svg className={`sh-spark ${rising ? 'up' : 'down'}`} width={W} height={H} viewBox={`0 0 ${W} ${H}`}
-         role="img" aria-label={`From-price €${Math.round(ys[0])} → €${Math.round(ys[ys.length - 1])}`}>
-      <title>{`€${Math.round(ys[0])} → €${Math.round(ys[ys.length - 1])} (low €${Math.round(lo)}, high €${Math.round(hi)})`}</title>
+         role="img" aria-label={`From-price ${money(ys[0], { digits: 0 })} → ${money(ys[ys.length - 1], { digits: 0 })}`}>
+      <title>{`${money(ys[0], { digits: 0 })} → ${money(ys[ys.length - 1], { digits: 0 })} (low ${money(lo, { digits: 0 })}, high ${money(hi, { digits: 0 })})`}</title>
       <polyline points={d} fill="none" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
@@ -165,7 +164,7 @@ export default function FixtureCard({ fx, trackedTeamIds, onEdit }) {
           <div className="fc-stubhub">
             <a href={fx.sh_url} target="_blank" rel="noopener noreferrer"
                title={`Cheapest ticket on StubHub, before fees${fx.sh_tickets != null ? ` · ${fx.sh_tickets} listed` : ''}`}>
-              🎫 StubHub from <strong>€{Math.round(fx.sh_min_price)}</strong>
+              🎫 StubHub from <strong>{money(fx.sh_min_price, { digits: 0 })}</strong>
             </a>
             <Sparkline points={fx.sh_series} />
             {fx.sh_insight ? <span className={up ? 'sh-up' : 'sh-down'}>{fx.sh_insight}</span> : null}

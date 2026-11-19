@@ -1,3 +1,4 @@
+import { money } from '../lib/currency';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import SeasonSelect from '../components/SeasonSelect';
 import { currentSeasonStart, seasonsPresent, inSeason } from '../lib/season.js';
@@ -22,7 +23,7 @@ const INV_STATUS_META = {
 
 function fmt(n) {
   if (n == null) return '—';
-  return `€${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return money(n);
 }
 
 function StatusBadge({ status, meta }) {

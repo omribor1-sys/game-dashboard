@@ -1,3 +1,4 @@
+import { money, sym } from '../lib/currency';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MetricCard from '../components/MetricCard';
@@ -32,7 +33,7 @@ function channelText(channels) {
 
 function fmt(n) {
   if (n == null) return '—';
-  return `€${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return money(n);
 }
 
 export default function Dashboard() {
@@ -213,7 +214,7 @@ export default function Dashboard() {
       <div className="page-header">
         <div>
           <div className="page-title">Game Profitability Dashboard</div>
-          <div className="page-subtitle">All amounts in € · {games.length} game{games.length !== 1 ? 's' : ''} tracked</div>
+          <div className="page-subtitle">All amounts in {sym()} · {games.length} game{games.length !== 1 ? 's' : ''} tracked</div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           {/* Season ⇆ Month toggle */}
@@ -268,7 +269,7 @@ export default function Dashboard() {
             <div style={{ fontSize: 13, color: '#78350f' }}>
               {seasonMissing.map((g, i) => (
                 <span key={i} style={{ marginRight: 12 }}>
-                  <strong>{g.game_name}</strong> — €{Number(g.total_revenue).toLocaleString('en-US', { minimumFractionDigits: 2 })} הכנסות, {g.order_count} הזמנות
+                  <strong>{g.game_name}</strong> — {money(g.total_revenue)} הכנסות, {g.order_count} הזמנות
                 </span>
               ))}
             </div>
@@ -582,12 +583,12 @@ export default function Dashboard() {
                 <div style={{ fontSize: 11, color: '#6b7280' }}>Tickets</div>
               </div>
               <div style={{ flex: 1, background: '#f9fafb', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: '#ef4444' }}>€{(editGame.total_all_costs || 0).toFixed(2)}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#ef4444' }}>{money(editGame.total_all_costs || 0)}</div>
                 <div style={{ fontSize: 11, color: '#6b7280' }}>Costs</div>
               </div>
               <div style={{ flex: 1, background: '#f9fafb', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
                 <div style={{ fontSize: 18, fontWeight: 700, color: editGame.net_profit >= 0 ? '#1D9E75' : '#ef4444' }}>
-                  €{(editGame.net_profit || 0).toFixed(2)}
+                  {money(editGame.net_profit || 0)}
                 </div>
                 <div style={{ fontSize: 11, color: '#6b7280' }}>Profit</div>
               </div>

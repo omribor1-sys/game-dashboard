@@ -1,8 +1,9 @@
+import { money, sym } from '../lib/currency';
 import { useEffect, useState } from 'react';
 
 function fmt(n) {
   if (n == null) return '—';
-  return `€${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return money(n);
 }
 function fmtDate(d) {
   if (!d) return '—';
@@ -48,7 +49,7 @@ export default function Eli() {
       <div className="page-header">
         <div>
           <div className="page-title">Eli — Debt Tracker</div>
-          <div className="page-subtitle">All amounts in € · {unpaid.length} unpaid game{unpaid.length !== 1 ? 's' : ''} · {fmt(totalOwed)} still owed</div>
+          <div className="page-subtitle">All amounts in {sym()} · {unpaid.length} unpaid game{unpaid.length !== 1 ? 's' : ''} · {fmt(totalOwed)} still owed</div>
         </div>
       </div>
 

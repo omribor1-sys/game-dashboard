@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { CURRENCIES, setCurrency, selectedCurrency, rateInfo, loadRates, useCurrency } from './lib/currency';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Dashboard from './pages/Dashboard';
 import UploadGame from './pages/UploadGame';
@@ -23,6 +24,33 @@ function ProtectedRoute({ children }) {
   }
   if (!user) return <Navigate to="/login" replace />;
   return children;
+}
+
+// ── Currency switch (display only; data stays EUR) ──────────────────────────
+
+function CurrencySwitch() {
+  useCurrency();
+  const sel = selectedCurrency(), fx = rateInfo();
+  const when = fx ? new Date(fx.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : null;
+  return (
+    <div style={{ marginTop: 'auto', padding: '12px 16px', borderTop: '1px solid #2a2d3a' }}>
+      <div className="sidebar-section-label" style={{ padding: 0, marginBottom: 6 }}>Currency</div>
+      <div role="radiogroup" aria-label="Display currency" style={{ display: 'flex', gap: 4, background: '#0f1117', borderRadius: 8, padding: 3 }}>
+        {Object.entries(CURRENCIES).map(([c, s]) => (
+          <button key={c} role="radio" aria-checked={sel === c} onClick={() => setCurrency(c)}
+            style={{ flex: 1, minHeight: 32, border: 0, borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600,
+              background: sel === c ? '#1D9E75' : 'transparent', color: sel === c ? '#fff' : '#94a3b8' }}>
+            {s} {c}
+          </button>
+        ))}
+      </div>
+      <div style={{ fontSize: 11, color: '#64748b', marginTop: 6, lineHeight: 1.4 }}>
+        {fx
+          ? <>BOI rate {when}: €1 = £{fx.perEur.GBP.toFixed(4)} = ₪{fx.perEur.ILS.toFixed(4)}{fx.stale ? ' (stale)' : ''}</>
+          : sel !== 'EUR' ? 'Rates unavailable - showing EUR' : 'Data is stored in EUR'}
+      </div>
+    </div>
+  );
 }
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -97,10 +125,11 @@ function Sidebar({ open, onClose }) {
           </NavLink>
         </div>
 
+        <CurrencySwitch />
+
         {/* ── User / Logout ─────────────────────────── */}
         {user && (
           <div style={{
-            marginTop: 'auto',
             padding: '16px',
             borderTop: '1px solid #2a2d3a',
           }}>
@@ -142,6 +171,8 @@ function Sidebar({ open, onClose }) {
 function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
+  useCurrency(); // re-render every page when the display currency or rates change
+  useEffect(() => { if (user) loadRates(); }, [user]);
 
   return (
     <Routes>

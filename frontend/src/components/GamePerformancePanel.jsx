@@ -1,8 +1,9 @@
+import { money } from '../lib/currency';
 import { useState } from 'react';
 
 function fmt(n) {
   if (n == null) return '—';
-  return `€${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return money(n);
 }
 
 function fmtDate(d) {
