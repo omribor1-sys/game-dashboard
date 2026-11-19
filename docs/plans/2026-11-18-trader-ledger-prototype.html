@@ -166,6 +166,82 @@ textarea{width:100%;min-height:96px;padding:12px;border-radius:12px;border:1px s
 .files{display:flex;flex-direction:column;gap:6px}
 .files button{display:flex;justify-content:space-between;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;text-align:right}
 .toggle{display:flex;align-items:center;justify-content:space-between;gap:10px}
+
+/* ---------- fixtures board (mirrors /fixtures on the live dashboard) ---------- */
+.fx-head{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fx-head h1{font-size:1.3rem;flex:1;min-width:12ch}
+.fx-head .sub{flex-basis:100%;margin:0;color:var(--muted);font-size:.88rem}
+.btn.sm{padding:6px 10px;font-size:.84rem;border-radius:10px}
+.btn.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.lt{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;margin-inline:-16px;padding-inline:16px}
+.lt::-webkit-scrollbar{display:none}
+.lt button{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:7px 12px;font-weight:600;font-size:.86rem;color:var(--muted);display:flex;gap:6px;align-items:center}
+.lt button[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.lt button.hot[aria-selected="true"]{background:var(--bad);border-color:var(--bad);color:#fff}
+.lt .c{font:600 .72rem var(--f-mono);opacity:.75}
+.fx-filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fx-filters select{padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:.9rem;max-width:100%}
+.fx-filters .seg{display:inline-grid;grid-template-columns:repeat(3,auto);padding:3px}
+.fx-filters .seg.two{grid-template-columns:auto auto}
+.fx-filters .seg button{padding:5px 10px;font-size:.84rem}
+.fx-filters .seg.off{opacity:.45}
+.fx-filters label.chk{display:flex;gap:6px;align-items:center;font-size:.88rem;font-weight:600}
+.fx-group{display:flex;flex-direction:column;gap:8px}
+.fx-group h3{font:600 .82rem var(--f-body);color:var(--muted);letter-spacing:.02em;margin:6px 2px 0}
+.fx{padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.fx.dim{opacity:.6}
+.fx.primary{border-inline-start:4px solid var(--pos)}
+.fx-top{display:flex;justify-content:space-between;gap:8px;font-size:.8rem;color:var(--muted)}
+.fx-top b{font-family:var(--f-mono);color:var(--ink);font-weight:600}
+.fx-teams{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+.fx-side{display:flex;align-items:center;gap:8px;min-width:0}
+.fx-side.away{flex-direction:row-reverse;text-align:left}
+.fx-side .nm{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fx-side .nm.on{font-weight:700;color:var(--ink)}
+.fx-side .nm.won{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
+.crest{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 .64rem var(--f-mono);color:#fff;letter-spacing:.02em}
+.fx-vs{font:600 .76rem var(--f-mono);color:var(--muted);padding:3px 8px;border:1px solid var(--line);border-radius:8px}
+.fx-score{font:700 1.15rem var(--f-mono);direction:ltr;unicode-bidi:isolate;padding:2px 10px;background:var(--bg);border-radius:8px}
+.fx-tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.badge{font:600 .74rem var(--f-body);padding:3px 8px;border-radius:99px;background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.badge.green{background:var(--pos-soft);color:var(--pos);border-color:transparent}
+.badge.amber{background:var(--neg-soft);color:var(--neg);border-color:transparent}
+.badge.blue{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.badge.hot-elite{background:var(--bad-soft);color:var(--bad);border-color:var(--bad)}
+.badge.hot-high{background:var(--neg-soft);color:var(--neg);border-color:var(--neg)}
+.badge.hot-drop{background:var(--pos-soft);color:var(--pos);border-color:var(--pos)}
+.fx-reason{font-size:.86rem;color:var(--muted);margin:0}
+.fx-sh{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.86rem}
+.fx-sh .p{font-weight:700;font-family:var(--f-mono)}
+.spark{flex:none}
+.spark polyline{fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.spark.up polyline{stroke:var(--bad)} .spark.down polyline{stroke:var(--pos)}
+.sh-up{color:var(--bad);font-weight:600} .sh-down{color:var(--pos);font-weight:600}
+.fx-pos{background:var(--accent-soft);border-radius:10px;padding:8px 10px;font-size:.86rem;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;border:0;text-align:right;width:100%;color:var(--ink)}
+.fx-pos b{color:var(--accent)}
+.fx-pnl{border-radius:10px;padding:8px 10px;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;border:1px solid}
+.fx-pnl.pos{background:var(--pos-soft);border-color:var(--pos)} .fx-pnl.neg{background:var(--bad-soft);border-color:var(--bad)}
+.fx-pnl .mn{font-weight:700} .fx-pnl.pos .mn{color:var(--pos)} .fx-pnl.neg .mn{color:var(--bad)}
+.fx-pnl .sb{font-size:.8rem;color:var(--muted)}
+.fx-foot{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between;border-top:1px dashed var(--line);padding-top:8px}
+.fx-foot .acts{display:flex;gap:6px;flex-wrap:wrap}
+.fx-foot a.btn{text-decoration:none;color:var(--ink)}
+.fx-total{border-radius:12px;padding:10px 14px;font-weight:700}
+.fx-total.pos{background:var(--pos-soft);color:var(--pos)} .fx-total.neg{background:var(--bad-soft);color:var(--bad)}
+.fx-total span{font-weight:400;color:var(--muted);font-size:.84rem}
+.kd{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.kd h4{font-size:.92rem;font-weight:600}
+.kd ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.kd li{display:flex;flex-direction:column;font-size:.86rem;background:var(--bg);border-radius:10px;padding:8px 10px}
+.kd li .w{font-weight:700} .kd li .n{color:var(--muted);font-size:.8rem}
+.st td.pos-c,.st th.pos-c{width:2.5em;text-align:center}
+.st tr.trk td{background:var(--accent-soft);font-weight:600}
+.st .tm{display:flex;gap:8px;align-items:center}
+.st .tm .crest{width:22px;height:22px;font-size:.5rem}
+.form{display:flex;gap:2px}
+.form i{font:700 .62rem var(--f-mono);font-style:normal;width:16px;height:16px;border-radius:4px;display:grid;place-items:center;color:#fff}
+.form .w{background:#1d7a46} .form .d{background:#8a948f} .form .l{background:#b3262d}
+@media (max-width:420px){.st .hide-sm{display:none}}
 </style>
 
 <header class="top"><div class="top-in">
@@ -222,8 +298,37 @@ function seed(){return{
     {traderId:'dani',dir:'in',amount:900,date:'2026-11-10'}],
   pending:[
     {id:'p1',label:'הודעה שהעברת לבוט · היום 09:12',show:'מכרתי לדני 2 כרטיסים לליברפול ב-290, שילם 290',text:'מכרתי לדני 2 כרטיסים לליברפול ב-290, שילם 290'},
-    {id:'p2',label:'גוגל שיט "עסקאות 2026" · שורה 14',show:'17.11 | סול | טוטנהאם ארסנל | 3 | 380 | לא שולם',text:'קניתי מסול 3 כרטיסים לטוטנהאם ארסנל ב-380'}]
+    {id:'p2',label:'גוגל שיט "עסקאות 2026" · שורה 14',show:'17.11 | סול | טוטנהאם ארסנל | 3 | 380 | לא שולם',text:'קניתי מסול 3 כרטיסים לטוטנהאם ארסנל ב-380'}],
+  /* Fixtures board. kickoff = local UK time, like the live board. gameId links a fixture to the ledger. */
+  fixtures:[
+    {id:'f1',comp:'PL',md:11,h:'MCI',a:'LIV',ko:'2026-11-08T16:30',hs:2,as:1,gameId:'g4',tix:'closed'},
+    {id:'f2',comp:'PL',md:11,h:'ARS',a:'NEW',ko:'2026-11-07T15:00',hs:3,as:0,tix:'closed',pnl:{rev:2460,cost:1720,sold:8}},
+    {id:'f3',comp:'CL',h:'ARS',a:'INT',ko:'2026-11-04T20:00',hs:2,as:2,tix:'closed',pnl:{rev:1380,cost:1520,sold:4},stage:'שלב הליגה'},
+    {id:'f4',comp:'PL',md:10,h:'TOT',a:'CHE',ko:'2026-11-01T14:00',hs:1,as:1,tix:'closed'},
+    {id:'f5',comp:'PL',md:12,h:'ARS',a:'BRE',ko:'2026-11-21T15:00',tix:'bought',sh:[118,121,119,125,128,131,129,134,138],ins:'▲ +17% בשבוע'},
+    {id:'f6',comp:'PL',md:12,h:'LIV',a:'AVL',ko:'2026-11-21T17:30',tix:'on_sale',sh:[142,140,139,137,135,132,133,130]},
+    {id:'f7',comp:'PL',md:12,h:'CHE',a:'EVE',ko:'2026-11-22T14:00',tix:'on_sale'},
+    {id:'f8',comp:'PL',md:12,h:'NEW',a:'WHU',ko:'2026-11-22T16:30',tix:'unknown'},
+    {id:'f9',comp:'PL',md:12,h:'FUL',a:'TOT',ko:'2026-11-23T20:00',tix:'on_sale'},
+    {id:'f10',comp:'CL',h:'ARS',a:'BAY',ko:'2026-11-24T20:00',tix:'bought',stage:'שלב הליגה',hot:{tier:'elite',reason:'ראש בראש על המקום הראשון בטבלה. ביקוש גבוה מהבית ומגרמניה'},sh:[290,305,318,332,340,361,372,388],ins:'▲ נמכרים מהר: 40% מהמלאי בשבוע'},
+    {id:'f11',comp:'CL',h:'LIV',a:'RMA',ko:'2026-11-25T20:00',tix:'on_sale',stage:'שלב הליגה',hot:{tier:'high',reason:'ריאל מדריד באנפילד, ערב אירופי'},sh:[260,262,270,268,275,281]},
+    {id:'f12',comp:'PL',md:13,h:'ARS',a:'CHE',ko:'2026-11-29T16:30',gameId:'g1',tix:'bought',hot:{src:'stubhub',score:31,reason:'StubHub: מחיר הכניסה עלה 31% ב-7 ימים'},sh:[248,252,260,271,285,298,312,325],ins:'▲ +31% בשבוע'},
+    {id:'f13',comp:'PL',md:13,h:'MUN',a:'TOT',ko:'2026-11-28T17:30',tix:'on_sale'},
+    {id:'f14',comp:'EFL',h:'ARS',a:'CRY',ko:'2026-12-02T19:45',tix:'not_yet',onsale:'2026-11-20T10:00',stage:'רבע גמר'},
+    {id:'f15',comp:'PL',md:14,h:'LIV',a:'MUN',ko:'2026-12-06T16:30',gameId:'g2',tix:'bought',sh:[330,326,321,318,322,319]},
+    {id:'f16',comp:'PL',md:14,h:'BHA',a:'ARS',ko:'2026-12-05T15:00',tix:'not_yet',onsale:'2026-11-23T10:00'},
+    {id:'f17',comp:'PL',md:15,h:'TOT',a:'ARS',ko:'2026-12-13T14:00',gameId:'g3',tix:'bought',hot:{src:'stubhub',score:-27,reason:'StubHub: מחיר הכניסה ירד 27% ב-7 ימים, הזדמנות קנייה'},sh:[520,505,480,462,441,420,398,380],ins:'▼ -27% בשבוע'},
+    {id:'f18',comp:'PL',md:15,h:'CHE',a:'LIV',ko:'2026-12-12T17:30',tix:'unknown'},
+    {id:'f19',comp:'FAC',h:'CHE',a:'LEE',ko:'2027-01-09T15:00',tix:'not_yet',stage:'סיבוב 3'}]
 };}
+const TEAMS={ARS:['ארסנל','#db0007'],CHE:["צ'לסי",'#034694'],LIV:['ליברפול','#c8102e'],MUN:["מנצ'סטר יונייטד",'#a50f1e'],TOT:['טוטנהאם','#132257'],MCI:["מנצ'סטר סיטי",'#5a9bd5'],NEW:['ניוקאסל','#241f20'],AVL:['אסטון וילה','#670e36'],BRE:['ברנטפורד','#c4122e'],BHA:['ברייטון','#0057b8'],WHU:['ווסטהאם','#7a263a'],EVE:['אברטון','#003399'],FUL:['פולהאם','#3a3a3a'],CRY:['קריסטל פאלאס','#1b458f'],BOU:["בורנמות'",'#b50e12'],NFO:['נוטינגהאם פורסט','#dd0000'],WOL:['וולבס','#c98a00'],LEE:['לידס','#1d428a'],SUN:['סנדרלנד','#d4161c'],BUR:['ברנלי','#6c1d45'],INT:['אינטר','#0068a8'],BAY:['באיירן מינכן','#dc052d'],RMA:['ריאל מדריד','#6b5b2a']};
+const TRACKED=['ARS','LIV','TOT','CHE'],PRIMARY_TEAM='ARS';
+const COMPS=[['ALL','כל המסגרות'],['HOT','משחקים חמים 🔥'],['PL','פרמייר ליג'],['CL','ליגת האלופות'],['EFL','גביע הליגה'],['FAC','הגביע האנגלי']];
+const COMP_ABBR={PL:'PL',CL:'UCL',EFL:'EFL',FAC:'FA'};
+const TIX={unknown:['לא ידוע',''],not_yet:['עוד לא בקופות','amber'],on_sale:['בקופות','green'],bought:['קנינו','blue'],closed:['נסגר','']};
+const STANDINGS=[['ARS',12,9,2,1,26,8,'W,W,D,W,W'],['MCI',12,8,2,2,25,11,'W,L,W,W,W'],['LIV',12,8,1,3,24,14,'L,W,W,W,D'],['CHE',12,7,3,2,22,12,'W,D,W,D,W'],['AVL',12,6,3,3,17,13,'D,W,L,W,W'],['NEW',12,6,2,4,18,14,'L,W,W,L,W'],['TOT',12,5,4,3,19,16,'D,D,W,L,W'],['BHA',12,5,3,4,18,17,'W,L,D,W,L'],['MUN',12,5,2,5,16,17,'L,W,L,W,D'],['BRE',12,4,4,4,17,18,'D,W,L,D,W'],['FUL',12,4,3,5,14,16,'L,D,W,L,W'],['CRY',12,3,6,3,13,13,'D,D,D,W,L'],['BOU',12,4,2,6,15,20,'W,L,L,W,L'],['EVE',12,3,4,5,12,16,'D,L,D,W,L'],['WHU',12,3,3,6,14,21,'L,L,W,D,L'],['NFO',12,3,3,6,11,18,'L,D,L,W,L'],['LEE',12,2,5,5,12,19,'D,D,L,D,W'],['WOL',12,2,3,7,11,22,'L,L,D,L,W'],['SUN',12,2,3,7,10,21,'L,W,L,L,D'],['BUR',12,1,4,7,9,23,'L,D,L,L,D']];
+const BREAKS=[['7 - 15 בינואר 2027','סיבוב 3 בגביע האנגלי','סוף שבוע בלי פרמייר ליג, בערך 9-10 בינואר'],['11 - 19 בפברואר 2027','סיבוב 5 בגביע האנגלי','סוף שבוע ריק, בערך 13-14 בפברואר, חופשת אמצע שנה'],['21 במרץ - 9 באפריל 2027','פגרת נבחרות + רבע גמר הגביע','הפער הכי ארוך, כ-3 שבועות. פסחא בתוכו, אין מחזור פסחא']];
+const ANCHORS=[['שבת 26.12.2026','בוקסינג דיי'],['26.12 - 2.1','בלוק החגים'],['ראשון 30.5.2027','המחזור האחרון, כל 10 המשחקים יחד']];
 
 let S=seed();
 let nav={view:'home',traderId:null};
@@ -348,7 +453,147 @@ function vTrader(id){
     (closed.length?'<section><div class="sec-h"><h2>סגורות</h2><span class="cnt">'+closed.length+'</span></div><div class="card list">'+closed.map(dealCard).join('')+'</div></section>':'')+
     '<section><div class="sec-h"><h2>תשלומים</h2><span class="cnt">'+pays.length+'</span></div><div class="card list">'+(pays.map(p=>'<div class="item"><span class="t">'+(p.dir==='out'?'שילמת ל'+esc(t.name):esc(t.name)+' שילם לך')+'</span><span class="v amt">'+m(p.amount)+'</span><span class="s">'+dm(p.date)+'</span></div>').join('')||'<div class="empty">עוד לא נרשמו תשלומים</div>')+'</div></section>';
 }
+/* ---------- fixtures board ---------- */
+const NOW=TODAY+'T12:00';
+let fx={comp:'PL',mode:'upcoming',view:'calendar',team:'',month:'',ha:'all',mine:false,tab:'board',synced:'18.11 07:00'};
+const DAYS=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+const MONTHS=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+const tn=c=>(TEAMS[c]||[c])[0];
+const crest=c=>'<span class="crest" style="background:'+((TEAMS[c]||[])[1]||'#777')+'" aria-hidden="true">'+esc(c)+'</span>';
+const koDate=k=>{const d=new Date(k.slice(0,10)+'T12:00');return DAYS[d.getDay()]+', '+k.slice(8,10)+'.'+k.slice(5,7)+'.'+k.slice(0,4);};
+const monthKey=k=>k.slice(0,7);
+const monthName=k=>MONTHS[+k.slice(5,7)-1]+' '+k.slice(0,4);
+const isPastFx=f=>f.ko<NOW;
+function gameStats(gid){
+  const g=game(gid),ds=S.deals.filter(d=>d.gameId===gid);
+  const bq=ds.filter(d=>d.dir==='buy').reduce((s,d)=>s+d.qty,0),sq=ds.filter(d=>d.dir==='sell').reduce((s,d)=>s+d.qty,0)+g.platQty;
+  const cost=ds.filter(d=>d.dir==='buy').reduce((s,d)=>s+total(d),0),rev=ds.filter(d=>d.dir==='sell').reduce((s,d)=>s+total(d),0)+g.platRev;
+  return{bq,sq,cost,rev,profit:rev-cost,deals:ds.length};
+}
+function fxPnl(f){if(f.gameId){const s=gameStats(f.gameId);return{rev:s.rev,cost:s.cost,sold:s.sq};}return f.pnl||null;}
+function spark(pts){
+  if(!pts||pts.length<2)return '';
+  const W=72,H=18,lo=Math.min(...pts),hi=Math.max(...pts),sp=hi-lo||1;
+  const d=pts.map((p,i)=>(i/(pts.length-1)*W).toFixed(1)+','+(H-1-(p-lo)/sp*(H-2)).toFixed(1)).join(' ');
+  return '<svg dir="ltr" class="spark '+(pts[pts.length-1]>pts[0]?'up':'down')+'" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="מגמת 14 יום: '+Math.round(pts[0])+' ל-'+Math.round(pts[pts.length-1])+'"><polyline points="'+d+'"/></svg>';
+}
+function calUrl(title,ko){
+  const s=ko.replace(/[-:]/g,'')+'00',e=new Date(Date.parse(ko+':00Z')+2*36e5).toISOString().slice(0,16).replace(/[-:]/g,'')+'00';
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent(title)+'&dates='+s+'/'+e+'&ctz=Europe/London';
+}
+function fxFiltered(){
+  let L=S.fixtures;
+  if(fx.comp==='HOT')return L.filter(f=>f.hot&&!isPastFx(f));
+  if(fx.comp!=='ALL')L=L.filter(f=>f.comp===fx.comp);
+  if(fx.team){L=L.filter(f=>fx.ha==='home'?f.h===fx.team:fx.ha==='away'?f.a===fx.team:(f.h===fx.team||f.a===fx.team));}
+  if(fx.month)L=L.filter(f=>monthKey(f.ko)===fx.month);
+  if(fx.mine)L=L.filter(f=>TRACKED.includes(f.h)||TRACKED.includes(f.a));
+  return L;
+}
+function fxCard(f){
+  const hT=TRACKED.includes(f.h),aT=TRACKED.includes(f.a),trk=hT||aT,hasScore=f.hs!=null;
+  const won=side=>hasScore&&(side==='h'?f.hs>f.as:f.as>f.hs)?' won':'';
+  let hot='';
+  if(f.hot){const sc=f.hot.score;hot=f.hot.src==='stubhub'?(sc<0?'<span class="badge hot-drop">📉 ירידה '+Math.abs(sc)+'%</span>':'<span class="badge hot-elite">📈 עלייה <bdi class="num">+'+sc+'%</bdi></span>'):'<span class="badge hot-'+esc(f.hot.tier)+'">🔥 '+(f.hot.tier==='elite'?'עילית':f.hot.tier==='high'?'גבוה':'בולט')+'</span>';}
+  const t=TIX[f.tix]||TIX.unknown;
+  let pos='';
+  if(f.gameId&&!isPastFx(f)){const s=gameStats(f.gameId);pos='<button type="button" class="fx-pos" data-fx-pnl="1"><span>הפוזיציה שלך:</span><span>קנית <b>'+s.bq+'</b></span><span>מכרת <b>'+s.sq+'</b></span><span>רווח עד עכשיו <b class="'+(s.profit>=0?'profit-pos':'profit-neg')+'">'+(s.profit<0?'-':'')+m(Math.abs(s.profit))+'</b></span></button>';}
+  const p=isPastFx(f)?fxPnl(f):null;
+  const pnl=p?(()=>{const n=p.rev-p.cost;return '<div class="fx-pnl '+(n>=0?'pos':'neg')+'"><span class="mn">'+(n>=0?'📈 +':'📉 -')+m(Math.abs(n))+'</span><span class="sb">הכנסה '+m(p.rev)+' · עלות '+m(p.cost)+(p.rev?' · '+Math.round(n/p.rev*100)+'%':'')+' · '+p.sold+' כרטיסים</span></div>';})():'';
+  return '<div class="card fx '+(trk||f.hot?'':'dim ')+(f.h===PRIMARY_TEAM?'primary':'')+'">'+
+    '<div class="fx-top"><span>'+koDate(f.ko)+' · <b>'+f.ko.slice(11,16)+'</b></span><span>'+(COMP_ABBR[f.comp]||f.comp)+(f.md?' · מחזור '+f.md:'')+(f.stage?' · '+esc(f.stage):'')+'</span></div>'+
+    '<div class="fx-teams"><span class="fx-side home">'+crest(f.h)+'<span class="nm'+(hT?' on':'')+won('h')+'">'+esc(tn(f.h))+'</span></span>'+
+      (hasScore?'<span class="fx-score">'+f.hs+' - '+f.as+'</span>':'<span class="fx-vs">VS</span>')+
+      '<span class="fx-side away">'+crest(f.a)+'<span class="nm'+(aT?' on':'')+won('a')+'">'+esc(tn(f.a))+'</span></span></div>'+
+    ((trk||hot)?'<div class="fx-tags">'+(trk?'<span class="badge '+(hT?'green':'')+'">'+(hT?'🏠 בית':'✈️ חוץ')+'</span>':'')+hot+'</div>':'')+
+    (f.hot&&f.hot.reason?'<p class="fx-reason">'+esc(f.hot.reason)+'</p>':'')+
+    (f.sh&&!isPastFx(f)?'<div class="fx-sh"><span>🎫 StubHub מ-<span class="p">'+m(f.sh[f.sh.length-1])+'</span></span>'+spark(f.sh)+(f.ins?'<span class="'+(/^▲/.test(f.ins)?'sh-up':'sh-down')+'">'+esc(f.ins).replace(/([+-]?\d+%)/g,'<bdi class="num">$1</bdi>')+'</span>':'')+'</div>':'')+
+    pos+pnl+
+    '<div class="fx-foot"><span><span class="badge '+t[1]+'">🎟️ '+t[0]+'</span>'+(f.onsale&&f.tix==='not_yet'?' <span class="muted" style="font-size:.8rem">· נפתח '+dm(f.onsale.slice(0,10))+' '+f.onsale.slice(11,16)+'</span>':'')+(f.edited?' <span class="muted" style="font-size:.76rem">נערך</span>':'')+'</span>'+
+      '<span class="acts"><a class="btn sm ghost" href="'+esc(calUrl(tn(f.h)+' - '+tn(f.a),f.ko))+'" target="_blank" rel="noopener">📅 משחק</a>'+(f.onsale&&f.tix==='not_yet'?'<a class="btn sm ghost" href="'+esc(calUrl('🎟️ כרטיסים: '+tn(f.h)+' - '+tn(f.a),f.onsale))+'" target="_blank" rel="noopener">🎟️ כרטיסים</a>':'')+'<button type="button" class="btn sm ghost" data-fx-edit="'+esc(f.id)+'">✎ עריכה</button></span></div>'+
+  '</div>';
+}
+function vStandings(){
+  return '<p class="fine">הטבלה עודכנה: '+esc(fx.synced)+'</p><div class="tbl st"><table><thead><tr><th class="pos-c">#</th><th>קבוצה</th><th>מש׳</th><th>נ</th><th>ת</th><th>ה</th><th class="hide-sm">זכות</th><th class="hide-sm">חובה</th><th>הפרש</th><th>נק׳</th><th class="hide-sm">כושר</th></tr></thead><tbody>'+
+    STANDINGS.map((r,i)=>{const gd=r[5]-r[6];return '<tr class="'+(TRACKED.includes(r[0])?'trk':'')+'"><td class="n pos-c">'+(i+1)+'</td><td><span class="tm">'+crest(r[0])+esc(tn(r[0]))+'</span></td><td class="n">'+r[1]+'</td><td class="n">'+r[2]+'</td><td class="n">'+r[3]+'</td><td class="n">'+r[4]+'</td><td class="n hide-sm">'+r[5]+'</td><td class="n hide-sm">'+r[6]+'</td><td class="n"><bdi class="num">'+(gd>0?'+'+gd:gd)+'</bdi></td><td class="n"><b>'+(r[2]*3+r[3])+'</b></td><td class="hide-sm"><span class="form" dir="ltr">'+r[7].split(',').map(x=>'<i class="'+x.toLowerCase()+'" title="'+x+'">'+x+'</i>').join('')+'</span></td></tr>';}).join('')+
+  '</tbody></table></div>';
+}
+function vKeyDates(){
+  return '<div class="card kd"><h4>⏸️ פגרות, אין מחזור פרמייר ליג (להתכונן מראש)</h4><ul>'+BREAKS.map(b=>'<li><span class="w">'+esc(b[0])+'</span><span>'+esc(b[1])+'</span><span class="n">'+esc(b[2])+'</span></li>').join('')+'</ul>'+
+    '<h4>📌 תאריכי עוגן</h4><ul>'+ANCHORS.map(a=>'<li><span class="w">'+esc(a[0])+'</span><span>'+esc(a[1])+'</span></li>').join('')+'</ul></div>';
+}
 function vGames(){
+  const tabs='<div class="seg two" role="tablist" aria-label="תצוגת משחקים"><button type="button" role="tab" data-fx-tab="board" aria-selected="'+(fx.tab==='board')+'">לוח העונה</button><button type="button" role="tab" data-fx-tab="pnl" aria-selected="'+(fx.tab==='pnl')+'">רווח לפי משחק</button></div>';
+  if(fx.tab==='pnl')return tabs+vGamesPnl();
+  const isHot=fx.comp==='HOT',isAll=fx.comp==='ALL';
+  const all=fxFiltered(),past=all.filter(isPastFx),up=all.filter(f=>!isPastFx(f));
+  const showPast=fx.mode==='past',showTable=fx.mode==='table'&&!isHot&&!isAll;
+  const vis=(showPast?past.sort((a,b)=>b.ko.localeCompare(a.ko)):up.sort((a,b)=>a.ko.localeCompare(b.ko)));
+  const compName=(COMPS.find(c=>c[0]===fx.comp)||[])[1];
+  const head='<div class="fx-head"><h1>לוח העונה</h1>'+
+    '<button type="button" class="btn sm '+(showPast?'on':'')+'" data-fx-mode="past">'+(showPast?'→ קרובים':'⏮ משחקי עבר ('+S.fixtures.filter(isPastFx).filter(f=>fx.comp==='ALL'||fx.comp==='HOT'||f.comp===fx.comp).length+')')+'</button>'+
+    (!isHot&&!isAll?'<button type="button" class="btn sm '+(showTable?'on':'')+'" data-fx-mode="table">'+(showTable?'→ משחקים':'🏆 טבלה')+'</button>':'')+
+    (!isHot?'<button type="button" class="btn sm primary" id="fxSync">סנכרן עכשיו</button>':'')+
+    '<p class="sub">'+(isHot?'משחקים חמים והזדמנויות: תזוזות של 25%+ ב-StubHub (📈 עולה / 📉 יורד, 3 חודשים קדימה), וסימונים ידניים':esc(compName)+' 2026/27 · עודכן '+esc(fx.synced))+'</p></div>';
+  const lt='<div class="lt" role="tablist" aria-label="מסגרות">'+COMPS.map(c=>{const n=c[0]==='ALL'||c[0]==='HOT'?0:S.fixtures.filter(f=>f.comp===c[0]).length;return '<button type="button" role="tab" class="'+(c[0]==='HOT'?'hot':'')+'" data-fx-comp="'+c[0]+'" aria-selected="'+(fx.comp===c[0])+'">'+esc(c[1])+(n?'<span class="c">'+n+'</span>':'')+'</button>';}).join('')+'</div>';
+  let pastTotal='';
+  if(showPast){const ps=past.map(fxPnl).filter(Boolean);if(ps.length){const n=ps.reduce((s,p)=>s+p.rev-p.cost,0);pastTotal='<div class="fx-total '+(n>=0?'pos':'neg')+'">רווח במשחקים שנסגרו: '+(n>=0?'+':'-')+m(Math.abs(n))+' <span>· ל-'+ps.length+' מתוך '+past.length+' משחקים יש נתוני עלות</span></div>';}}
+  if(showTable)return tabs+head+lt+vStandings();
+  const teamsHere=[...new Set(S.fixtures.filter(f=>isAll||f.comp===fx.comp).flatMap(f=>[f.h,f.a]))].sort((a,b)=>(TRACKED.includes(b)-TRACKED.includes(a))||tn(a).localeCompare(tn(b),'he'));
+  const months=[...new Set(S.fixtures.map(f=>monthKey(f.ko)))].sort();
+  const hasF=fx.team||fx.month||fx.mine||fx.ha!=='all';
+  const filters=isHot?'':'<div class="fx-filters">'+
+    '<select id="fxTeam" aria-label="קבוצה"><option value="">כל הקבוצות</option>'+teamsHere.map(c=>'<option value="'+c+'"'+(fx.team===c?' selected':'')+'>'+(TRACKED.includes(c)?'★ ':'')+esc(tn(c))+'</option>').join('')+'</select>'+
+    '<select id="fxMonth" aria-label="חודש"><option value="">כל העונה</option>'+months.map(k=>'<option value="'+k+'"'+(fx.month===k?' selected':'')+'>'+monthName(k)+'</option>').join('')+'</select>'+
+    '<div class="seg'+(fx.team?'':' off')+'" role="group" aria-label="בית או חוץ" title="'+(fx.team?'':'קודם לבחור קבוצה')+'">'+[['all','הכול'],['home','בית'],['away','חוץ']].map(o=>'<button type="button" data-fx-ha="'+o[0]+'" aria-selected="'+(fx.ha===o[0])+'"'+(fx.team?'':' disabled')+'>'+o[1]+'</button>').join('')+'</div>'+
+    '<label class="chk"><input type="checkbox" id="fxMine"'+(fx.mine?' checked':'')+'> רק הקבוצות שלי</label>'+
+    (!isAll?'<div class="seg two" role="group" aria-label="תצוגה"><button type="button" data-fx-view="calendar" aria-selected="'+(fx.view==='calendar')+'">לפי תאריך</button><button type="button" data-fx-view="matchweek" aria-selected="'+(fx.view==='matchweek')+'">לפי מחזור</button></div>':'')+
+    (hasF?'<button type="button" class="linkbtn" id="fxClear">נקה סינון</button>':'')+'</div>';
+  const byMd=!isHot&&!isAll&&fx.view==='matchweek';
+  const groups=new Map();
+  for(const f of vis){const k=byMd?(f.md!=null?'מחזור '+f.md:(f.stage||'שלב')):koDate(f.ko);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(f);}
+  const body=vis.length?[...groups.entries()].map(([k,L])=>'<section class="fx-group"><h3>'+esc(k)+'</h3>'+L.map(fxCard).join('')+'</section>').join(''):
+    '<div class="card empty"><div style="font-size:1.6rem">'+(showPast?'⏮':isHot?'🔥':'📅')+'</div><p>'+(showPast?'אין כאן עדיין משחקי עבר':isHot?'עוד לא סומנו משחקים חמים':'אין משחקים שמתאימים לסינון')+'</p>'+(!isHot&&!showPast&&hasF?'<button type="button" class="btn sm" id="fxClear2">נקה סינון</button>':'')+'</div>';
+  return tabs+head+lt+(isAll?'<p class="fine">כל המסגרות יחד. בוחרים קבוצה ורואים את כל העונה שלה: ליגה, אירופה וגביעים ברשימה אחת.</p>':'')+(isHot?vKeyDates():'')+filters+pastTotal+body;
+}
+function openFxEdit(id){
+  const f=S.fixtures.find(x=>x.id===id);
+  openSheet('<h2>עריכת משחק</h2><p class="fine">'+esc(tn(f.h))+' - '+esc(tn(f.a))+'. שינוי ידני נשמר גם אחרי סנכרון.</p>'+
+    '<div class="fields">'+
+    '<label class="fld wide">שעת פתיחה (שעון מקומי בבריטניה)<input id="e-ko" type="datetime-local" value="'+esc(f.ko)+'"></label>'+
+    '<label class="fld">סטטוס כרטיסים<select id="e-tix">'+Object.keys(TIX).map(k=>'<option value="'+k+'"'+(f.tix===k?' selected':'')+'>'+TIX[k][0]+'</option>').join('')+'</select></label>'+
+    '<label class="fld">פתיחת מכירה<input id="e-on" type="datetime-local" value="'+esc(f.onsale||'')+'"></label>'+
+    '<label class="fld wide"><span style="display:flex;gap:8px;align-items:center;color:var(--ink);font-weight:600"><input id="e-hot" type="checkbox"'+(f.hot?' checked':'')+'> משחק חם</span></label>'+
+    '<label class="fld">רמה<select id="e-tier">'+[['elite','עילית'],['high','גבוה'],['notable','בולט']].map(o=>'<option value="'+o[0]+'"'+(f.hot&&f.hot.tier===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></label>'+
+    '<label class="fld">למה<input id="e-why" type="text" maxlength="140" value="'+esc(f.hot&&f.hot.reason||'')+'"></label></div>'+
+    '<p class="err" id="e-err" hidden></p><div class="row"><button type="button" class="btn primary" id="e-save">שמור</button><button type="button" class="btn ghost" id="e-cancel">ביטול</button></div>',
+  b=>{
+    $('#e-cancel',b).addEventListener('click',closeSheet);
+    $('#e-save',b).addEventListener('click',()=>{
+      const ko=$('#e-ko',b).value,on=$('#e-on',b).value,err=$('#e-err',b);
+      if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(ko)){err.textContent='צריך תאריך ושעה לפתיחה';err.hidden=false;return;}
+      if(on&&on>ko){err.textContent='פתיחת המכירה לא יכולה להיות אחרי המשחק';err.hidden=false;return;}
+      f.ko=ko;f.tix=$('#e-tix',b).value;f.onsale=on||null;f.edited=true;
+      f.hot=$('#e-hot',b).checked?{tier:$('#e-tier',b).value,reason:$('#e-why',b).value.trim()}:null;
+      closeSheet();render();toast('המשחק עודכן');
+    });
+  });
+}
+function bindFixtures(el){
+  $$('[data-fx-tab]',el).forEach(b=>b.addEventListener('click',()=>{fx.tab=b.dataset.fxTab;render();}));
+  $$('[data-fx-pnl]',el).forEach(b=>b.addEventListener('click',()=>{fx.tab='pnl';render();window.scrollTo(0,0);}));
+  $$('[data-fx-comp]',el).forEach(b=>b.addEventListener('click',()=>{fx.comp=b.dataset.fxComp;fx.team='';fx.month='';fx.ha='all';fx.mine=false;if(fx.mode==='table'&&(fx.comp==='ALL'||fx.comp==='HOT'))fx.mode='upcoming';render();}));
+  $$('[data-fx-mode]',el).forEach(b=>b.addEventListener('click',()=>{fx.mode=fx.mode===b.dataset.fxMode?'upcoming':b.dataset.fxMode;render();}));
+  $$('[data-fx-ha]',el).forEach(b=>b.addEventListener('click',()=>{fx.ha=b.dataset.fxHa;render();}));
+  $$('[data-fx-view]',el).forEach(b=>b.addEventListener('click',()=>{fx.view=b.dataset.fxView;render();}));
+  $$('[data-fx-edit]',el).forEach(b=>b.addEventListener('click',()=>openFxEdit(b.dataset.fxEdit)));
+  const t=$('#fxTeam',el);if(t)t.addEventListener('change',()=>{fx.team=t.value;fx.ha='all';render();});
+  const mo=$('#fxMonth',el);if(mo)mo.addEventListener('change',()=>{fx.month=mo.value;render();});
+  const mi=$('#fxMine',el);if(mi)mi.addEventListener('change',()=>{fx.mine=mi.checked;render();});
+  ['#fxClear','#fxClear2'].forEach(s=>{const c=$(s,el);if(c)c.addEventListener('click',()=>{fx.team='';fx.month='';fx.ha='all';fx.mine=false;render();});});
+  const sy=$('#fxSync',el);if(sy)sy.addEventListener('click',()=>{sy.disabled=true;sy.textContent='מסנכרן...';setTimeout(()=>{const d=new Date();fx.synced=dm(TODAY)+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');render();toast('הלוח סונכרן מול מקור המשחקים');},700);});
+}
+function vGamesPnl(){
   const rows=[...S.games].sort((a,b)=>a.date.localeCompare(b.date)).map(g=>{
     const ds=S.deals.filter(d=>d.gameId===g.id);
     const bq=ds.filter(d=>d.dir==='buy').reduce((s,d)=>s+d.qty,0),sq=ds.filter(d=>d.dir==='sell').reduce((s,d)=>s+d.qty,0)+g.platQty;
@@ -390,6 +635,7 @@ function bind(el){
   const s=$('#trSearch',el);if(s)s.addEventListener('input',()=>{const q=s.value.trim();$$('#trList [data-name]').forEach(r=>{r.hidden=q&&!r.dataset.name.includes(q);});});
   const nt=$('#newTrader',el);if(nt)nt.addEventListener('click',openNewTrader);
   if(nav.view==='sources')bindSources(el);
+  if(nav.view==='games')bindFixtures(el);
 }
 function bindSources(el){
   const SAMPLE='https://docs.google.com/spreadsheets/d/1aB2cD3eF4gH5iJ6kL7mN8oP9qR0sT/edit';
