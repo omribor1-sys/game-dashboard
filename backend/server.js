@@ -515,8 +515,17 @@ function _getMissingCosts(db) {
         )
       )
     ORDER BY game_date_iso DESC
-  `).all();
+  `).all().filter(r => !MISSING_COSTS_IGNORED.has(r.game_name));
 }
+
+// Old games Omri marked "not relevant, never ask" (2026-11-12/23) - hidden from every missing-costs alert.
+// ponytail: hardcoded list; move to a settings row if he starts dismissing games often.
+const MISSING_COSTS_IGNORED = new Set([
+  'Norway vs France',
+  'Portugal vs Uzbekistan',
+  'Harry Styles London',
+  'Manchester City VS Liverpool  - FA CUP',
+]);
 
 // (health check is now registered above requireAuth — kept here as comment for reference)
 
