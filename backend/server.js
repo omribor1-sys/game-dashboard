@@ -515,8 +515,30 @@ function _getMissingCosts(db) {
         )
       )
     ORDER BY game_date_iso DESC
-  `).all().filter(r => !MISSING_COSTS_IGNORED.has(r.game_name));
+  `).all().filter(r => !MISSING_COSTS_IGNORED.has(r.game_name) && !_ignoredByOmri(db).has(r.game_name));
 }
+
+// Games Omri dismissed from Telegram ("don't ask") - settings row, JSON array of exact game names.
+function _ignoredByOmri(db) {
+  try {
+    const row = db.prepare("SELECT value FROM settings WHERE key='missing_costs_ignored'").get();
+    return new Set(row ? JSON.parse(row.value) : []);
+  } catch (_) { return new Set(); }
+}
+
+// POST /api/admin/missing-costs/ignore { game_name } - used by the PC close-proposal job.
+app.post('/api/admin/missing-costs/ignore', (req, res) => {
+  try {
+    const db = require('./database');
+    const name = String((req.body && req.body.game_name) || '').trim();
+    if (!name || name.length > 200) return res.status(400).json({ error: 'game_name required' });
+    const set = _ignoredByOmri(db);
+    set.add(name);
+    db.prepare(`INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('missing_costs_ignored', ?, CURRENT_TIMESTAMP)`)
+      .run(JSON.stringify([...set]));
+    res.json({ ok: true, ignored: [...set] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 // Old games Omri marked "not relevant, never ask" (2026-11-12/23) - hidden from every missing-costs alert.
 // ponytail: hardcoded list; move to a settings row if he starts dismissing games often.
