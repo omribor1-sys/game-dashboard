@@ -1,0 +1,555 @@
+<title>Meni Ledger Directions</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: a long Hebrew read (RTL) with five option sections; each shows three LTR phone screens in a scroll strip, then fit/cost notes. */
+:root{
+  --bg:#F4F6F8; --surface:#FFFFFF; --ink:#14181F; --muted:#5B6573; --line:#DDE2E8;
+  --accent:#2447B8; --accent-soft:#E7ECFB; --get:#0F7A55; --get-soft:#E3F4EC; --owe:#B83A22; --owe-soft:#FBE9E4;
+  --wa:#0B6E4F; --wa-bg:#E9E2D6; --wa-me:#D6F5C4; --wa-them:#FFFFFF; --phone:#0E1116; --chip:#EEF1F5;
+  --he:"Heebo",system-ui,sans-serif; --ui:"Inter",system-ui,sans-serif; --disp:"Space Grotesk","Heebo",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0F1318; --surface:#181D24; --ink:#E9EDF2; --muted:#A0AAB8; --line:#2A313B;
+  --accent:#8AA6FF; --accent-soft:#1E2A4D; --get:#4CC795; --get-soft:#12302A; --owe:#FF8A70; --owe-soft:#3A1E18;
+  --wa:#5FD3A6; --wa-bg:#0B141A; --wa-me:#144D37; --wa-them:#1F2C34; --phone:#000; --chip:#232A33; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1318; --surface:#181D24; --ink:#E9EDF2; --muted:#A0AAB8; --line:#2A313B;
+  --accent:#8AA6FF; --accent-soft:#1E2A4D; --get:#4CC795; --get-soft:#12302A; --owe:#FF8A70; --owe-soft:#3A1E18;
+  --wa:#5FD3A6; --wa-bg:#0B141A; --wa-me:#144D37; --wa-them:#1F2C34; --phone:#000; --chip:#232A33; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--he);font-size:16px;line-height:1.6;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1080px;margin:0 auto;padding-block:28px 64px;display:flex;flex-direction:column;gap:40px}
+h1,h2,h3{font-family:var(--disp);text-wrap:balance;margin:0;line-height:1.2}
+h1{font-size:clamp(28px,5vw,40px);font-weight:700}
+h2{font-size:clamp(22px,3.6vw,28px)}
+h3{font-size:17px}
+p{margin:0;max-width:68ch}
+.lead{color:var(--muted);font-size:17px}
+.eyebrow{font-size:13px;letter-spacing:.06em;color:var(--accent);font-weight:700}
+.jobs{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.job{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.job b{display:block;font-size:15px}.job span{color:var(--muted);font-size:14px}
+nav.opts{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:10px;display:flex;gap:8px;overflow-x:auto;border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+nav.opts a{flex:none;text-decoration:none;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:500;min-height:40px;display:inline-flex;align-items:center;gap:6px}
+nav.opts a:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+nav.opts a .n{font-family:var(--disp);color:var(--accent);font-weight:700}
+section.opt{display:flex;flex-direction:column;gap:16px;scroll-margin-top:70px}
+.opt-h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.opt-h .num{font-family:var(--disp);font-size:44px;font-weight:700;color:var(--accent);line-height:1}
+.tag{display:inline-block;font-size:12.5px;font-weight:700;border-radius:999px;padding:3px 10px;background:var(--accent-soft);color:var(--accent)}
+.tag.rec{background:var(--get-soft);color:var(--get)}
+.strip{display:flex;gap:18px;overflow-x:auto;padding:6px 2px 14px;direction:ltr;scroll-snap-type:x mandatory}
+.shot{flex:none;display:flex;flex-direction:column;gap:8px;scroll-snap-align:start;width:276px}
+.cap{font-family:var(--he);direction:rtl;font-size:14px;color:var(--muted);text-align:right}
+.cap b{color:var(--ink)}
+/* phone */
+.phone{width:276px;height:560px;border-radius:34px;background:var(--phone);padding:9px;box-shadow:0 10px 30px rgba(20,24,31,.18)}
+.scr{width:100%;height:100%;border-radius:26px;background:var(--surface);overflow:hidden;display:flex;flex-direction:column;font-family:var(--ui);font-size:12.5px;line-height:1.35;color:var(--ink);position:relative}
+.sb{height:22px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:0 16px;font-size:10.5px;font-weight:600}
+.ah{padding:6px 14px 10px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line)}
+.ah .t{font-weight:700;font-size:14px;flex:1}
+.ah .s{font-size:11px;color:var(--muted)}
+.body{flex:1;overflow:hidden;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:11px;flex:none;background:var(--chip);color:var(--ink)}
+.av.a{background:#D9E3FF;color:#1D3A9A}.av.b{background:#FFE2D6;color:#8A2D17}.av.c{background:#DDF3E8;color:#0D5E43}.av.d{background:#F1E3FF;color:#5A2A8A}.av.e{background:#FFF0C2;color:#7A5600}
+.get{color:var(--get)}.owe{color:var(--owe)}.mut{color:var(--muted)}
+.num-t{font-variant-numeric:tabular-nums;font-weight:700}
+.row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .m{flex:1;min-width:0}.row .m b{display:block;font-size:12.5px}.row .m span{font-size:11px;color:var(--muted)}
+.row .r{text-align:right;font-size:12.5px}.row .r small{display:block;font-size:10px;font-weight:500}
+.card{border:1px solid var(--line);border-radius:12px;padding:9px 10px;background:var(--surface)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border-radius:999px;padding:3px 8px;font-size:10.5px;font-weight:600;background:var(--chip)}
+.chip.g{background:var(--get-soft);color:var(--get)}.chip.o{background:var(--owe-soft);color:var(--owe)}.chip.a{background:var(--accent-soft);color:var(--accent)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;border-radius:10px;padding:8px 10px;font-weight:600;font-size:12px;background:var(--chip);color:var(--ink);border:0}
+.btn.p{background:var(--accent);color:#fff}.btn.g{background:var(--get);color:#fff}
+.btns{display:flex;gap:6px}.btns .btn{flex:1}
+.mic{width:56px;height:56px;border-radius:50%;background:var(--accent);display:grid;place-items:center;flex:none;box-shadow:0 4px 14px rgba(36,71,184,.35)}
+.mic svg{width:24px;height:24px;stroke:#fff}
+.bottom{flex:none;border-top:1px solid var(--line);padding:8px 12px 12px;display:flex;align-items:center;gap:8px}
+.tabs{flex:none;border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:center;padding:6px 6px 10px}
+.tabs div{display:flex;flex-direction:column;align-items:center;font-size:10px;color:var(--muted);gap:2px;min-width:52px}
+.tabs div.on{color:var(--accent);font-weight:700}
+.tabs svg{width:18px;height:18px}
+.tabs .mid{margin-top:-22px}
+.big{font-family:var(--disp);font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.lbl{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.bub{max-width:86%;border-radius:14px;padding:7px 9px;font-size:12px}
+.bub.me{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+.bub.bot{align-self:flex-start;background:var(--chip);border-bottom-left-radius:4px}
+.wave{display:flex;align-items:center;gap:2px;height:16px}
+.wave i{display:block;width:2px;border-radius:2px;background:currentColor;opacity:.8}
+.it{display:flex;gap:6px;align-items:flex-start;padding:5px 0;border-top:1px dashed var(--line)}
+.it:first-of-type{border-top:0}
+.it .ck{width:14px;height:14px;border-radius:4px;background:var(--get);flex:none;margin-top:1px;display:grid;place-items:center}
+.it .ck svg{width:10px;height:10px;stroke:#fff}
+.tl{display:flex;flex-direction:column;gap:6px}
+.tl .e{max-width:78%;border-radius:12px;padding:6px 9px;font-size:11.5px}
+.tl .e.l{align-self:flex-start;background:var(--owe-soft)}
+.tl .e.r{align-self:flex-end;background:var(--get-soft)}
+.tl .e b{display:block;font-variant-numeric:tabular-nums}
+.tl .d{align-self:center;font-size:10px;color:var(--muted)}
+/* whatsapp screens */
+.scr.wa{background:var(--wa-bg)}
+.wa .ah{background:var(--wa);color:#fff;border:0}
+.wa .ah .s{color:rgba(255,255,255,.8)}
+.wa .av{background:#fff;color:var(--wa)}
+.wm{max-width:86%;border-radius:10px;padding:6px 8px;font-size:12px;box-shadow:0 1px 1px rgba(0,0,0,.08)}
+.wm.me{align-self:flex-end;background:var(--wa-me)}
+.wm.th{align-self:flex-start;background:var(--wa-them)}
+.wm .tm{display:block;text-align:right;font-size:9.5px;color:var(--muted)}
+.wbtns{display:flex;flex-direction:column;gap:1px;align-self:flex-start;width:86%;margin-top:-6px}
+.wbtns div{background:var(--wa-them);text-align:center;color:#027EB5;font-weight:600;font-size:12px;padding:6px;border-radius:0}
+.wbtns div:last-child{border-radius:0 0 10px 10px}
+:root[data-theme="dark"] .wbtns div{color:#53BDEB}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .wbtns div{color:#53BDEB}}
+.wa-in{flex:none;display:flex;gap:6px;padding:6px 8px 10px;align-items:center}
+.wa-in .f{flex:1;background:var(--wa-them);border-radius:20px;padding:8px 12px;color:var(--muted);font-size:12px}
+.wa-in .mc{width:38px;height:38px;border-radius:50%;background:var(--wa);display:grid;place-items:center}
+.wa-in .mc svg{width:18px;height:18px;stroke:#fff}
+table.tb{width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums}
+table.tb th{font-size:9.5px;text-transform:uppercase;color:var(--muted);text-align:left;font-weight:600;padding:3px 2px}
+table.tb td{padding:4px 2px;border-top:1px solid var(--line)}
+table.tb td.n{text-align:right}
+.pill{font-size:9.5px;font-weight:700;border-radius:999px;padding:2px 7px}
+.pill.y{background:#FFF0C2;color:#7A5600}.pill.g{background:var(--get-soft);color:var(--get)}.pill.a{background:var(--accent-soft);color:var(--accent)}
+/* notes */
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.note{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.note h3{font-size:15px}
+.note ul{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:3px;font-size:15px}
+.meter{display:flex;gap:3px;direction:ltr;justify-content:flex-end}
+.meter i{width:16px;height:6px;border-radius:3px;background:var(--line)}
+.meter i.on{background:var(--accent)}
+.tblwrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+table.cmp{border-collapse:collapse;width:100%;min-width:640px;font-size:15px}
+table.cmp th,table.cmp td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top}
+table.cmp thead th{font-family:var(--disp);font-size:14px;background:var(--chip)}
+table.cmp td.c{text-align:center;font-weight:700}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch}
+.flow .st{flex:1 1 150px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0}
+.flow .st b{display:block;font-family:var(--disp)}
+.flow .st span{font-size:14px;color:var(--muted)}
+.callout{background:var(--accent-soft);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+.callout.g{background:var(--get-soft)}
+.ltr{direction:ltr;unicode-bidi:isolate}
+.src{font-size:13px;color:var(--muted)}
+.src a{color:var(--accent)}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+
+<div class="wrap" dir="rtl">
+
+<header style="display:flex;flex-direction:column;gap:12px">
+  <div class="eyebrow">GameYield · הספר של מני · 27.11.2026</div>
+  <h1>חמישה כיוונים למערכת של מני</h1>
+  <p class="lead">כל כיוון בנוי סביב אותן ארבע משימות. לכל אחד שלושה מסכים בטלפון, ובסוף טבלת השוואה והמלצה. המסכים גוללים הצידה.</p>
+  <div class="jobs">
+    <div class="job"><b>1. להכניס טרייד בדיבור</b><span>הקלטה אחת, כמה טריידרים, אישור לפני שמירה</span></div>
+    <div class="job"><b>2. לראות את המצב</b><span>מי חייב למי, ומה קרה עם ניר</span></div>
+    <div class="job"><b>3. לשלוח לניר את החשבון</b><span>בלחיצה אחת, בוואטסאפ</span></div>
+    <div class="job"><b>4. לסגור משחקים בסוף שבוע</b><span>קנה, עלויות, מכר, רווח</span></div>
+  </div>
+</header>
+
+<nav class="opts" aria-label="Options">
+  <a href="#o1"><span class="n">1</span>עוזר בצ'אט</a>
+  <a href="#o2"><span class="n">2</span>ספר אנשים</a>
+  <a href="#o3"><span class="n">3</span>תיבת אישורים</a>
+  <a href="#o4"><span class="n">4</span>שלוש לשוניות</a>
+  <a href="#o5"><span class="n">5</span>רק וואטסאפ</a>
+  <a href="#cmp">השוואה והמלצה</a>
+</nav>
+
+<section class="callout" id="research">
+  <h2 style="font-size:20px">מה למדתי מהמחקר</h2>
+  <div id="research-body" style="display:flex;flex-direction:column;gap:8px">
+    <p><b>כל אפליקציות החובות בנויות סביב אנשים.</b> ב-<span class="ltr">OkCredit</span>, <span class="ltr">Khatabook</span>, <span class="ltr">Splitwise</span> ו-<span class="ltr">Tricount</span> דף הבית הוא רשימת אנשים עם יתרה צבועה (ירוק מגיע לך, אדום אתה חייב). לוחצים על אדם ומקבלים את הספר שלו וכפתור "שלח תזכורת או חשבון בוואטסאפ".</p>
+    <p><b>אפליקציות דיבור מפרקות משפט אחד לכמה רשומות.</b> אחר כך הן מציגות דף בדיקה: כרטיס לכל רשומה, אפשר לערוך או לבטל סימון, וכפתור אחד "שמור הכל".</p>
+    <p><b>"צ'אט צף על דשבורד" הוא הדור הראשון, וזה בדיוק מה שהרגיש למני מסורבל.</b> המסקנה המקובלת היום: המסך מראה מצב, והעוזר מקבל קלט ושאלות.</p>
+    <p><b>בוטים של הנהלת חשבונות בוואטסאפ כבר קיימים בהודו</b> (<span class="ltr">Blipko</span>, <span class="ltr">Munshi</span>, <span class="ltr">KhataBhai</span>). הם מקבלים הודעות קוליות בשפות מעורבבות. אחד מהם דיווח על באג שבו אותה רשומה נשמרה פעמיים, כך שצריך הגנה מכפילויות מהיום הראשון.</p>
+    <p class="src">מקורות: <a href="https://okcredit.in/faq" target="_blank" rel="noopener">OkCredit</a> · <a href="https://ixd.prattsi.org/2026/02/design-critique-splitwise-mobile-app/" target="_blank" rel="noopener">Splitwise critique</a> · <a href="https://apps.apple.com/app/id6761558119" target="_blank" rel="noopener">VoiceSpend</a> · <a href="https://reflexivity.com/en/blog/chat-is-not-the-product" target="_blank" rel="noopener">Chat is not the product</a> · <a href="https://devpost.com/software/potbot-c7ojya" target="_blank" rel="noopener">Potbot</a> · <a href="https://developers.facebook.com/docs/whatsapp/cloud-api/messages/interactive-reply-buttons-messages" target="_blank" rel="noopener">Meta buttons</a></p>
+  </div>
+</section>
+
+<!-- ============ OPTION 1 ============ -->
+<section class="opt" id="o1">
+  <div class="opt-h"><span class="num">1</span><h2>עוזר בצ'אט</h2><span class="tag">כמו לדבר עם עוזר אישי</span></div>
+  <p>דף הבית הוא שיחה. מני מדבר או כותב, והעוזר עונה בכרטיס שמפרק את מה שנאמר לפעולות, עם "שמור הכל" או "תקן". שואלים אותו שאלות באותה צורה: "מה המצב עם ניר?" או "תסגור את ארסנל צ'לסי". היתרות של כולם מופיעות כשורת צ'יפים קבועה למעלה.</p>
+  <div class="strip">
+    <div class="shot">
+      <div class="phone"><div class="scr">
+        <div class="sb"><span>9:41</span><span>●●● 5G</span></div>
+        <div class="ah"><div class="av a">AI</div><div class="t">Assistant<div class="s">Your book · 6 people</div></div></div>
+        <div style="padding:8px 12px 0"><div class="chips"><span class="chip g">Nir +£100</span><span class="chip o">Dani −₪500</span><span class="chip g">Yossi +£1,240</span><span class="chip">+3</span></div></div>
+        <div class="body">
+          <div class="bub me"><div class="wave"><i style="height:6px"></i><i style="height:12px"></i><i style="height:9px"></i><i style="height:15px"></i><i style="height:7px"></i><i style="height:13px"></i><i style="height:10px"></i><i style="height:5px"></i><i style="height:14px"></i><i style="height:8px"></i><i style="height:11px"></i> <span style="margin-left:6px;font-size:10px">0:18</span></div>
+            <div style="font-size:11px;opacity:.9;margin-top:3px">"Paid Nir 1,050 pounds PayPal, Nir sent 4 for Arsenal Chelsea at 215, Dani gave back 500 shekel, lent Moshe 2,000"</div></div>
+          <div class="bub bot" style="width:92%"><b>Got 4 things, 3 people:</b>
+            <div class="it"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg></span><div>You paid <b>Nir £1,050</b> · PayPal</div></div>
+            <div class="it"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg></span><div><b>Nir</b> sent 4 × Arsenal v Chelsea · £215 = £860</div></div>
+            <div class="it"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg></span><div><b>Dani</b> paid you back ₪500</div></div>
+            <div class="it"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg></span><div>You lent <b>Moshe ₪2,000</b></div></div>
+            <div class="mut" style="font-size:10.5px;margin:4px 0">After: Nir owes you £290 · You owe Dani ₪500 · Moshe owes ₪2,000</div>
+            <div class="btns"><span class="btn g">Save all 4</span><span class="btn">Fix</span></div>
+          </div>
+        </div>
+        <div class="bottom"><div style="flex:1;background:var(--chip);border-radius:20px;padding:9px 12px;color:var(--muted)">Say or type…</div><div class="mic" style="width:42px;height:42px"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div></div>
+      </div></div>
+      <div class="cap"><b>הקלטה אחת, שלושה אנשים.</b> העוזר מפרק, מראה את היתרות אחרי, ומחכה לאישור.</div>
+    </div>
+    <div class="shot">
+      <div class="phone"><div class="scr">
+        <div class="sb"><span>9:43</span><span>●●● 5G</span></div>
+        <div class="ah"><div class="av a">AI</div><div class="t">Assistant</div></div>
+        <div class="body">
+          <div class="bub me">Where am I with Nir?</div>
+          <div class="bub bot" style="width:92%">
+            <div class="lbl">Nir owes you</div><div class="big get">£290</div>
+            <div class="row"><div class="m"><b>4 × Arsenal v Chelsea</b><span>Today · he sent</span></div><div class="r num-t owe">−£860</div></div>
+            <div class="row"><div class="m"><b>Paid by PayPal</b><span>Today</span></div><div class="r num-t get">+£1,050</div></div>
+            <div class="row"><div class="m"><b>2 × Spurs v Arsenal</b><span>19 Nov · you sent</span></div><div class="r num-t get">+£480</div></div>
+            <div class="btns" style="margin-top:6px"><span class="btn p">Send to Nir</span><span class="btn">Full book</span></div>
+          </div>
+          <div class="bub me">Send it</div>
+          <div class="bub bot">Opened WhatsApp with Nir's statement. Tap send there.</div>
+        </div>
+        <div class="bottom"><div style="flex:1;background:var(--chip);border-radius:20px;padding:9px 12px;color:var(--muted)">Say or type…</div><div class="mic" style="width:42px;height:42px"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div></div>
+      </div></div>
+      <div class="cap"><b>שואלים כמו שמדברים.</b> התשובה כוללת כפתור לשליחת החשבון לניר.</div>
+    </div>
+    <div class="shot">
+      <div class="phone"><div class="scr">
+        <div class="sb"><span>Sun 20:02</span><span>●●● 5G</span></div>
+        <div class="ah"><div class="av a">AI</div><div class="t">Assistant</div></div>
+        <div class="body">
+          <div class="bub bot" style="width:92%">3 games were played this week and aren't closed yet. Start with <b>Arsenal v Chelsea</b>? Paste the sheet or just tell me.</div>
+          <div class="bub me">Bought 12, cost 2,580. Sold 12 on StubHub for 3,820. Travel 40.</div>
+          <div class="bub bot" style="width:92%">
+            <b>Arsenal v Chelsea · 22 Nov</b>
+            <table class="tb"><tr><th></th><th>Qty</th><th style="text-align:right">£</th></tr>
+              <tr><td>Bought</td><td>12</td><td class="n">2,580</td></tr>
+              <tr><td>Sold · StubHub</td><td>12</td><td class="n">3,820</td></tr>
+              <tr><td>Other · travel</td><td></td><td class="n">40</td></tr>
+              <tr><td><b>Profit</b></td><td></td><td class="n get"><b>1,200</b></td></tr></table>
+            <div class="mut" style="font-size:10.5px;margin:4px 0">Margin 31% · 0 unsold</div>
+            <div class="btns"><span class="btn g">File it</span><span class="btn">Fix</span></div>
+          </div>
+        </div>
+        <div class="bottom"><div style="flex:1;background:var(--chip);border-radius:20px;padding:9px 12px;color:var(--muted)">Say or type…</div><div class="mic" style="width:42px;height:42px"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div></div>
+      </div></div>
+      <div class="cap"><b>סגירת שבוע.</b> העוזר מזכיר בעצמו מה פתוח, ומני עונה בדיבור או מדביק טבלה.</div>
+    </div>
+  </div>
+  <div class="notes">
+    <div class="note"><h3>חזק</h3><ul><li>הכי מהיר להכנסה, אין טפסים בכלל</li><li>אותו דבר בדיוק עובד גם מתוך וואטסאפ</li></ul></div>
+    <div class="note"><h3>חלש</h3><ul><li>קשה לסרוק מצב כללי, הכל גולל בשיחה</li><li>שגיאת פענוח מרגישה כמו טעות של "האדם"</li></ul></div>
+    <div class="note"><h3>וואטסאפ</h3><p>זה אותו מוצר. אותו מוח עונה בוואטסאפ ובאפליקציה.</p></div>
+  </div>
+</section>
+
+<!-- ============ OPTION 2 ============ -->
+<section class="opt" id="o2">
+  <div class="opt-h"><span class="num">2</span><h2>ספר אנשים</h2><span class="tag rec">מומלץ לצפייה</span></div>
+  <p>ככה עובדות אפליקציות פנקס החובות של סוחרים קטנים, כמו <span class="ltr">Khatabook</span> ו-<span class="ltr">OkCredit</span>. דף הבית הוא רשימת אנשים, ולכל אחד יתרה גדולה וצבועה: ירוק מגיע לך, אדום אתה חייב. נכנסים לניר ורואים את כל מה שקרה ביניכם כציר זמן, עם כפתור קבוע לשליחת החשבון. כפתור מיקרופון אחד גדול בתחתית תמיד זמין, והוא מבין גם כמה אנשים בהקלטה אחת.</p>
+  <div class="strip">
+    <div class="shot">
+      <div class="phone"><div class="scr">
+        <div class="sb"><span>9:41</span><span>●●● 5G</span></div>
+        <div class="ah"><div class="t">My book</div><span class="chip">£ GBP</span></div>
+        <div class="body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div class="card" style="background:var(--get-soft);border:0"><div class="lbl">You'll get</div><div class="big get" style="font-size:20px">£1,530</div><div class="get" style="font-size:11px;font-weight:600">+ ₪2,000</div></div>
+            <div class="card" style="background:var(--owe-soft);border:0"><div class="lbl">You owe</div><div class="big owe" style="font-size:20px">₪500</div></div>
+          </div>
+          <div style="background:var(--chip);border-radius:10px;padding:7px 10px;color:var(--muted)">Search people</div>
+          <div>
+            <div class="row"><div class="av a">NI</div><div class="m"><b>Nir</b><span>Sent 4 tickets · today</span></div><div class="r num-t get">£290<small>owes you</small></div></div>
+            <div class="row"><div class="av e">YO</div><div class="m"><b>Yossi</b><span>Late 6 days</span></div><div class="r num-t get">£1,240<small>owes you</small></div></div>
+            <div class="row"><div class="av c">MO</div><div class="m"><b>Moshe</b><span>Loan · today</span></div><div class="r num-t get">₪2,000<small>owes you</small></div></div>
+            <div class="row"><div class="av b">DA</div><div class="m"><b>Dani</b><span>Paid you · today</span></div><div class="r num-t owe">₪500<small>you owe</small></div></div>
+            <div class="row"><div class="av d">AV</div><div class="m"><b>Avi</b><span>2 weeks ago</span></div><div class="r num-t mut">Settled</div></div>
+          </div>
+        </div>
+        <div class="tabs"><div class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c2 .7 3.2 2.5 3.5 5.2"/></svg>People</div><div class="mid"><div class="mic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div></div><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Games</div></div>
+      </div></div>
+      <div class="cap"><b>דף בית = אנשים.</b> מי חייב, כמה, ומה קרה אחרון. מאוחר מסומן.</div>
+    </div>
+    <div class="shot">
+      <div class="phone"><div class="scr">
+        <div class="sb"><span>9:42</span><span>●●● 5G</span></div>
+        <div class="ah"><span class="mut">‹</span><div class="av a">NI</div><div class="t">Nir<div class="s">+44 7700 900•••</div></div></div>
+        <div style="padding:10px 14px;text-align:center;border-bottom:1px solid var(--line)"><div class="lbl">Nir owes you</div><div class="big get">£290</div><div class="chips" style="justify-content:center;margin-top:4px"><span class="chip">Tickets £860 open</span><span class="chip a">Last paid today</span></div></div>
+        <div class="body">
+          <div class="tl">
+            <div class="d">19 Nov</div>
+            <div class="e r"><b>You sent 2 × Spurs v Arsenal</b>£240 each · £480</div>
+            <div class="d">Today</div>
+            <div class="e l"><b>Nir paid £1,050</b>PayPal</div>
+            <div class="e l"><b>Nir sent 4 × Arsenal v Chelsea</b>£215 each · £860</div>
+          </div>
+        </div>
+        <div class="bottom"><span class="btn p" style="flex:1;padding:11px">Send statement</span><div class="mic" style="width:44px;height:44px"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div></div>
+      </div></div>
+      <div class="cap"><b>הדף של ניר.</b> ציר זמן כמו צ'אט: מה הוא נתן משמאל, מה אתה נתת מימין. שליחת חשבון בלחיצה.</div>
+    </div>
+    <div class="shot">
+      <div class="phone"><div class="scr">
+        <div class="sb"><span>9:44</span><span>●●● 5G</span></div>
+        <div class="ah"><div class="t">Check before saving</div><span class="mut">✕</span></div>
+        <div class="body" style="gap:7px">
+          <div class="mut" style="font-size:11px">"Paid Nir 1,050 PayPal, Nir sent 4 Arsenal Chelsea 215, Dani gave back 500 shekel, lent Moshe 2,000"</div>
+          <div class="card"><div class="row" style="padding:0 0 5px"><div class="av a">NI</div><div class="m"><b>Nir · 2 things</b></div><div class="r num-t"><span class="mut">£100 →</span> <span class="get">£290</span></div></div>
+            <div style="font-size:11.5px">• You paid £1,050 · PayPal<br>• He sent 4 × Arsenal v Chelsea · £860</div></div>
+          <div class="card"><div class="row" style="padding:0 0 5px"><div class="av b">DA</div><div class="m"><b>Dani</b></div><div class="r num-t"><span class="mut">₪0 →</span> <span class="owe">₪500</span></div></div>
+            <div style="font-size:11.5px">• Paid you back ₪500</div></div>
+          <div class="card" style="border-color:#E8B54A"><div class="row" style="padding:0 0 5px"><div class="av c">MO</div><div class="m"><b>Moshe</b> <span class="pill y">Check</span></div><div class="r num-t"><span class="mut">₪0 →</span> <span class="get">₪2,000</span></div></div>
+            <div style="font-size:11.5px">• You lent ₪2,000 <span class="mut">· shekels? I assumed ₪</span></div></div>
+        </div>
+        <div class="bottom"><span class="btn g" style="flex:1;padding:11px">Save 4 entries</span><span class="btn" style="padding:11px">Edit</span></div>
+      </div></div>
+      <div class="cap"><b>אישור לפי אנשים.</b> כל אדם בכרטיס משלו, עם היתרה לפני ואחרי. ספק מסומן בצהוב.</div>
+    </div>
+  </div>
+  <div class="notes">
+    <div class="note"><h3>חזק</h3><ul><li>המצב ברור בשנייה, בלי לשאול</li><li>מוכח אצל מיליוני סוחרים קטנים</li><li>"שלח חשבון" נמצא בדיוק איפה שצריך</li></ul></div>
+    <div class="note"><h3>חלש</h3><ul><li>המשחקים הם לשונית שנייה, פחות בולטים</li><li>הכנסה בדיבור היא כפתור, לא הלב של המסך</li></ul></div>
+    <div class="note"><h3>וואטסאפ</h3><p>משתלב טוב: הוואטסאפ מכניס, האפליקציה מראה.</p></div>
+  </div>
+</section>
+
+<!-- ============ OPTION 3 ============ -->
+<section class="opt" id="o3">
+  <div class="opt-h"><span class="num">3</span><h2>תיבת אישורים</h2><span class="tag">כמו תיבת מייל של פעולות</span></div>
+  <p>מני מדבר בכל מקום: בוואטסאפ, באפליקציה, בהודעה מועברת. כל מה שנאמר נוחת ב"לאישור". דף הבית מראה רק מה מחכה לו עכשיו: פעולות לאשר, משחקים לסגור, ומי באיחור. אחרי שאישר, הכל יורד לפיד של היום.</p>
+  <div class="strip">
+    <div class="shot">
+      <div class="phone"><div class="scr">
+        <div class="sb"><span>9:41</span><span>●●● 5G</span></div>
+        <div class="ah"><div class="t">Today</div><span class="chip a">3 to confirm</span></div>
+        <div class="body">
+          <div class="lbl">To confirm · from WhatsApp voice 9:31</div>
+          <div class="card"><div class="row" style="padding:0"><div class="av a">NI</div><div class="m"><b>You paid Nir £1,050</b><span>PayPal</span></div></div><div class="btns" style="margin-top:6px"><span class="btn g">Confirm</span><span class="btn">Edit</span></div></div>
+          <div class="card"><div class="row" style="padding:0"><div class="av a">NI</div><div class="m"><b>Nir sent 4 × Arsenal v Chelsea</b><span>£215 each · £860</span></div></div><div class="btns" style="margin-top:6px"><span class="btn g">Confirm</span><span class="btn">Edit</span></div></div>
+          <div class="card"><div class="row" style="padding:0"><div class="av c">MO</div><div class="m"><b>You lent Moshe ₪2,000</b><span>Loan</span></div></div><div class="btns" style="margin-top:6px"><span class="btn g">Confirm</span><span class="btn">Edit</span></div></div>
+          <span class="btn p">Confirm all 3</span>
+          <div class="lbl" style="margin-top:4px">Needs you</div>
+          <div class="row"><div class="m"><b>2 games to close</b><span>Played this week</span></div><span class="pill y">Close</span></div>
+          <div class="row"><div class="m"><b>Yossi is 6 days late</b><span>£1,240</span></div><span class="pill a">Remind</span></div>
+        </div>
+        <div class="tabs"><div class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 13h4l2 3h4l2-3h4M4 13l2-8h12l2 8v6H4z"/></svg>Today</div><div class="mid"><div class="mic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div></div><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/></svg>People</div></div>
+      </div></div>
+      <div class="cap"><b>מה מחכה לי עכשיו.</b> פעולות מהוואטסאפ לאישור, משחקים לסגור, ומי מאחר.</div>
+    </div>
+    <div class="shot">
+      <div class="phone"><div class="scr">
+        <div class="sb"><span>Sun 19:10</span><span>●●● 5G</span></div>
+        <div class="ah"><span class="mut">‹</span><div class="t">This week's games</div></div>
+        <div class="body">
+          <div class="card" style="display:flex;justify-content:space-between"><div><div class="lbl">Week profit</div><div class="big get" style="font-size:22px">£2,140</div></div><div style="text-align:right"><div class="lbl">Filed</div><div class="num-t" style="font-size:16px">1 of 3</div></div></div>
+          <div class="row"><div class="m"><b>Arsenal v Chelsea</b><span>Sat 22 Nov · 12 sold</span></div><div class="r"><span class="pill g">Filed</span><small class="get num-t">+£1,200</small></div></div>
+          <div class="row"><div class="m"><b>Brentford v Arsenal</b><span>Sun 23 Nov · 8 sold</span></div><div class="r"><span class="pill y">Close</span><small class="mut">no cost yet</small></div></div>
+          <div class="row"><div class="m"><b>Spurs v Liverpool</b><span>Sun 23 Nov · 6 sold</span></div><div class="r"><span class="pill y">Close</span><small class="mut">no cost yet</small></div></div>
+          <div class="card" style="background:var(--accent-soft);border:0;font-size:11.5px">Tip: send the sheet photo or paste it on WhatsApp and it fills itself.</div>
+        </div>
+      </div></div>
+      <div class="cap"><b>סוף שבוע.</b> רשימת המשחקים שנשחקו, מה תויק ומה נשאר, ורווח השבוע.</div>
+    </div>
+    <div class="shot">
+      <div class="phone"><div class="scr wa">
+        <div class="sb" style="background:var(--wa);color:#fff"><span>9:50</span><span>●●● 5G</span></div>
+        <div class="ah"><span>‹</span><div class="av">NI</div><div class="t">Nir<div class="s">online</div></div></div>
+        <div class="body">
+          <div class="wm me"><b>Meni ↔ Nir · 27 Nov</b><br>19 Nov · I sent 2 × Spurs v Arsenal · £480<br>27 Nov · You sent 4 × Arsenal v Chelsea · £860<br>27 Nov · You paid £1,050 (PayPal)<br><b>You owe me £290</b><span class="tm">9:50 ✓✓</span></div>
+          <div class="wm th">👍 sending tonight<span class="tm">9:52</span></div>
+        </div>
+        <div class="wa-in"><div class="f">Message</div><div class="mc"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div></div>
+      </div></div>
+      <div class="cap"><b>החשבון שנשלח לניר.</b> הודעה רגילה בוואטסאפ, קריאה, בלי קישורים.</div>
+    </div>
+  </div>
+  <div class="notes">
+    <div class="note"><h3>חזק</h3><ul><li>אף פעולה לא נכנסת בלי אישור</li><li>מתאים כשרוב ההכנסה מגיעה מוואטסאפ</li></ul></div>
+    <div class="note"><h3>חלש</h3><ul><li>אם הוא לא מאשר, התיבה מתמלאת</li><li>המצב לפי אנשים נמצא בלשונית שנייה</li></ul></div>
+    <div class="note"><h3>וואטסאפ</h3><p>זה הלב: הוואטסאפ ממלא את התיבה.</p></div>
+  </div>
+</section>
+
+<!-- ============ OPTION 4 ============ -->
+<section class="opt" id="o4">
+  <div class="opt-h"><span class="num">4</span><h2>שלוש לשוניות: אנשים · דבר · משחקים</h2><span class="tag">מבנה של אפליקציה</span></div>
+  <p>שלוש משימות, שלוש לשוניות, והמיקרופון באמצע. כשמדברים, המסך מראה בזמן אמת איך המשפט מתחלק לאנשים: כל שם שנאמר מקבל צ'יפ עם הסכום. לשונית המשחקים היא מקום מלא לסגירת שבוע, כולל צילום של טבלת הדף.</p>
+  <div class="strip">
+    <div class="shot">
+      <div class="phone"><div class="scr">
+        <div class="sb"><span>9:41</span><span>●●● 5G</span></div>
+        <div class="ah"><div class="t">Listening…</div><span class="mut">0:12</span></div>
+        <div class="body" style="justify-content:space-between">
+          <div style="font-size:15px;line-height:1.45">Paid <span class="chip a">Nir</span> 1,050 pounds PayPal, then <span class="chip a">Nir</span> sent four for Arsenal Chelsea at 215, <span class="chip a">Dani</span> gave back 500 shekel, and I lent <span class="chip a">Moshe</span> <span class="mut">two thou…</span></div>
+          <div class="card" style="display:flex;flex-direction:column;gap:6px">
+            <div class="lbl">Splitting as you speak</div>
+            <div class="row" style="padding:3px 0"><div class="av a">NI</div><div class="m"><b>Nir</b><span>paid £1,050 · got 4 tickets £860</span></div></div>
+            <div class="row" style="padding:3px 0"><div class="av b">DA</div><div class="m"><b>Dani</b><span>paid back ₪500</span></div></div>
+            <div class="row" style="padding:3px 0"><div class="av c">MO</div><div class="m"><b>Moshe</b><span>loan…</span></div></div>
+          </div>
+          <div style="display:flex;justify-content:center;align-items:center;gap:20px"><span class="btn">Cancel</span><div class="mic" style="width:70px;height:70px;background:var(--owe)"><svg viewBox="0 0 24 24" fill="#fff" stroke="none"><rect x="7" y="7" width="10" height="10" rx="2"/></svg></div><span class="btn">Type</span></div>
+        </div>
+        <div class="tabs"><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/></svg>People</div><div class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>Talk</div><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18"/></svg>Games</div></div>
+      </div></div>
+      <div class="cap"><b>מדברים ורואים את החלוקה.</b> כל שם שנאמר מקבל צ'יפ, והכרטיסים נבנים בזמן הדיבור.</div>
+    </div>
+    <div class="shot">
+      <div class="phone"><div class="scr">
+        <div class="sb"><span>Sun 19:10</span><span>●●● 5G</span></div>
+        <div class="ah"><div class="t">Games</div><span class="chip">Nov ▾</span></div>
+        <div class="body">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center">
+            <div class="card"><div class="lbl">Profit</div><div class="num-t get" style="font-size:15px">£6,480</div></div>
+            <div class="card"><div class="lbl">Margin</div><div class="num-t" style="font-size:15px">24%</div></div>
+            <div class="card"><div class="lbl">To close</div><div class="num-t owe" style="font-size:15px">2</div></div>
+          </div>
+          <div class="lbl">To close</div>
+          <div class="row"><div class="m"><b>Brentford v Arsenal</b><span>23 Nov · 8 sold · 2 unsold</span></div><span class="btn p">Close</span></div>
+          <div class="row"><div class="m"><b>Spurs v Liverpool</b><span>23 Nov · 6 sold</span></div><span class="btn p">Close</span></div>
+          <div class="lbl">Filed</div>
+          <div class="row"><div class="m"><b>Arsenal v Chelsea</b><span>22 Nov · 12 tickets</span></div><div class="r num-t get">+£1,200<small>31%</small></div></div>
+          <div class="row"><div class="m"><b>Arsenal v Bayern</b><span>18 Nov · 10 tickets</span></div><div class="r num-t get">+£2,310<small>38%</small></div></div>
+        </div>
+        <div class="tabs"><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/></svg>People</div><div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>Talk</div><div class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18"/></svg>Games</div></div>
+      </div></div>
+      <div class="cap"><b>לשונית משחקים.</b> מה לסגור למעלה, מה תויק למטה, רווח החודש.</div>
+    </div>
+    <div class="shot">
+      <div class="phone"><div class="scr">
+        <div class="sb"><span>Sun 19:12</span><span>●●● 5G</span></div>
+        <div class="ah"><span class="mut">‹</span><div class="t">Close Brentford v Arsenal</div></div>
+        <div class="body">
+          <div class="btns"><span class="btn">Photo of sheet</span><span class="btn">Paste</span><span class="btn">Speak</span></div>
+          <table class="tb"><tr><th>Line</th><th>Qty</th><th style="text-align:right">Each</th><th style="text-align:right">Total</th></tr>
+            <tr><td>Bought · Nir</td><td>6</td><td class="n">180</td><td class="n">1,080</td></tr>
+            <tr><td>Bought · club</td><td>4</td><td class="n">95</td><td class="n">380</td></tr>
+            <tr><td>Sold · StubHub</td><td>6</td><td class="n">265</td><td class="n">1,590</td></tr>
+            <tr><td>Sold · Yossi</td><td>2</td><td class="n">240</td><td class="n">480</td></tr>
+            <tr><td>Cost · fees</td><td></td><td class="n"></td><td class="n">35</td></tr></table>
+          <div class="card" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11.5px">
+            <span>Revenue</span><span class="num-t" style="text-align:right">£2,070</span>
+            <span>Costs</span><span class="num-t" style="text-align:right">£1,495</span>
+            <span><b>Profit</b></span><span class="num-t get" style="text-align:right">£575</span>
+            <span class="owe">2 unsold</span><span class="mut" style="text-align:right">28%</span>
+          </div>
+        </div>
+        <div class="bottom"><span class="btn g" style="flex:1;padding:11px">Close &amp; file</span></div>
+      </div></div>
+      <div class="cap"><b>סגירה.</b> שלוש דרכים להכניס את הטבלה: צילום, הדבקה, או דיבור.</div>
+    </div>
+  </div>
+  <div class="notes">
+    <div class="note"><h3>חזק</h3><ul><li>כל משימה במקום ברור וקבוע</li><li>החלוקה בזמן אמת בונה אמון בדיבור</li></ul></div>
+    <div class="note"><h3>חלש</h3><ul><li>עוד אפליקציה שצריך לפתוח</li><li>"דבר" כלשונית שלמה זה הרבה מקום למסך אחד</li></ul></div>
+    <div class="note"><h3>וואטסאפ</h3><p>אפשרי כתוספת, אבל האפליקציה במרכז.</p></div>
+  </div>
+</section>
+
+<!-- ============ OPTION 5 ============ -->
+<section class="opt" id="o5">
+  <div class="opt-h"><span class="num">5</span><h2>רק וואטסאפ</h2><span class="tag rec">מומלץ להכנסה</span></div>
+  <p>אין אפליקציה למשימות היומיות. מני שומר איש קשר "GameYield" ושולח לו הודעה קולית כמו לכל אחד. הבוט עונה בסיכום עם כפתורים: שמור, תקן, בטל. שואלים אותו "ניר?" ומקבלים יתרה עם כפתור לשליחת החשבון. ביום ראשון בערב הוא מבקש בעצמו את טבלאות המשחקים. הדשבורד המלא נשאר באתר, למי שרוצה מבט רחב.</p>
+  <div class="strip">
+    <div class="shot">
+      <div class="phone"><div class="scr wa">
+        <div class="sb" style="background:var(--wa);color:#fff"><span>9:31</span><span>●●● 5G</span></div>
+        <div class="ah"><span>‹</span><div class="av">GY</div><div class="t">GameYield<div class="s">business account</div></div></div>
+        <div class="body">
+          <div class="wm me" style="display:flex;align-items:center;gap:6px"><div class="mc" style="width:24px;height:24px;border-radius:50%;background:var(--wa);display:grid;place-items:center"><svg viewBox="0 0 24 24" width="10" height="10" fill="#fff"><path d="M8 5v14l11-7z"/></svg></div><div class="wave" style="color:var(--wa)"><i style="height:6px"></i><i style="height:12px"></i><i style="height:9px"></i><i style="height:15px"></i><i style="height:7px"></i><i style="height:13px"></i><i style="height:10px"></i><i style="height:5px"></i><i style="height:14px"></i><i style="height:8px"></i><i style="height:11px"></i><i style="height:6px"></i><i style="height:12px"></i></div><span style="font-size:10px">0:18</span><span class="tm">9:31</span></div>
+          <div class="wm th"><b>Got it, 4 things:</b><br>1. You paid Nir £1,050 · PayPal<br>2. Nir sent 4 × Arsenal v Chelsea · £860<br>3. Dani paid you back ₪500<br>4. You lent Moshe ₪2,000<br><br>After: Nir owes you £290 · you owe Dani ₪500 · Moshe owes ₪2,000<span class="tm">9:31</span></div>
+          <div class="wbtns"><div>✓ Save all</div><div>✎ Fix one</div><div>✕ Cancel</div></div>
+        </div>
+        <div class="wa-in"><div class="f">Message</div><div class="mc"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div></div>
+      </div></div>
+      <div class="cap"><b>הודעה קולית, אישור בכפתור.</b> שלושה כפתורים, כמו שוואטסאפ מאפשר.</div>
+    </div>
+    <div class="shot">
+      <div class="phone"><div class="scr wa">
+        <div class="sb" style="background:var(--wa);color:#fff"><span>9:40</span><span>●●● 5G</span></div>
+        <div class="ah"><span>‹</span><div class="av">GY</div><div class="t">GameYield</div></div>
+        <div class="body">
+          <div class="wm me">Nir?<span class="tm">9:40</span></div>
+          <div class="wm th"><b>Nir owes you £290</b><br>Open: 4 × Arsenal v Chelsea £860<br>Last payment: £1,050 today (PayPal)<span class="tm">9:40</span></div>
+          <div class="wbtns"><div>➜ Send Nir his statement</div><div>☰ Full history</div></div>
+          <div class="wm me">Fix one: Moshe was 2,000 pounds not shekels<span class="tm">9:41</span></div>
+          <div class="wm th">Fixed: You lent Moshe <b>£2,000</b>. Moshe owes you £2,000.<span class="tm">9:41</span></div>
+          <div class="wbtns"><div>↶ Undo</div></div>
+        </div>
+        <div class="wa-in"><div class="f">Message</div><div class="mc"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div></div>
+      </div></div>
+      <div class="cap"><b>שאלה, תיקון, ביטול.</b> הכל בשפה רגילה, וכל שינוי ניתן לביטול.</div>
+    </div>
+    <div class="shot">
+      <div class="phone"><div class="scr wa">
+        <div class="sb" style="background:var(--wa);color:#fff"><span>Sun 20:00</span><span>●●● 5G</span></div>
+        <div class="ah"><span>‹</span><div class="av">GY</div><div class="t">GameYield</div></div>
+        <div class="body">
+          <div class="wm th"><b>Weekend wrap-up</b><br>3 games played, none closed yet:<br>• Arsenal v Chelsea (12 sold)<br>• Brentford v Arsenal (8 sold)<br>• Spurs v Liverpool (6 sold)<br><br>Send a photo of each sheet, paste it, or say it.<span class="tm">20:00</span></div>
+          <div class="wm me" style="padding:4px"><div style="height:74px;border-radius:7px;background:repeating-linear-gradient(0deg,var(--wa-them) 0 11px,var(--line) 11px 12px);display:grid;place-items:center;font-size:10px;color:var(--muted)">photo · sheet.jpg</div><span class="tm">20:04</span></div>
+          <div class="wm th"><b>Arsenal v Chelsea</b><br>Bought 12 · £2,580<br>Sold 12 · £3,820<br>Other · £40<br><b>Profit £1,200 · 31%</b><span class="tm">20:04</span></div>
+          <div class="wbtns"><div>✓ File it</div><div>✎ Fix</div></div>
+        </div>
+        <div class="wa-in"><div class="f">Message</div><div class="mc"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div></div>
+      </div></div>
+      <div class="cap"><b>סגירת שבוע מגיעה אליו.</b> תזכורת ביום ראשון, צילום של הדף, אישור.</div>
+    </div>
+  </div>
+  <div class="notes">
+    <div class="note"><h3>חזק</h3><ul><li>אפס למידה, הוא כבר חי בוואטסאפ</li><li>הכי סביר שבאמת ישתמש בזה כל יום</li></ul></div>
+    <div class="note"><h3>חלש</h3><ul><li>אין מבט כללי טוב בתוך צ'אט</li><li>צריך מספר וואטסאפ לבוט וחיבור רשמי</li></ul></div>
+    <div class="note"><h3>וואטסאפ</h3><p>זה כל המוצר. האתר משמש לדשבורד בלבד.</p></div>
+  </div>
+</section>
+
+<!-- ============ COMPARE ============ -->
+<section class="opt" id="cmp">
+  <h2>השוואה</h2>
+  <div class="tblwrap"><table class="cmp">
+    <thead><tr><th></th><th>1 צ'אט</th><th>2 ספר אנשים</th><th>3 תיבה</th><th>4 לשוניות</th><th>5 וואטסאפ</th></tr></thead>
+    <tbody>
+      <tr><td>להכניס טרייד בדיבור</td><td class="c">מצוין</td><td class="c">טוב</td><td class="c">מצוין</td><td class="c">טוב</td><td class="c">מצוין</td></tr>
+      <tr><td>לראות מי חייב למי</td><td class="c">חלש</td><td class="c">מצוין</td><td class="c">בינוני</td><td class="c">טוב</td><td class="c">בינוני</td></tr>
+      <tr><td>לשלוח לניר חשבון</td><td class="c">טוב</td><td class="c">מצוין</td><td class="c">טוב</td><td class="c">טוב</td><td class="c">מצוין</td></tr>
+      <tr><td>סגירת משחקים בסוף שבוע</td><td class="c">טוב</td><td class="c">בינוני</td><td class="c">טוב</td><td class="c">מצוין</td><td class="c">טוב</td></tr>
+      <tr><td>הסיכוי שישתמש כל יום</td><td class="c">בינוני</td><td class="c">טוב</td><td class="c">בינוני</td><td class="c">בינוני</td><td class="c">גבוה</td></tr>
+      <tr><td>כמה עבודה לבנות</td><td class="c">בינוני</td><td class="c">בינוני</td><td class="c">בינוני</td><td class="c">גבוה</td><td class="c">בינוני, ותלוי בוואטסאפ</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout g">
+    <h2 style="font-size:20px">ההמלצה שלי: 5 + 2</h2>
+    <p><b>להכניס בוואטסאפ, להסתכל באפליקציה.</b> מני שולח הודעות קוליות לבוט, מקבל סיכום ומאשר בכפתור. כשהוא רוצה לראות את המצב, הוא פותח את "ספר האנשים": רשימת אנשים עם יתרות, הדף של ניר עם ציר הזמן וכפתור "שלח חשבון", ולשונית משחקים לסגירת שבוע. הדשבורד הקיים נשאר כמו שהוא, כמבט רחב.</p>
+    <p>שני הדברים חולקים את אותו מוח: אותו פענוח שמחלק הקלטה אחת לכמה טריידרים, ואותו שלב אישור לפני שמירה.</p>
+  </div>
+</section>
+
+<section class="opt" id="split">
+  <h2>איך הקלטה אחת מתחלקת לכמה טריידרים</h2>
+  <div class="flow">
+    <div class="st"><b>1. דיבור</b><span>הודעה קולית בוואטסאפ או מיקרופון באפליקציה</span></div>
+    <div class="st"><b>2. תמלול</b><span>עברית ואנגלית מעורבבות, שמות ומספרים</span></div>
+    <div class="st"><b>3. פירוק</b><span>כל משפט לפעולה: מי, מה, כמה, מטבע, אמצעי תשלום</span></div>
+    <div class="st"><b>4. התאמת שמות</b><span>"ניר" מול רשימת האנשים שלו. שם לא מוכר נשאל, לא מנוחש</span></div>
+    <div class="st"><b>5. אישור</b><span>כרטיס לכל אדם עם היתרה לפני ואחרי. ספק מסומן</span></div>
+    <div class="st"><b>6. שמירה + ביטול</b><span>נכנס לספר, ואפשר לבטל</span></div>
+  </div>
+  <div class="notes" id="wa-route">
+    <div class="note"><h3>וואטסאפ: איך זה מתחבר</h3><div id="wa-body" style="display:flex;flex-direction:column;gap:6px">
+      <p><b>דרך א - רשמית (<span class="ltr">WhatsApp Business Platform</span>):</b> מספר נפרד לבוט, עם כפתורים אמיתיים. ההגבלה היא עד 3 כפתורים בהודעה, ועד 20 תווים בכל כפתור. מאז <span class="ltr">1.10.2026</span> תשובות בתוך 24 שעות עולות כסף, אבל 1,000 הראשונות בכל חודש חינם. בהיקף של מני זה כנראה <b>₪0</b>. צריך אימות עסק אצל <span class="ltr">Meta</span>.</p>
+      <p><b>דרך ב - המאזין שכבר רץ אצלך:</b> מספר וירטואלי מחובר, כמו מאזין הוואטסאפ של <span class="ltr">GameYield</span>. זה חינם ואפשר להתחיל מחר, אבל אין כפתורים, עונים במילים "כן" או "תקן". יש גם סיכון שהמספר ייחסם, כי זה לא ערוץ רשמי.</p>
+      <p><b>החשבון לניר נשלח מהוואטסאפ של מני עצמו:</b> לחיצה פותחת את השיחה עם ניר, וההודעה כבר כתובה. זה לא עולה כלום, וניר רואה את ההודעה מגיעה ממני.</p>
+    </div></div>
+    <div class="note"><h3>מה אני צריך ממך כדי להתקדם</h3><ul><li>לבחור כיוון (או שילוב)</li><li>להחליט: מספר בוט רשמי או המאזין הקיים</li><li>לאשר שמני יחובר כמשתמש (הוא כבר לא בתוך הארגון שלך)</li></ul></div>
+  </div>
+</section>
+
+</div>
