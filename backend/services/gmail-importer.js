@@ -237,27 +237,55 @@ function parseFootballTicketNet(subject, body) {
     // FTN order IDs gained a "TK-" prefix in Aug 2026 ("Order TK-811201938 - ...").
     // The same redesign also dropped the whitespace between a table label and its value
     // ("Order IDTK-811201938Event Name…"), so every label regex below tolerates \s*.
+    // ── Case 0: "<id>  Your order has been approved" (pre-Aug-2026 noreply@ format) ──
+    // Body: "Order ID: 1614509 Category: Longside Upper Level Ticket Type: ... Event: Arsenal vs Fulham
+    // Venue: ... Date: 02/05/2026 17:30:00 ... Block: 117 - Reihe: LOWROW; Seats: 55| ...
+    // Number of Tickets: 2 Price per Ticket: 189.00GBP Total Proceeds: 378.00GBP"
+    // "...marked as provisional sale" emails for the same order are NOT sales - never matched here.
+    const apprMatch = subject.match(/^\s*((?:TK-)?\d{5,10})\s+Your order has been approved/i);
+    if (apprMatch) {
+      const order_number = apprMatch[1];
+      const evM  = body.match(/Event:\s*(.+?)\s+Venue:/i);
+      const dtM  = body.match(/\bDate:\s*(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/i);
+      const qtyM = body.match(/Number of Tickets:\s*(\d+)/i);
+      const totM = body.match(/Total Proceeds:\s*([\d,]+\.?\d{0,2})\s*(GBP|EUR)/i);
+      const catM = body.match(/Category:\s*(.+?)\s+Ticket Type:/i);
+      const rowM = body.match(/Block:\s*([^\s-]+)\s*-\s*(?:Row|Reihe):\s*([^;|]+?)\s*;\s*Seats?:\s*([^|]+?)\s*\|/i);
+      if (!evM || !totM) { console.log('[FTN] approved email missing event/total:', subject); return results; }
+      const { game_date, game_datetime } = dtM ? parseFtnDate(dtM[1], dtM[2], dtM[3], dtM[4], dtM[5]) : { game_date: null, game_datetime: null };
+      results.push({
+        game_name: normalizeGameName(evM[1].trim() + (game_datetime ? ` | ${game_datetime}` : ''), db),
+        order_number, buyer_name: null, buyer_email: null,
+        ticket_quantity: qtyM ? parseInt(qtyM[1]) : 1,
+        category: catM ? catM[1].trim() : null,
+        row_seat: rowM ? `Block ${rowM[1]} | Row ${rowM[2].trim()} | Seats ${rowM[3].trim()}` : null,
+        total_amount: parseFloat(totM[1].replace(/,/g, '')), currency: totM[2].toUpperCase(),
+        sales_channel: 'FootballTicketNet', game_date, game_datetime,
+      });
+      return results;
+    }
+
     const saleMatch = subject.match(/Order\s+((?:TK-)?\d{5,10})\s+-\s+(.+)$/i);
     if (saleMatch) {
       const order_number  = saleMatch[1];
       const game_name_raw = saleMatch[2].trim();
 
       // Event Date: "Event Date  04/04/2026 12:45"
-      const dtM = body.match(/Event Date\s*(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/i)
+      const dtM = body.match(/Event Date[\s|]*(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/i)
         || body.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
       const { game_date, game_datetime } = dtM
         ? parseFtnDate(dtM[1], dtM[2], dtM[3], dtM[4], dtM[5])
         : { game_date: null, game_datetime: null };
 
       // Ticket Quantity: "Ticket Quantity  2"
-      const qtyM = body.match(/Ticket Quantity\s*(\d+)/i)
+      const qtyM = body.match(/Ticket Quantity[\s|]*(\d+)/i)
         || body.match(/Quantity[:\s]*(\d+)/i);
       const ticket_quantity = qtyM ? parseInt(qtyM[1]) : 1;
 
       // Category: "Category  Longside Lower Level  Split Type..."
       // No \b before "Category": the redesigned table glues it to the previous value
       // ("Ticket Quantity2Category…"), and digit→C is not a word boundary.
-      const catM = body.match(/Category\s*([A-Za-z][A-Za-z\s0-9]+?)(?=\s*(?:Split|Shipping|Fan Side|Extra|Price|$))/i)
+      const catM = body.match(/Category[\s|]*([A-Za-z][A-Za-z\s0-9]+?)(?=[\s|]*(?:Split|Shipping|Fan Side|Extra|Price|$))/i)
         || body.match(/([A-Za-z][A-Za-z\s0-9]*?(?:Level|Lower|Upper|Longside|Shortside|Side|Stand|Block|Tier)[A-Za-z\s0-9]*)/i);
       const category = catM ? catM[1].trim() : null;
 
@@ -268,16 +296,18 @@ function parseFootballTicketNet(subject, body) {
         : null;
 
       // Total Price: "Total Price  GBP 176.00" (GBP before the number)
-      const totalM = body.match(/Total Price\s*(?:GBP|EUR|€|£)\s*([\d,]+\.?\d{0,2})/i)
-        || body.match(/(?:GBP|EUR|€|£)\s*([\d,]+\.?\d{0,2})/i);
-      const total_amount = totalM ? parseFloat(totalM[1].replace(/,/g, '')) : 0;
+      // No loose "first GBP amount" fallback: that is Price Per Ticket, wrong whenever qty > 1.
+      const totalM = body.match(/Total Price[\s|]*(GBP|EUR|€|£)\s*([\d,]+\.?\d{0,2})/i);
+      if (!totalM) { console.log('[FTN] no Total Price in:', subject); return results; }
+      const total_amount = parseFloat(totalM[2].replace(/,/g, ''));
+      const currency = /GBP|£/i.test(totalM[1]) ? 'GBP' : 'EUR';
 
       const game_name_with_dt = game_name_raw + (game_datetime ? ` | ${game_datetime}` : '');
       const game_name = normalizeGameName(game_name_with_dt, db);
 
       results.push({
         game_name, order_number, buyer_name: null, buyer_email: null,
-        ticket_quantity, category, row_seat, total_amount,
+        ticket_quantity, category, row_seat, total_amount, currency,
         sales_channel: 'FootballTicketNet', game_date, game_datetime,
       });
       return results;
@@ -314,6 +344,7 @@ function parseFootballTicketNet(subject, body) {
         category: category.trim(),
         row_seat: null,
         total_amount,
+        currency: 'GBP',
         sales_channel: 'FootballTicketNet',
         game_date,
         game_datetime,
@@ -416,19 +447,22 @@ async function checkEmailsAndImport(options = {}) {
   const futureOnly  = !!options.futureOnly;
   const soldAtOnly  = !!options.soldAtOnly; // backfill sold_at over ALL mail; inserts nothing
   const ignoreRead  = !!options.ignoreRead || soldAtOnly; // when true, ignore the watermark and search ALL mail
+  // One-off catch-up window ("YYYY/MM/DD"): scans from that date, never moves the watermark.
+  const afterOverride = /^\d{4}\/\d{2}\/\d{2}$/.test(options.after || "") ? options.after : null;
   const today = new Date(); today.setHours(0, 0, 0, 0);
 
   const auth   = getOAuth2Client();
   const gmail  = google.gmail({ version: 'v1', auth });
   const stats  = { checked: 0, imported: 0, skipped: 0, soldAtSet: 0, errors: [] };
   const importedOrders = [];
+  let gbpRate = null;
 
   try {
     // Determine the "after:" date using a persistent watermark stored in the settings table.
     // This ensures each run only checks emails since the last successful run — no re-scanning old mail.
     // ignoreRead=true (manual override) bypasses the watermark and searches all mail.
     let afterDate = null;
-    if (!ignoreRead) {
+    if (!ignoreRead && !afterOverride) {
       const wmRow = db.prepare("SELECT value FROM settings WHERE key='gmail_last_checked_at'").get();
       // Overlap window: the watermark is only a floor for how far back to look, never a
       // promise that everything before it was imported. Re-scanning a few days costs one
@@ -441,7 +475,7 @@ async function checkEmailsAndImport(options = {}) {
     // NOTE: deliberately NOT filtering on is:unread. Omri (and Gmail filters) read/archive
     // these emails on the phone long before the 08:00 cron runs, and an unread filter made
     // every such sale invisible to the importer forever. orderExists() is the dedup guard.
-    const dateFilter = (ignoreRead || !afterDate) ? '' : ` after:${afterDate}`;
+    const dateFilter = afterOverride ? ` after:${afterOverride}` : (ignoreRead || !afterDate) ? '' : ` after:${afterDate}`;
     const queries = [
       `from:stubhub subject:"You sold your ticket"${dateFilter}`,
       `from:footballticketnet${dateFilter}`,
@@ -533,6 +567,14 @@ async function checkEmailsAndImport(options = {}) {
             if (setSoldAt(parsed.order_number, soldAt)) stats.soldAtSet++;
             stats.skipped++;
           } else {
+            // DB is EUR everywhere (StubHub pays EUR). FTN pays GBP: convert at today's BOI rate.
+            // No rate = skip, not guess - the order stays absent so the next run retries it.
+            if (parsed.currency === 'GBP') {
+              try { gbpRate = gbpRate || await require('../utils/fx').eurPerGbp(); }
+              catch (e) { stats.errors.push(`No GBP rate, skipped ${parsed.order_number}: ${e.message}`); stats.skipped++; continue; }
+              parsed.notes = `FTN GBP ${parsed.total_amount.toFixed(2)} @ ${gbpRate.toFixed(4)}`;
+              parsed.total_amount = Math.round(parsed.total_amount * gbpRate * 100) / 100;
+            }
             const newId = insertOrder(parsed);
             console.log(`[Gmail] Imported order ${parsed.order_number} → id=${newId}`);
             stats.imported++;
@@ -557,7 +599,7 @@ async function checkEmailsAndImport(options = {}) {
     console.log(`[Gmail] Done: checked=${stats.checked}, imported=${stats.imported}, skipped=${stats.skipped}`);
 
     // Update watermark to today so the next run only checks emails after today
-    if (!ignoreRead) {
+    if (!ignoreRead && !afterOverride) {
       const now = new Date();
       const todayStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`;
       db.prepare("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('gmail_last_checked_at', ?, CURRENT_TIMESTAMP)").run(todayStr);
